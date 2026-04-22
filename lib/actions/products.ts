@@ -27,6 +27,7 @@ export async function upsertProduct(params: {
   description?: string
   is_active: boolean
   image_url?: string | null
+  serial_required?: boolean
 }): Promise<{ id: string }> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
@@ -48,6 +49,7 @@ export async function upsertProduct(params: {
     selling_price: params.selling_price,
     description: params.description || null,
     is_active: params.is_active,
+    serial_required: params.serial_required ?? false,
     ...(params.image_url !== undefined && { image_url: params.image_url }),
   }
 

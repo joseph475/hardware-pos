@@ -37,6 +37,7 @@ const productSchema = z.object({
   selling_price: z.string().refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, "Must be 0 or greater"),
   description: z.string().optional(),
   is_active: z.boolean(),
+  serial_required: z.boolean(),
   opening_stock_qty: z.string().optional(),
   opening_stock_branch_id: z.string().optional(),
 });
@@ -53,6 +54,7 @@ export interface ProductSaveValues {
   selling_price: number;
   description?: string;
   is_active: boolean;
+  serial_required: boolean;
   opening_stock_qty?: number;
   opening_stock_branch_id?: string;
   image_url?: string | null;
@@ -103,6 +105,7 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
       selling_price: String(product?.selling_price ?? "0"),
       description: product?.description ?? "",
       is_active: product?.is_active ?? true,
+      serial_required: product?.serial_required ?? false,
       opening_stock_qty: "",
       opening_stock_branch_id: "",
     },
@@ -120,6 +123,7 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
         selling_price: String(product?.selling_price ?? "0"),
         description: product?.description ?? "",
         is_active: product?.is_active ?? true,
+        serial_required: product?.serial_required ?? false,
         opening_stock_qty: "",
         opening_stock_branch_id: "",
       });
@@ -155,6 +159,7 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
       ...values,
       cost_price: parseFloat(values.cost_price),
       selling_price: parseFloat(values.selling_price),
+      serial_required: values.serial_required,
       opening_stock_qty: qty > 0 ? qty : undefined,
       opening_stock_branch_id: qty > 0 ? values.opening_stock_branch_id : undefined,
       image_url: imageUrl ?? undefined,
@@ -434,6 +439,20 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
                 <Switch
                   checked={isActive}
                   onCheckedChange={(checked) => setValue("is_active", checked)}
+                />
+              </div>
+
+              {/* Serial Required Toggle */}
+              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Serial Required</Label>
+                  <p className="text-[0.8rem] text-muted-foreground">
+                    Require serial number entry at point of sale
+                  </p>
+                </div>
+                <Switch
+                  checked={watch("serial_required")}
+                  onCheckedChange={(checked) => setValue("serial_required", checked)}
                 />
               </div>
             </div>

@@ -19,6 +19,7 @@ export interface TxItem {
   quantity: number
   unit_price: number
   discount_amount: number
+  serials?: string[]
 }
 
 async function getProfile() {
@@ -33,9 +34,24 @@ async function getProfile() {
     .single()
 
   if (error || !profile) throw new Error('Profile not found')
-  if (!profile.branch_id) throw new Error('No branch assigned to your account')
 
-  return profile as { id: string; branch_id: string; role: string }
+  let branchId = profile.branch_id
+
+  // Owners are not tied to a branch — fall back to the first active branch
+  if (!branchId && profile.role === 'owner') {
+    const { data: branch } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('is_active', true)
+      .order('created_at')
+      .limit(1)
+      .single()
+    branchId = branch?.id ?? null
+  }
+
+  if (!branchId) throw new Error('No branch assigned to your account')
+
+  return { id: profile.id, branch_id: branchId, role: profile.role } as { id: string; branch_id: string; role: string }
 }
 
 export async function createTransaction(params: {
@@ -45,6 +61,7 @@ export async function createTransaction(params: {
   tax_amount: number
   total: number
   payment_method: 'cash' | 'card' | 'split' | 'gcash' | 'maya'
+  customer_id?: string | null
   notes?: string
 }): Promise<{ id: string }> {
   const profile = await getProfile()
@@ -74,6 +91,7 @@ export async function createTransaction(params: {
     .insert({
       branch_id: profile.branch_id,
       cashier_id: profile.id,
+      customer_id: params.customer_id ?? null,
       subtotal: params.subtotal,
       discount_amount: params.discount_amount,
       tax_amount: params.tax_amount,
@@ -96,6 +114,7 @@ export async function createTransaction(params: {
       unit_price: item.unit_price,
       discount_amount: item.discount_amount,
       total: item.unit_price * item.quantity - item.discount_amount,
+      serials: item.serials ?? [],
     }))
   )
   if (itemsError) throw new Error(itemsError.message)
