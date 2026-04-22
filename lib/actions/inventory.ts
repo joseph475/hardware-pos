@@ -148,6 +148,7 @@ export type POSProduct = {
   selling_price: number
   image_url: string | null
   is_active: boolean
+  serial_required: boolean
   created_at: string
   updated_at: string
   stock: number
@@ -192,6 +193,7 @@ const getPOSProductsCached = unstable_cache(
         selling_price: p.selling_price,
         image_url: p.image_url,
         is_active: p.is_active,
+        serial_required: p.serial_required,
         created_at: p.created_at,
         updated_at: p.updated_at,
         stock,

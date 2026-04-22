@@ -30,7 +30,7 @@ export default async function QuotationsPage() {
   const supabase = getAdminClient()
 
   const [quotations, customersResult, branchesResult, productsResult] = await Promise.all([
-    getQuotations(),
+    getQuotations(userRole !== 'owner' && userBranchId ? { branchId: userBranchId } : undefined),
     supabase
       .from('customers')
       .select('id, name, company_name')
@@ -45,7 +45,7 @@ export default async function QuotationsPage() {
       .order('name'),
     supabase
       .from('products')
-      .select('id, name, sku, selling_price')
+      .select('id, name, sku, selling_price, serial_required, image_url')
       .eq('org_id', '00000000-0000-0000-0000-000000000001')
       .eq('is_active', true)
       .order('name'),
@@ -67,6 +67,8 @@ export default async function QuotationsPage() {
     name: string
     sku: string
     selling_price: number
+    serial_required: boolean
+    image_url: string | null
   }>
 
   return (

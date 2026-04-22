@@ -198,6 +198,7 @@ export type Database = {
           selling_price: number;
           image_url: string | null;
           is_active: boolean;
+          serial_required: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -214,6 +215,7 @@ export type Database = {
           selling_price: number;
           image_url?: string | null;
           is_active?: boolean;
+          serial_required?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -230,6 +232,7 @@ export type Database = {
           selling_price?: number;
           image_url?: string | null;
           is_active?: boolean;
+          serial_required?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -560,6 +563,7 @@ export type Database = {
           unit_price: number;
           discount_amount: number;
           total: number;
+          serials: string[];
         };
         Insert: {
           id?: string;
@@ -570,6 +574,7 @@ export type Database = {
           unit_price: number;
           discount_amount?: number;
           total: number;
+          serials?: string[];
         };
         Update: {
           id?: string;
@@ -580,6 +585,7 @@ export type Database = {
           unit_price?: number;
           discount_amount?: number;
           total?: number;
+          serials?: string[];
         };
         Relationships: [];
       };
