@@ -7,6 +7,7 @@ interface CartItem {
   unit_price: number;
   discount_amount: number; // flat amount (computed)
   discount_pct: number;    // percentage 0-100 (source of truth)
+  serials: string[];       // one slot per unit, empty string = unfilled
 }
 
 interface CartStore {
@@ -17,6 +18,7 @@ interface CartStore {
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   updateItemDiscount: (productId: string, pct: number) => void;
+  updateItemSerials: (productId: string, serials: string[]) => void;
   setDiscount: (discount: number) => void;
   setTaxRate: (rate: number) => void;
   clearCart: () => void;
@@ -26,6 +28,7 @@ interface CartStore {
   totalDiscount: () => number;
   tax: () => number;
   total: () => number;
+  isReadyToCharge: () => boolean;
 }
 
 export const useCartStore = create<CartStore>((set, get) => ({
@@ -42,7 +45,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
           if (i.product.id !== product.id) return i;
           const quantity = i.quantity + 1;
           const discount_amount = i.unit_price * quantity * (i.discount_pct / 100);
-          return { ...i, quantity, discount_amount };
+          const serials = i.product.serial_required
+            ? [...i.serials, ""]
+            : i.serials;
+          return { ...i, quantity, discount_amount, serials };
         }),
       });
     } else {
@@ -55,6 +61,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
             unit_price: product.selling_price,
             discount_amount: 0,
             discount_pct: 0,
+            serials: product.serial_required ? [""] : [],
           },
         ],
       });
@@ -73,7 +80,15 @@ export const useCartStore = create<CartStore>((set, get) => ({
       items: get().items.map((i) => {
         if (i.product.id !== productId) return i;
         const discount_amount = i.unit_price * quantity * (i.discount_pct / 100);
-        return { ...i, quantity, discount_amount };
+        let serials = i.serials;
+        if (i.product.serial_required) {
+          if (quantity > i.quantity) {
+            serials = [...i.serials, ...Array(quantity - i.quantity).fill("")];
+          } else {
+            serials = i.serials.slice(0, quantity);
+          }
+        }
+        return { ...i, quantity, discount_amount, serials };
       }),
     });
   },
@@ -88,6 +103,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
       }),
     }),
 
+  updateItemSerials: (productId, serials) =>
+    set({
+      items: get().items.map((i) =>
+        i.product.id === productId ? { ...i, serials } : i
+      ),
+    }),
+
   setDiscount: (discount) => set({ discount }),
 
   setTaxRate: (rate) => set({ taxRate: rate }),
@@ -98,11 +120,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({
       discount: 0,
       items: heldItems.map((item) => ({
-        product: { id: item.product_id, name: item.product_name } as Product,
+        product: { id: item.product_id, name: item.product_name, serial_required: false } as Product,
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount_amount: item.discount_amount,
         discount_pct: 0,
+        serials: [],
       })),
     }),
 
@@ -121,4 +144,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
   tax: () => (get().subtotal() - get().totalDiscount()) * get().taxRate,
 
   total: () => get().subtotal() - get().totalDiscount() + get().tax(),
+
+  isReadyToCharge: () =>
+    get().items.every(
+      (i) =>
+        !i.product.serial_required ||
+        (i.serials.length >= i.quantity && i.serials.every((s) => s !== ""))
+    ),
 }));
