@@ -23,6 +23,9 @@ import {
 } from "@/components/ui/select";
 import type { Product, Category, Branch } from "@/types/database";
 import { useCurrency } from "@/lib/context/currency";
+import { ImageIcon } from "lucide-react";
+import { toast } from "sonner";
+import { uploadProductImage } from "@/lib/actions/upload";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -52,6 +55,7 @@ export interface ProductSaveValues {
   is_active: boolean;
   opening_stock_qty?: number;
   opening_stock_branch_id?: string;
+  image_url?: string | null;
 }
 
 const UNITS = ["each", "kg", "g", "liter", "ml", "dozen", "pack", "box", "bottle", "can"];
@@ -69,6 +73,9 @@ interface ProductDialogProps {
 export function ProductDialog({ product, trigger, categories, branches = [], onSave, open: controlledOpen, onOpenChange }: ProductDialogProps) {
   const isEdit = !!product;
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [imageUrl, setImageUrl] = React.useState<string | null>(product?.image_url ?? null);
+  const [uploading, setUploading] = React.useState(false);
   const { currencyCode, locale } = useCurrency();
   const currencySymbol = new Intl.NumberFormat(locale, { style: "currency", currency: currencyCode })
     .formatToParts(0)
@@ -116,12 +123,31 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
         opening_stock_qty: "",
         opening_stock_branch_id: "",
       });
+      setImageUrl(product?.image_url ?? null);
     }
   }, [open, product, reset]);
 
   const isActive = watch("is_active");
 
   const openingBranchId = watch("opening_stock_branch_id");
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const url = await uploadProductImage(fd);
+      setImageUrl(url);
+      toast.success("Image uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   function onSubmit(values: ProductFormValues) {
     const qty = parseFloat(values.opening_stock_qty ?? "") || 0;
@@ -131,6 +157,7 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
       selling_price: parseFloat(values.selling_price),
       opening_stock_qty: qty > 0 ? qty : undefined,
       opening_stock_branch_id: qty > 0 ? values.opening_stock_branch_id : undefined,
+      image_url: imageUrl ?? undefined,
     });
     setOpen(false);
   }
@@ -305,6 +332,52 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
                   rows={3}
                   {...register("description")}
                 />
+              </div>
+
+              {/* Product Image */}
+              <div className="space-y-1.5">
+                <Label>Product Image</Label>
+                <div className="flex items-center gap-3">
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt="Product"
+                      className="h-16 w-16 rounded-lg object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-lg border border-dashed border-border bg-muted flex items-center justify-center">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? "Uploading…" : imageUrl ? "Change Image" : "Upload Image"}
+                    </Button>
+                    {imageUrl && (
+                      <button
+                        type="button"
+                        className="text-xs text-destructive text-left"
+                        onClick={() => setImageUrl(null)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Optional. Max 5 MB.</p>
               </div>
 
               {/* Opening Stock (add mode only) */}

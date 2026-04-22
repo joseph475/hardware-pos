@@ -118,6 +118,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      customers: {
+        Row: {
+          id: string;
+          org_id: string;
+          name: string;
+          email: string | null;
+          phone: string | null;
+          address: string | null;
+          company_name: string | null;
+          tax_id: string | null;
+          notes: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          name: string;
+          email?: string | null;
+          phone?: string | null;
+          address?: string | null;
+          company_name?: string | null;
+          tax_id?: string | null;
+          notes?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          name?: string;
+          email?: string | null;
+          phone?: string | null;
+          address?: string | null;
+          company_name?: string | null;
+          tax_id?: string | null;
+          notes?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           id: string;
@@ -364,11 +409,99 @@ export type Database = {
         };
         Relationships: [];
       };
+      quotation_items: {
+        Row: {
+          id: string;
+          quotation_id: string;
+          product_id: string;
+          product_name: string;
+          quantity: number;
+          unit_price: number;
+          discount_amount: number;
+          total: number;
+        };
+        Insert: {
+          id?: string;
+          quotation_id: string;
+          product_id: string;
+          product_name: string;
+          quantity: number;
+          unit_price: number;
+          discount_amount?: number;
+          total: number;
+        };
+        Update: {
+          id?: string;
+          quotation_id?: string;
+          product_id?: string;
+          product_name?: string;
+          quantity?: number;
+          unit_price?: number;
+          discount_amount?: number;
+          total?: number;
+        };
+        Relationships: [];
+      };
+      quotations: {
+        Row: {
+          id: string;
+          org_id: string;
+          customer_id: string;
+          branch_id: string;
+          created_by: string;
+          status: "draft" | "sent" | "accepted" | "rejected" | "expired" | "converted";
+          valid_until: string | null;
+          subtotal: number;
+          discount_amount: number;
+          tax_amount: number;
+          total: number;
+          notes: string | null;
+          transaction_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          customer_id: string;
+          branch_id: string;
+          created_by: string;
+          status?: "draft" | "sent" | "accepted" | "rejected" | "expired" | "converted";
+          valid_until?: string | null;
+          subtotal?: number;
+          discount_amount?: number;
+          tax_amount?: number;
+          total?: number;
+          notes?: string | null;
+          transaction_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          customer_id?: string;
+          branch_id?: string;
+          created_by?: string;
+          status?: "draft" | "sent" | "accepted" | "rejected" | "expired" | "converted";
+          valid_until?: string | null;
+          subtotal?: number;
+          discount_amount?: number;
+          tax_amount?: number;
+          total?: number;
+          notes?: string | null;
+          transaction_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       transactions: {
         Row: {
           id: string;
           branch_id: string;
           cashier_id: string;
+          customer_id: string | null;
           subtotal: number;
           discount_amount: number;
           tax_amount: number;
@@ -385,6 +518,7 @@ export type Database = {
           id?: string;
           branch_id: string;
           cashier_id: string;
+          customer_id?: string | null;
           subtotal: number;
           discount_amount?: number;
           tax_amount?: number;
@@ -401,6 +535,7 @@ export type Database = {
           id?: string;
           branch_id?: string;
           cashier_id?: string;
+          customer_id?: string | null;
           subtotal?: number;
           discount_amount?: number;
           tax_amount?: number;
@@ -545,3 +680,8 @@ export type StockTransfer =
   Database["public"]["Tables"]["stock_transfers"]["Row"];
 export type StockTransferItem =
   Database["public"]["Tables"]["stock_transfer_items"]["Row"];
+export type Customer = Database["public"]["Tables"]["customers"]["Row"];
+export type Quotation = Database["public"]["Tables"]["quotations"]["Row"];
+export type QuotationItem =
+  Database["public"]["Tables"]["quotation_items"]["Row"];
+export type QuotationStatus = Quotation["status"];

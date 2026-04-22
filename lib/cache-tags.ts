@@ -8,4 +8,6 @@ export const CACHE_TAGS = {
   PURCHASE_ORDERS: 'purchase-orders',
   USERS: 'users',
   ORG_SETTINGS: 'org-settings',
+  CUSTOMERS: 'customers',
+  QUOTATIONS: 'quotations',
 } as const

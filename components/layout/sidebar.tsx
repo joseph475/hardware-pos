@@ -21,6 +21,8 @@ import {
   Settings2,
   History,
   FileBarChart2,
+  FileText,
+  Users2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -65,6 +67,17 @@ const NAV_ENTRIES: NavEntry[] = [
     href: "/pos",
     icon: ShoppingCart,
     roles: ["owner", "manager", "cashier"],
+  },
+  {
+    type: "section",
+    label: "Sales",
+    icon: FileText,
+    defaultOpen: false,
+    roles: ["owner", "manager"],
+    items: [
+      { label: "Customers", href: "/customers", icon: Users2 },
+      { label: "Quotations", href: "/quotations", icon: ClipboardList },
+    ],
   },
   {
     type: "section",
@@ -236,7 +249,7 @@ export function SidebarNav({ className, onNavigate }: SidebarNavProps) {
   const role = profile?.role ?? null;
 
   // Sections hidden from cashiers
-  const CASHIER_HIDDEN_SECTIONS = ["Settings", "Purchasing"];
+  const CASHIER_HIDDEN_SECTIONS = ["Settings", "Purchasing", "Sales"];
 
   return (
     <div className={cn("flex h-full flex-col", className)}>
