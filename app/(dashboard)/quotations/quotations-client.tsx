@@ -70,8 +70,6 @@ export function QuotationsClient({
   customers,
   branches: _branches,
   products,
-  userRole,
-  userBranchId,
 }: Props) {
   const router = useRouter()
   const { formatCurrency } = useCurrency()
@@ -133,10 +131,6 @@ export function QuotationsClient({
       toast.error(err instanceof Error ? err.message : 'Failed to delete quotation')
     }
   }
-
-  // Suppress unused-var warnings for props kept for parent compat
-  void userRole
-  void userBranchId
 
   return (
     <div className="p-6 space-y-5">
@@ -342,7 +336,7 @@ export function QuotationsClient({
         customers={customers.map((c) => ({ ...c, email: null, phone: null, is_active: true }))}
         onConfirm={(id) => {
           setCustomerStepOpen(false)
-          router.push(`/quotations/new?customer_id=${id}`)
+          if (id) router.push(`/quotations/new?customer_id=${id}`)
         }}
       />
 
