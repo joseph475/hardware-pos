@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { CheckCircle2, QrCode, Timer } from "lucide-react"
+import { CheckCircle2, QrCode, Timer, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,6 +27,8 @@ interface PaymentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   paymentMethod: PaymentMethod
+  customerId?: string | null
+  customerName?: string | null
   gcashQrUrl?: string | null
   mayaQrUrl?: string | null
   receiptHeader?: string | null
@@ -44,6 +46,8 @@ export function PaymentDialog({
   open,
   onOpenChange,
   paymentMethod,
+  customerId,
+  customerName,
   gcashQrUrl,
   mayaQrUrl,
   receiptHeader,
@@ -123,12 +127,14 @@ export function PaymentDialog({
           quantity: i.quantity,
           unit_price: i.unit_price,
           discount_amount: i.discount_amount,
+          serials: i.serials,
         })),
         subtotal: orderSubtotal,
         discount_amount: orderDiscount,
         tax_amount: orderTax,
         total: orderTotal,
         payment_method: paymentMethod,
+        customer_id: customerId ?? null,
       })
 
       // Capture receipt data before clearing cart
@@ -219,6 +225,12 @@ export function PaymentDialog({
             </span>
             <span className="font-medium">{paymentMethodLabel(paymentMethod)}</span>
           </div>
+          {customerName && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <User className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{customerName}</span>
+            </div>
+          )}
           <Separator className="my-2" />
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
