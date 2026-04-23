@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Item Selection UI — Approaches</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f10; color: #e8e8ea; min-height: 100vh; padding: 32px 24px; }
+
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; color: #fff; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 32px; }
+
+  .approaches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+
+  .approach {
+    background: #1a1a1f;
+    border: 2px solid #2a2a32;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .approach:hover { border-color: #4a4a6a; }
+  .approach.selected { border-color: #7c6ff7; box-shadow: 0 0 0 1px #7c6ff740; }
+
+  .approach-header {
+    padding: 16px 18px 12px;
+    background: #16161c;
+    border-bottom: 1px solid #2a2a32;
+  }
+  .approach-header .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .badge.simple { background: #1e3a2a; color: #4ade80; }
+  .badge.recommended { background: #2a1e3a; color: #a78bfa; }
+  .badge.advanced { background: #3a2a1e; color: #fb923c; }
+
+  .approach-header h3 { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .approach-header p { font-size: 12px; color: #888; line-height: 1.4; }
+
+  .mockup-area { padding: 16px 18px; }
+
+  /* === APPROACH A: Inline Combobox === */
+  .combo-wrap { position: relative; margin-bottom: 10px; }
+  .combo-input {
+    width: 100%;
+    background: #0f0f14;
+    border: 1px solid #3a3a48;
+    border-radius: 7px;
+    padding: 8px 32px 8px 10px;
+    font-size: 13px;
+    color: #e8e8ea;
+    cursor: text;
+  }
+  .combo-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #666; font-size: 11px; }
+  .combo-dropdown {
+    background: #1e1e26;
+    border: 1px solid #3a3a48;
+    border-radius: 7px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .combo-search {
+    padding: 8px 10px;
+    border-bottom: 1px solid #2a2a36;
+    font-size: 12px;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .combo-item {
+    padding: 8px 10px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .combo-item:hover, .combo-item.active { background: #2a2a36; }
+  .combo-item .item-name { color: #e8e8ea; }
+  .combo-item .item-sku { color: #666; font-size: 11px; }
+  .combo-item .item-price { color: #7c6ff7; font-size: 11px; font-weight: 600; }
+  .combo-item.active .item-name { color: #a78bfa; }
+  .combo-more { padding: 7px 10px; font-size: 11px; color: #666; text-align: center; border-top: 1px solid #2a2a36; }
+
+  /* === APPROACH B: Product Picker Sheet === */
+  .sheet-trigger {
+    width: 100%;
+    background: #1e1e26;
+    border: 1.5px dashed #3a3a58;
+    border-radius: 7px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #888;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .sheet-trigger .icon { color: #7c6ff7; font-size: 14px; }
+  .sheet-mockup {
+    background: #12121a;
+    border: 1px solid #2a2a38;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 11px;
+  }
+  .sheet-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a2a38;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sheet-header span { font-weight: 600; font-size: 12px; color: #fff; }
+  .sheet-header .close { color: #666; font-size: 10px; }
+  .sheet-search {
+    padding: 8px 10px;
+    border-bottom: 1px solid #2a2a38;
+    display: flex;
+    gap: 6px;
+  }
+  .sheet-search input {
+    flex: 1;
+    background: #1e1e26;
+    border: 1px solid #3a3a48;
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 11px;
+    color: #e8e8ea;
+  }
+  .sheet-filters {
+    padding: 6px 10px;
+    border-bottom: 1px solid #1e1e26;
+    display: flex;
+    gap: 5px;
+  }
+  .filter-chip {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    background: #2a2a36;
+    color: #aaa;
+    cursor: pointer;
+  }
+  .filter-chip.active { background: #3d2f7a; color: #a78bfa; }
+  .sheet-table {}
+  .sheet-row {
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e1e26;
+    cursor: pointer;
+  }
+  .sheet-row:hover { background: #1e1e2a; }
+  .sheet-row .r-name { font-size: 11px; color: #e8e8ea; }
+  .sheet-row .r-sku { font-size: 10px; color: #555; margin-top: 1px; }
+  .sheet-row .r-price { font-size: 11px; color: #7c6ff7; font-weight: 600; }
+  .sheet-row .r-add {
+    font-size: 10px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: #2a2a3e;
+    color: #a78bfa;
+    cursor: pointer;
+  }
+  .sheet-footer {
+    padding: 8px 10px;
+    background: #16161e;
+    border-top: 1px solid #2a2a38;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sheet-footer .count { font-size: 10px; color: #666; }
+  .sheet-footer .add-btn {
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    background: #7c6ff7;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  /* === APPROACH C: Inline POS-style === */
+  .pos-search-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .pos-input {
+    flex: 1;
+    background: #0f0f14;
+    border: 1px solid #3a3a48;
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #e8e8ea;
+  }
+  .pos-results {
+    background: #12121a;
+    border: 1px solid #2a2a38;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .pos-result-item {
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e1e26;
+    cursor: pointer;
+  }
+  .pos-result-item:hover, .pos-result-item.hilite { background: #1e1e2e; }
+  .pos-result-item .left .name { font-size: 12px; color: #e8e8ea; }
+  .pos-result-item .left .meta { font-size: 10px; color: #666; margin-top: 1px; }
+  .pos-result-item .right { display: flex; align-items: center; gap: 8px; }
+  .pos-result-item .price { font-size: 11px; color: #7c6ff7; font-weight: 600; }
+  .pos-result-item .add-icon {
+    width: 22px; height: 22px;
+    background: #2a2a3e;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #a78bfa;
+  }
+  .added-item {
+    background: #1a1a26;
+    border: 1px solid #2a2a38;
+    border-radius: 7px;
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .added-item .name { font-size: 12px; color: #e8e8ea; flex: 1; }
+  .qty-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #12121a;
+    border: 1px solid #2a2a38;
+    border-radius: 5px;
+    padding: 2px 6px;
+  }
+  .qty-control button { background: none; border: none; color: #a78bfa; font-size: 14px; cursor: pointer; padding: 0 2px; }
+  .qty-control span { font-size: 12px; color: #fff; min-width: 16px; text-align: center; }
+  .added-item .total { font-size: 11px; color: #7c6ff7; font-weight: 600; width: 50px; text-align: right; }
+  .added-item .remove { color: #444; font-size: 12px; cursor: pointer; margin-left: 4px; }
+
+  /* Tradeoffs */
+  .tradeoffs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 4px;
+  }
+  .tradeoff-card {
+    background: #13131a;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+  .tradeoff-card ul { padding-left: 14px; }
+  .tradeoff-card li { margin-bottom: 4px; color: #aaa; line-height: 1.4; }
+  .tradeoff-card li.pro { color: #4ade80; }
+  .tradeoff-card li.pro::marker { color: #4ade80; }
+  .tradeoff-card li.con { color: #f87171; }
+  .tradeoff-card li.con::marker { color: #f87171; }
+  .tradeoff-card h4 { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #555;
+    margin-bottom: 12px;
+    margin-top: 28px;
+  }
+
+  .selected-indicator {
+    display: none;
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: #2a1e4a;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #a78bfa;
+    text-align: center;
+  }
+  .approach.selected .selected-indicator { display: block; }
+</style>
+</head>
+<body>
+
+<h1>Adding Items to Quotations &amp; Purchase Orders</h1>
+<p class="subtitle">3 approaches — click one to select your preference</p>
+
+<p class="section-label">UI Pattern Options</p>
+
+<div class="approaches">
+
+  <!-- APPROACH A: Inline Combobox -->
+  <div class="approach" data-choice="a" onclick="toggleSelect(this)">
+    <div class="approach-header">
+      <div class="badge simple">Simple Upgrade</div>
+      <h3>A — Searchable Combobox</h3>
+      <p>Replace the dropdown with a search-as-you-type combobox. No new dialogs, minimal learning curve.</p>
+    </div>
+    <div class="mockup-area">
+      <div style="font-size:10px;color:#666;margin-bottom:6px;">Row 1 — Product</div>
+      <div class="combo-wrap">
+        <div class="combo-input">🔍 Search by name or SKU…</div>
+        <div class="combo-icon">▼</div>
+      </div>
+      <div class="combo-dropdown">
+        <div class="combo-search">🔍 <span style="color:#666;">Typing: "drill"</span></div>
+        <div class="combo-item active">
+          <div>
+            <div class="item-name">Cordless Drill 18V</div>
+            <div class="item-sku">SKU-DR-001</div>
+          </div>
+          <div class="item-price">₱2,450</div>
+        </div>
+        <div class="combo-item">
+          <div>
+            <div class="item-name">Drill Bit Set 50pc</div>
+            <div class="item-sku">SKU-DR-002</div>
+          </div>
+          <div class="item-price">₱680</div>
+        </div>
+        <div class="combo-item">
+          <div>
+            <div class="item-name">Impact Drill 800W</div>
+            <div class="item-sku">SKU-DR-005</div>
+          </div>
+          <div class="item-price">₱3,200</div>
+        </div>
+        <div class="combo-more">+14 more results</div>
+      </div>
+    </div>
+    <div class="selected-indicator">✓ Selected</div>
+  </div>
+
+  <!-- APPROACH B: Product Picker Sheet -->
+  <div class="approach" data-choice="b" onclick="toggleSelect(this)">
+    <div class="approach-header">
+      <div class="badge recommended">Recommended</div>
+      <h3>B — Product Picker Sheet</h3>
+      <p>A slide-out panel with full search, category filters, and batch-add. Best for large catalogs.</p>
+    </div>
+    <div class="mockup-area">
+      <div class="sheet-trigger">
+        <span class="icon">＋</span>
+        <span>Browse &amp; add products…</span>
+      </div>
+      <div class="sheet-mockup">
+        <div class="sheet-header">
+          <span>Select Products</span>
+          <span class="close">✕ Close</span>
+        </div>
+        <div class="sheet-search">
+          <input placeholder="🔍  Search name, SKU, barcode…" value="ham">
+        </div>
+        <div class="sheet-filters">
+          <div class="filter-chip active">All</div>
+          <div class="filter-chip">Hand Tools</div>
+          <div class="filter-chip">Power Tools</div>
+          <div class="filter-chip">Fasteners</div>
+        </div>
+        <div class="sheet-table">
+          <div class="sheet-row">
+            <div>
+              <div class="r-name">Claw Hammer 16oz</div>
+              <div class="r-sku">SKU-HT-014 · Hand Tools</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="r-price">₱320</div>
+              <div class="r-add">+ Add</div>
+            </div>
+          </div>
+          <div class="sheet-row" style="background:#1e1e2a;">
+            <div>
+              <div class="r-name" style="color:#a78bfa;">Ball Pein Hammer 500g</div>
+              <div class="r-sku">SKU-HT-015 · Hand Tools</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="r-price">₱280</div>
+              <div class="r-add" style="background:#3d2f7a;color:#c4b5fd;">✓ Added</div>
+            </div>
+          </div>
+          <div class="sheet-row">
+            <div>
+              <div class="r-name">Rubber Mallet</div>
+              <div class="r-sku">SKU-HT-018 · Hand Tools</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="r-price">₱195</div>
+              <div class="r-add">+ Add</div>
+            </div>
+          </div>
+        </div>
+        <div class="sheet-footer">
+          <div class="count">1 product selected</div>
+          <div class="add-btn">Add to Order →</div>
+        </div>
+      </div>
+    </div>
+    <div class="selected-indicator">✓ Selected</div>
+  </div>
+
+  <!-- APPROACH C: Inline Instant-Add -->
+  <div class="approach" data-choice="c" onclick="toggleSelect(this)">
+    <div class="approach-header">
+      <div class="badge advanced">POS-Style</div>
+      <h3>C — Inline Instant-Add</h3>
+      <p>Search bar above the line items — results appear as cards you click to add instantly. Like the POS page.</p>
+    </div>
+    <div class="mockup-area">
+      <div class="pos-search-bar">
+        <input class="pos-input" placeholder="🔍  Search or scan barcode…" value="screw">
+      </div>
+      <div class="pos-results">
+        <div class="pos-result-item hilite">
+          <div class="left">
+            <div class="name">Wood Screw 3" (100pc)</div>
+            <div class="meta">SKU-FS-042 · Fasteners</div>
+          </div>
+          <div class="right">
+            <div class="price">₱85</div>
+            <div class="add-icon">+</div>
+          </div>
+        </div>
+        <div class="pos-result-item">
+          <div class="left">
+            <div class="name">Self-Tapping Screw M4 (50pc)</div>
+            <div class="meta">SKU-FS-043 · Fasteners</div>
+          </div>
+          <div class="right">
+            <div class="price">₱120</div>
+            <div class="add-icon">+</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Items added</div>
+      <div class="added-item">
+        <div class="name">Masonry Drill Bit 8mm</div>
+        <div class="qty-control">
+          <button>−</button>
+          <span>3</span>
+          <button>+</button>
+        </div>
+        <div class="total">₱7,350</div>
+        <div class="remove">✕</div>
+      </div>
+      <div class="added-item">
+        <div class="name">PVC Pipe ½" (6m)</div>
+        <div class="qty-control">
+          <button>−</button>
+          <span>10</span>
+          <button>+</button>
+        </div>
+        <div class="total">₱1,200</div>
+        <div class="remove">✕</div>
+      </div>
+    </div>
+    <div class="selected-indicator">✓ Selected</div>
+  </div>
+
+</div>
+
+<p class="section-label">Trade-offs</p>
+
+<div class="tradeoffs">
+  <div class="tradeoff-card">
+    <h4>A — Combobox</h4>
+    <ul>
+      <li class="pro">Minimal code change</li>
+      <li class="pro">Familiar UX pattern</li>
+      <li class="pro">Works inside existing form rows</li>
+      <li class="con">Still one product at a time</li>
+      <li class="con">No category browsing</li>
+      <li class="con">No product details visible</li>
+    </ul>
+  </div>
+  <div class="tradeoff-card">
+    <h4>B — Picker Sheet</h4>
+    <ul>
+      <li class="pro">Category filters + full search</li>
+      <li class="pro">Can select multiple at once</li>
+      <li class="pro">Scales to thousands of items</li>
+      <li class="pro">Familiar drawer pattern (like mobile apps)</li>
+      <li class="con">Extra click to open sheet</li>
+      <li class="con">More code to build</li>
+    </ul>
+  </div>
+  <div class="tradeoff-card">
+    <h4>C — Inline Instant-Add</h4>
+    <ul>
+      <li class="pro">Fast — no extra clicks, just search &amp; add</li>
+      <li class="pro">Barcode scanner friendly</li>
+      <li class="pro">Qty visible alongside items</li>
+      <li class="con">Bigger layout change to form</li>
+      <li class="con">Less browsable (need to know name)</li>
+      <li class="con">Shifts form UX away from rows</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function toggleSelect(el) {
+  document.querySelectorAll('.approach').forEach(a => a.classList.remove('selected'));
+  el.classList.add('selected');
+  // record event
+  try {
+    const choice = el.getAttribute('data-choice');
+    const text = el.querySelector('h3').textContent;
+    fetch('/api/event', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({type:'click', choice, text, timestamp: Date.now()})
+    });
+  } catch(e) {}
+}
+</script>
+</body>
+</html>

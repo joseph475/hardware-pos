@@ -1,0 +1,4 @@
+{"type":"server-started","port":62227,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:62227","screen_dir":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/18454-1776861474/content","state_dir":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/18454-1776861474/state"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/18454-1776861474/content/item-selection-approaches.html"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/18454-1776861474/content/item-adder-detail.html"}
+{"type":"server-stopped","reason":"idle timeout"}

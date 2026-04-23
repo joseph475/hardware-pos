@@ -1,0 +1,315 @@
+<style>
+  .mockup-wrap { display: flex; flex-direction: column; gap: 24px; }
+  .mock-page { background: #0f0f0f; border-radius: 10px; overflow: hidden; border: 1px solid #2a2a2a; font-size: 11px; color: #ccc; }
+  .mock-topbar { background: #161616; border-bottom: 1px solid #222; padding: 8px 14px; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #666; }
+  .mock-topbar .back { color: #888; font-size: 10px; }
+  .mock-topbar .title { color: #eee; font-weight: 600; font-size: 12px; }
+  .mock-topbar .badge { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; padding: 1px 6px; font-size: 9px; }
+  .mock-body { display: flex; }
+  .mock-sidebar-nav { width: 52px; background: #111; border-right: 1px solid #1e1e1e; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .mock-nav-dot { width: 28px; height: 28px; border-radius: 6px; background: #1a1a1a; }
+  .mock-nav-dot.active { background: #2a2a2a; }
+  .mock-content-area { flex: 1; padding: 16px; }
+
+  /* Approach A - Full page */
+  .approach-a .mock-body { min-height: 200px; }
+  .approach-a .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .approach-a .page-title { font-size: 13px; font-weight: 600; color: #eee; }
+  .approach-a .two-col { display: flex; gap: 12px; }
+  .approach-a .col-left { flex: 1; }
+  .approach-a .col-right { width: 160px; }
+  .approach-a .section-label { font-size: 9px; text-transform: uppercase; color: #555; letter-spacing: 0.8px; margin-bottom: 6px; font-weight: 600; }
+  .approach-a .field-row { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 5px; padding: 5px 8px; margin-bottom: 5px; }
+  .approach-a .field-label { font-size: 8px; color: #555; }
+  .approach-a .field-val { font-size: 10px; color: #888; margin-top: 1px; }
+  .approach-a .search-bar { background: #1a1a1a; border: 1px solid #333; border-radius: 5px; padding: 6px 8px; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .approach-a .search-icon { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #555; }
+  .approach-a .search-text { color: #555; font-size: 9px; }
+  .approach-a .item-row { background: #161616; border: 1px solid #222; border-radius: 5px; padding: 6px 8px; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
+  .approach-a .item-thumb { width: 28px; height: 28px; background: #252525; border-radius: 4px; flex-shrink: 0; }
+  .approach-a .item-info { flex: 1; }
+  .approach-a .item-name { font-size: 9px; color: #ddd; font-weight: 500; }
+  .approach-a .item-sku { font-size: 8px; color: #555; font-family: monospace; }
+  .approach-a .item-price { font-size: 10px; color: #eee; font-weight: 600; margin-left: auto; }
+  .approach-a .summary-box { background: #161616; border: 1px solid #222; border-radius: 6px; padding: 8px; }
+  .approach-a .sum-row { display: flex; justify-content: space-between; font-size: 9px; color: #888; margin-bottom: 3px; }
+  .approach-a .sum-row.total { color: #eee; font-weight: 600; font-size: 10px; border-top: 1px solid #2a2a2a; padding-top: 4px; margin-top: 2px; }
+  .approach-a .action-row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+  .approach-a .btn { background: #eee; color: #111; font-size: 9px; font-weight: 600; border-radius: 4px; padding: 4px 10px; }
+  .approach-a .btn-ghost { background: #1a1a1a; color: #888; border: 1px solid #2a2a2a; }
+  .approach-a .empty-items { background: #161616; border: 1px dashed #2a2a2a; border-radius: 5px; padding: 16px; text-align: center; color: #444; font-size: 9px; }
+
+  /* Approach B - Full-screen overlay */
+  .approach-b .overlay-backdrop { background: rgba(0,0,0,0.7); position: relative; }
+  .approach-b .overlay-panel { background: #111; border: 1px solid #2a2a2a; border-radius: 10px; margin: 12px; overflow: hidden; }
+  .approach-b .panel-header { background: #161616; border-bottom: 1px solid #222; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+  .approach-b .panel-title { font-size: 12px; font-weight: 600; color: #eee; }
+  .approach-b .close-btn { width: 18px; height: 18px; border-radius: 50%; background: #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888; }
+  .approach-b .panel-body { display: flex; min-height: 180px; }
+  .approach-b .panel-left { flex: 1.2; padding: 12px; border-right: 1px solid #1e1e1e; }
+  .approach-b .panel-right { width: 140px; padding: 12px; display: flex; flex-direction: column; }
+  .approach-b .section-label { font-size: 9px; text-transform: uppercase; color: #555; letter-spacing: 0.8px; margin-bottom: 6px; font-weight: 600; }
+  .approach-b .field-row { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; padding: 4px 7px; margin-bottom: 4px; }
+  .approach-b .field-label { font-size: 8px; color: #555; }
+  .approach-b .field-val { font-size: 10px; color: #888; }
+  .approach-b .search-bar { background: #1a1a1a; border: 1px solid #333; border-radius: 5px; padding: 5px 8px; display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+  .approach-b .search-text { color: #555; font-size: 9px; }
+  .approach-b .item-row { background: #161616; border: 1px solid #222; border-radius: 4px; padding: 5px 7px; margin-bottom: 3px; display: flex; gap: 5px; align-items: center; }
+  .approach-b .item-thumb { width: 24px; height: 24px; background: #252525; border-radius: 3px; flex-shrink: 0; }
+  .approach-b .item-name { font-size: 9px; color: #ddd; flex: 1; }
+  .approach-b .item-price { font-size: 9px; color: #eee; font-weight: 600; }
+  .approach-b .summary-box { background: #0f0f0f; border: 1px solid #1e1e1e; border-radius: 5px; padding: 7px; margin-top: auto; }
+  .approach-b .sum-row { display: flex; justify-content: space-between; font-size: 8px; color: #777; margin-bottom: 2px; }
+  .approach-b .sum-total { display: flex; justify-content: space-between; font-size: 10px; color: #eee; font-weight: 600; border-top: 1px solid #222; padding-top: 4px; margin-top: 3px; }
+  .approach-b .panel-footer { background: #0d0d0d; border-top: 1px solid #1e1e1e; padding: 8px 14px; display: flex; justify-content: flex-end; gap: 6px; }
+  .approach-b .btn { background: #eee; color: #111; font-size: 9px; font-weight: 600; border-radius: 4px; padding: 4px 10px; }
+  .approach-b .btn-ghost { background: transparent; color: #777; border: 1px solid #2a2a2a; }
+
+  /* Approach C - POS-style two column */
+  .approach-c .mock-body { min-height: 220px; }
+  .approach-c .two-col-main { display: flex; flex: 1; }
+  .approach-c .products-panel { flex: 1; border-right: 1px solid #1e1e1e; padding: 10px; }
+  .approach-c .form-panel { width: 170px; padding: 10px; display: flex; flex-direction: column; }
+  .approach-c .section-label { font-size: 8px; text-transform: uppercase; color: #555; letter-spacing: 0.8px; margin-bottom: 5px; font-weight: 600; }
+  .approach-c .search-bar { background: #1a1a1a; border: 1px solid #333; border-radius: 5px; padding: 5px 8px; display: flex; align-items: center; gap: 5px; margin-bottom: 7px; }
+  .approach-c .search-text { color: #555; font-size: 9px; }
+  .approach-c .prod-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+  .approach-c .prod-card { background: #161616; border: 1px solid #222; border-radius: 5px; padding: 7px 6px; text-align: center; cursor: pointer; }
+  .approach-c .prod-card:hover { border-color: #444; }
+  .approach-c .prod-img { width: 32px; height: 32px; background: #252525; border-radius: 4px; margin: 0 auto 4px; }
+  .approach-c .prod-name { font-size: 8px; color: #ccc; font-weight: 500; line-height: 1.2; }
+  .approach-c .prod-price { font-size: 8px; color: #888; margin-top: 2px; }
+  .approach-c .field-row { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; padding: 4px 7px; margin-bottom: 4px; }
+  .approach-c .field-label { font-size: 8px; color: #555; }
+  .approach-c .field-val { font-size: 9px; color: #888; }
+  .approach-c .cart-item { background: #161616; border: 1px solid #1e1e1e; border-radius: 4px; padding: 4px 6px; margin-bottom: 3px; display: flex; justify-content: space-between; align-items: center; }
+  .approach-c .cart-name { font-size: 8px; color: #ccc; }
+  .approach-c .cart-price { font-size: 8px; color: #eee; font-weight: 600; }
+  .approach-c .summary-box { background: #0f0f0f; border: 1px solid #1e1e1e; border-radius: 5px; padding: 6px; margin-top: auto; }
+  .approach-c .sum-total { display: flex; justify-content: space-between; font-size: 10px; color: #eee; font-weight: 600; }
+  .approach-c .btn { background: #eee; color: #111; font-size: 9px; font-weight: 600; border-radius: 4px; padding: 5px; width: 100%; margin-top: 5px; text-align: center; }
+
+  .tag { display: inline-block; font-size: 9px; border-radius: 4px; padding: 2px 6px; margin-left: 6px; font-weight: 500; }
+  .tag-rec { background: #1a3a1a; color: #4ade80; }
+  .tag-alt { background: #1a2a3a; color: #60a5fa; }
+</style>
+
+<h2>Quotation Creation Layout</h2>
+<p class="subtitle">Three approaches for a more spacious, product-friendly experience. Click your preferred option.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Dedicated Full Page <span class="tag tag-rec">Recommended</span></h3>
+      <p>Navigate to <code>/quotations/new</code> (or <code>/quotations/[id]/edit</code>). Two-column layout: line items on the left take most space, form fields + totals on the right. Back button returns to the list. Clean, no overlay clutter.</p>
+
+      <div class="mockup-wrap" style="margin-top:10px">
+        <div class="mock-page approach-a">
+          <div class="mock-topbar">
+            <span class="back">← Quotations</span>
+            <span style="flex:1"></span>
+            <span class="title">New Quotation</span>
+            <span style="flex:1"></span>
+            <span class="badge">Draft</span>
+          </div>
+          <div class="mock-body">
+            <div class="mock-sidebar-nav">
+              <div class="mock-nav-dot"></div>
+              <div class="mock-nav-dot"></div>
+              <div class="mock-nav-dot active"></div>
+              <div class="mock-nav-dot"></div>
+              <div class="mock-nav-dot"></div>
+            </div>
+            <div class="mock-content-area">
+              <div class="two-col">
+                <div class="col-left">
+                  <div class="section-label">Line Items</div>
+                  <div class="search-bar">
+                    <div class="search-icon"></div>
+                    <span class="search-text">Search by name or SKU…</span>
+                  </div>
+                  <div class="item-row">
+                    <div class="item-thumb"></div>
+                    <div class="item-info">
+                      <div class="item-name">HDMI Cable 2.0 4K</div>
+                      <div class="item-sku">SKU-0041</div>
+                    </div>
+                    <div style="font-size:9px;color:#666;margin:0 6px">×2</div>
+                    <div class="item-price">₱598</div>
+                  </div>
+                  <div class="item-row">
+                    <div class="item-thumb"></div>
+                    <div class="item-info">
+                      <div class="item-name">USB-C Hub 7-in-1</div>
+                      <div class="item-sku">SKU-0087</div>
+                    </div>
+                    <div style="font-size:9px;color:#666;margin:0 6px">×1</div>
+                    <div class="item-price">₱1,299</div>
+                  </div>
+                  <div class="empty-items" style="margin-top:4px">+ Search to add more items</div>
+                </div>
+                <div class="col-right">
+                  <div class="section-label">Details</div>
+                  <div class="field-row">
+                    <div class="field-label">Customer</div>
+                    <div class="field-val">Juan dela Cruz</div>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-label">Branch</div>
+                    <div class="field-val">Main Branch</div>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-label">Valid Until</div>
+                    <div class="field-val" style="color:#555">—</div>
+                  </div>
+                  <div style="margin-top:8px">
+                    <div class="summary-box">
+                      <div class="sum-row"><span>Subtotal</span><span>₱1,897</span></div>
+                      <div class="sum-row total"><span>Total</span><span>₱1,897</span></div>
+                    </div>
+                  </div>
+                  <div class="action-row">
+                    <div class="btn btn-ghost">Cancel</div>
+                    <div class="btn">Save Draft</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Full screen width for products</li><li>No overlay — full browser chrome</li><li>Shareable URL per quote</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Navigation required (back button)</li><li>New route + loading.tsx needed</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Full-Screen Modal <span class="tag tag-alt">Alternative</span></h3>
+      <p>A dialog that covers the entire viewport (no sidebar visible). Same URL as the list — no navigation. Escape or Cancel returns to the list. Faster to open/close than a page transition.</p>
+
+      <div class="mockup-wrap" style="margin-top:10px">
+        <div class="mock-page approach-b" style="background:#0a0a0a">
+          <div class="overlay-backdrop">
+            <div class="overlay-panel">
+              <div class="panel-header">
+                <span class="panel-title">New Quotation</span>
+                <div class="close-btn">✕</div>
+              </div>
+              <div class="panel-body">
+                <div class="panel-left">
+                  <div class="section-label">Line Items</div>
+                  <div class="search-bar">
+                    <span class="search-text">🔍 Search by name or SKU…</span>
+                  </div>
+                  <div class="item-row">
+                    <div class="item-thumb"></div>
+                    <span class="item-name">HDMI Cable 2.0 4K</span>
+                    <span class="item-price">₱598</span>
+                  </div>
+                  <div class="item-row">
+                    <div class="item-thumb"></div>
+                    <span class="item-name">USB-C Hub 7-in-1</span>
+                    <span class="item-price">₱1,299</span>
+                  </div>
+                </div>
+                <div class="panel-right">
+                  <div class="section-label">Details</div>
+                  <div class="field-row">
+                    <div class="field-label">Customer</div>
+                    <div class="field-val">Juan dela Cruz</div>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-label">Branch</div>
+                    <div class="field-val">Main Branch</div>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-label">Valid Until</div>
+                    <div class="field-val" style="color:#555">—</div>
+                  </div>
+                  <div class="summary-box">
+                    <div class="sum-row"><span>Subtotal</span><span>₱1,897</span></div>
+                    <div class="sum-total"><span>Total</span><span>₱1,897</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-footer">
+                <div class="btn btn-ghost">Cancel</div>
+                <div class="btn">Save Draft</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Much wider than the current sheet</li><li>No page navigation needed</li><li>Feels modal — easy to cancel</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Still an overlay (can feel heavy)</li><li>No shareable URL</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>POS-Style Split View</h3>
+      <p>Mirrors the POS screen: products as a browseable grid on the left, quote details + cart on the right. Like a quotation "POS mode". Opens full-page or full-screen.</p>
+
+      <div class="mockup-wrap" style="margin-top:10px">
+        <div class="mock-page approach-c">
+          <div class="mock-topbar">
+            <span class="back">← Quotations</span>
+            <span style="flex:1"></span>
+            <span class="title">New Quotation — Juan dela Cruz</span>
+          </div>
+          <div class="two-col-main">
+            <div class="products-panel">
+              <div class="section-label">Products</div>
+              <div class="search-bar">
+                <span class="search-text">🔍 Search products…</span>
+              </div>
+              <div class="prod-grid">
+                <div class="prod-card"><div class="prod-img"></div><div class="prod-name">HDMI Cable</div><div class="prod-price">₱299</div></div>
+                <div class="prod-card"><div class="prod-img"></div><div class="prod-name">USB-C Hub</div><div class="prod-price">₱1,299</div></div>
+                <div class="prod-card"><div class="prod-img"></div><div class="prod-name">Keyboard</div><div class="prod-price">₱899</div></div>
+                <div class="prod-card"><div class="prod-img"></div><div class="prod-name">Mouse</div><div class="prod-price">₱650</div></div>
+                <div class="prod-card"><div class="prod-img"></div><div class="prod-name">Monitor</div><div class="prod-price">₱9,999</div></div>
+                <div class="prod-card"><div class="prod-img"></div><div class="prod-name">Webcam</div><div class="prod-price">₱2,199</div></div>
+              </div>
+            </div>
+            <div class="form-panel">
+              <div class="section-label">Quote Details</div>
+              <div class="field-row"><div class="field-label">Branch</div><div class="field-val">Main Branch</div></div>
+              <div class="field-row"><div class="field-label">Valid Until</div><div class="field-val" style="color:#555">—</div></div>
+              <div style="margin-top:6px;margin-bottom:4px" class="section-label">Items Added</div>
+              <div class="cart-item"><span class="cart-name">HDMI Cable ×2</span><span class="cart-price">₱598</span></div>
+              <div class="cart-item"><span class="cart-name">USB-C Hub ×1</span><span class="cart-price">₱1,299</span></div>
+              <div class="summary-box" style="margin-top:8px">
+                <div class="sum-total"><span>Total</span><span>₱1,897</span></div>
+              </div>
+              <div class="btn">Save Draft</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Products are very browseable</li><li>Familiar POS-like interaction</li></ul></div>
+        <div class="cons"><h4>Cons</h4>
+          <ul>
+            <li>Product grid less useful than search for large catalogs</li>
+            <li>Most different from current UX</li>
+            <li>Price/discount editing per item is harder to show</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,247 @@
+<style>
+  /* ---- reset / base ---- */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: inherit; }
+
+  /* ---- flow diagram ---- */
+  .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 14px 0; }
+  .flow-step { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 7px 12px; font-size: 11px; color: #ccc; white-space: nowrap; }
+  .flow-step.highlight { background: #1a2a1a; border-color: #2a4a2a; color: #4ade80; }
+  .flow-step.page { background: #1a1a2a; border-color: #2a2a4a; color: #93c5fd; }
+  .flow-arrow { color: #555; font-size: 14px; padding: 0 6px; }
+  .flow-label { font-size: 9px; color: #555; margin-top: 3px; text-align: center; }
+
+  /* ---- section blocks ---- */
+  .design-section { margin-bottom: 22px; }
+  .design-section h3 { font-size: 12px; font-weight: 600; color: #eee; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid #1e1e1e; }
+  .design-section p { font-size: 11px; color: #999; line-height: 1.6; margin-bottom: 6px; }
+  .file-list { list-style: none; }
+  .file-list li { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid #151515; font-size: 11px; }
+  .file-list li:last-child { border-bottom: none; }
+  .file-tag { font-family: monospace; font-size: 10px; color: #93c5fd; background: #1a1a2a; border: 1px solid #2a2a4a; border-radius: 3px; padding: 1px 5px; white-space: nowrap; flex-shrink: 0; }
+  .file-tag.new { background: #1a2a1a; border-color: #2a4a2a; color: #4ade80; }
+  .file-tag.mod { background: #2a1a1a; border-color: #4a2a2a; color: #f87171; }
+  .file-desc { color: #888; }
+
+  /* ---- full-page mockup ---- */
+  .page-mock { background: #0d0d0d; border: 1px solid #222; border-radius: 10px; overflow: hidden; font-size: 10px; color: #ccc; }
+  .pm-topbar { background: #111; border-bottom: 1px solid #1e1e1e; padding: 8px 14px; display: flex; align-items: center; gap: 10px; }
+  .pm-back { font-size: 10px; color: #555; display: flex; align-items: center; gap: 4px; }
+  .pm-back::before { content: '←'; }
+  .pm-title { font-size: 12px; font-weight: 600; color: #eee; flex: 1; text-align: center; }
+  .pm-badge { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; padding: 2px 7px; font-size: 9px; color: #888; }
+  .pm-body { display: flex; }
+  .pm-sidebar { width: 48px; background: #0f0f0f; border-right: 1px solid #1a1a1a; padding: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .pm-nav { width: 30px; height: 30px; border-radius: 7px; background: #1a1a1a; }
+  .pm-nav.active { background: #252525; }
+  .pm-main { flex: 1; display: flex; }
+  .pm-left { flex: 1; padding: 14px; border-right: 1px solid #1a1a1a; }
+  .pm-right { width: 200px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* left col */
+  .sec-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.9px; color: #444; font-weight: 600; margin-bottom: 7px; }
+  .search-input { background: #161616; border: 1px solid #2a2a2a; border-radius: 5px; padding: 6px 10px; display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+  .search-input .icon { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #555; flex-shrink: 0; }
+  .search-input .placeholder { font-size: 9px; color: #444; }
+  .items-list { border: 1px solid #1e1e1e; border-radius: 6px; overflow: hidden; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #161616; }
+  .item:last-child { border-bottom: none; }
+  .item-thumb { width: 32px; height: 32px; background: #1e1e1e; border-radius: 4px; flex-shrink: 0; border: 1px solid #252525; }
+  .item-meta { flex: 1; }
+  .item-name { font-size: 9px; color: #ddd; font-weight: 500; }
+  .item-sku { font-size: 8px; color: #444; font-family: monospace; margin-top: 1px; }
+  .item-controls { display: flex; align-items: center; gap: 4px; }
+  .stepper-btn { width: 18px; height: 18px; background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888; }
+  .stepper-val { width: 22px; text-align: center; font-size: 9px; color: #ccc; }
+  .item-price { font-size: 10px; color: #eee; font-weight: 600; min-width: 48px; text-align: right; }
+  .item-disc { font-size: 8px; color: #666; text-align: right; margin-top: 1px; }
+  .remove-btn { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 10px; margin-left: 2px; }
+  .add-more { border: 1px dashed #1e1e1e; border-radius: 5px; padding: 10px; text-align: center; color: #333; font-size: 9px; margin-top: 6px; }
+
+  /* right col */
+  .field-block { margin-bottom: 6px; }
+  .field-label { font-size: 8px; color: #444; margin-bottom: 2px; }
+  .field-value { background: #161616; border: 1px solid #222; border-radius: 4px; padding: 5px 8px; font-size: 9px; color: #999; }
+  .field-value.readonly { background: #141414; color: #666; }
+  .totals { background: #111; border: 1px solid #1e1e1e; border-radius: 6px; padding: 8px 10px; }
+  .total-row { display: flex; justify-content: space-between; font-size: 9px; color: #666; margin-bottom: 3px; }
+  .total-row.grand { color: #eee; font-weight: 600; font-size: 11px; border-top: 1px solid #1e1e1e; padding-top: 5px; margin-top: 3px; }
+  .save-btn { background: #e5e5e5; color: #111; font-size: 10px; font-weight: 600; border-radius: 5px; padding: 7px 10px; text-align: center; margin-top: 4px; }
+  .cancel-btn { background: transparent; border: 1px solid #2a2a2a; color: #666; font-size: 10px; border-radius: 5px; padding: 6px 10px; text-align: center; }
+  .btn-row { display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
+</style>
+
+<h2>Design: Full-Page Quotation Form</h2>
+<p class="subtitle">Applies to both creating new quotes and editing existing drafts.</p>
+
+<div class="design-section">
+  <h3>User Flow</h3>
+  <div class="flow">
+    <div>
+      <div class="flow-step">Quotations List</div>
+      <div class="flow-label">existing page</div>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div>
+      <div class="flow-step highlight">Customer Picker<br><span style="font-size:9px;color:#666">(same dialog, unchanged)</span></div>
+      <div class="flow-label">on "New Quotation"</div>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div>
+      <div class="flow-step page">/quotations/new</div>
+      <div class="flow-label">new page</div>
+    </div>
+  </div>
+  <div class="flow" style="margin-top:4px">
+    <div>
+      <div class="flow-step">Click draft row</div>
+      <div class="flow-label">in table</div>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div>
+      <div class="flow-step page">/quotations/[id]/edit</div>
+      <div class="flow-label">new page</div>
+    </div>
+    <span class="flow-arrow" style="margin-left:auto;padding-left:32px">←</span>
+    <div>
+      <div class="flow-step highlight">Save / Cancel</div>
+      <div class="flow-label">returns to list</div>
+    </div>
+  </div>
+</div>
+
+<div class="design-section">
+  <h3>Page Layout Mockup</h3>
+  <p>Two-column: line items left (takes all remaining width), details + totals + actions right (~200px).</p>
+  <div class="page-mock">
+    <div class="pm-topbar">
+      <span class="pm-back">Quotations</span>
+      <span class="pm-title">New Quotation — Juan dela Cruz</span>
+      <span class="pm-badge">Draft</span>
+    </div>
+    <div class="pm-body">
+      <div class="pm-sidebar">
+        <div class="pm-nav"></div>
+        <div class="pm-nav"></div>
+        <div class="pm-nav active"></div>
+        <div class="pm-nav"></div>
+        <div class="pm-nav"></div>
+      </div>
+      <div class="pm-main">
+        <div class="pm-left">
+          <div class="sec-label">Line Items</div>
+          <div class="search-input">
+            <div class="icon"></div>
+            <span class="placeholder">Search by name or SKU to add items…</span>
+          </div>
+          <div class="items-list">
+            <div class="item">
+              <div class="item-thumb"></div>
+              <div class="item-meta">
+                <div class="item-name">HDMI Cable 2.0 4K 1.8m</div>
+                <div class="item-sku">SKU-0041</div>
+              </div>
+              <div class="item-controls">
+                <div class="stepper-btn">−</div>
+                <div class="stepper-val">2</div>
+                <div class="stepper-btn">+</div>
+              </div>
+              <div>
+                <div class="item-price">₱598</div>
+                <div class="item-disc">@ ₱299 each</div>
+              </div>
+              <div class="remove-btn">✕</div>
+            </div>
+            <div class="item">
+              <div class="item-thumb"></div>
+              <div class="item-meta">
+                <div class="item-name">USB-C Hub 7-in-1 Multiport</div>
+                <div class="item-sku">SKU-0087</div>
+              </div>
+              <div class="item-controls">
+                <div class="stepper-btn">−</div>
+                <div class="stepper-val">1</div>
+                <div class="stepper-btn">+</div>
+              </div>
+              <div>
+                <div class="item-price">₱1,299</div>
+                <div class="item-disc">@ ₱1,299 each</div>
+              </div>
+              <div class="remove-btn">✕</div>
+            </div>
+            <div class="item">
+              <div class="item-thumb"></div>
+              <div class="item-meta">
+                <div class="item-name">Mechanical Keyboard TKL</div>
+                <div class="item-sku">SKU-0112</div>
+              </div>
+              <div class="item-controls">
+                <div class="stepper-btn">−</div>
+                <div class="stepper-val">1</div>
+                <div class="stepper-btn">+</div>
+              </div>
+              <div>
+                <div class="item-price">₱2,499</div>
+                <div class="item-disc">Disc: -₱200</div>
+              </div>
+              <div class="remove-btn">✕</div>
+            </div>
+          </div>
+          <div class="add-more">Search above to add more items</div>
+        </div>
+        <div class="pm-right">
+          <div>
+            <div class="sec-label">Quote Details</div>
+            <div class="field-block">
+              <div class="field-label">Customer</div>
+              <div class="field-value readonly">Juan dela Cruz</div>
+            </div>
+            <div class="field-block">
+              <div class="field-label">Branch</div>
+              <div class="field-value">Main Branch ▾</div>
+            </div>
+            <div class="field-block">
+              <div class="field-label">Valid Until</div>
+              <div class="field-value">2026-05-23</div>
+            </div>
+            <div class="field-block">
+              <div class="field-label">Overall Discount (₱)</div>
+              <div class="field-value">0.00</div>
+            </div>
+            <div class="field-block">
+              <div class="field-label">Notes</div>
+              <div class="field-value" style="min-height:36px;color:#444">—</div>
+            </div>
+          </div>
+          <div class="totals">
+            <div class="total-row"><span>Subtotal</span><span>₱4,396</span></div>
+            <div class="total-row"><span>Discount</span><span style="color:#f87171">−₱200</span></div>
+            <div class="total-row grand"><span>Total</span><span>₱4,196</span></div>
+          </div>
+          <div class="btn-row">
+            <div class="save-btn">Save Draft</div>
+            <div class="cancel-btn">Cancel</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="design-section">
+  <h3>Files Changed</h3>
+  <ul class="file-list">
+    <li><span class="file-tag new">NEW</span><span class="file-desc">app/(dashboard)/quotations/new/page.tsx — server page, reads customer_id/customer_name from search params</span></li>
+    <li><span class="file-tag new">NEW</span><span class="file-desc">app/(dashboard)/quotations/new/loading.tsx — skeleton matching the two-col layout</span></li>
+    <li><span class="file-tag new">NEW</span><span class="file-desc">app/(dashboard)/quotations/[id]/edit/page.tsx — server page, fetches quotation by ID</span></li>
+    <li><span class="file-tag new">NEW</span><span class="file-desc">app/(dashboard)/quotations/[id]/edit/loading.tsx — same skeleton</span></li>
+    <li><span class="file-tag new">NEW</span><span class="file-desc">app/(dashboard)/quotations/components/quotation-form-client.tsx — the full-page form (extracted + adapted from quotation-dialog.tsx)</span></li>
+    <li><span class="file-tag mod">MOD</span><span class="file-desc">app/(dashboard)/quotations/quotations-client.tsx — "New Quotation" navigates after customer pick; draft row click navigates to /edit</span></li>
+    <li><span class="file-tag mod">MOD</span><span class="file-desc">app/(dashboard)/quotations/components/quotation-dialog.tsx — kept for the existing Sheet (non-draft view still uses it? or we remove it)</span></li>
+  </ul>
+</div>
+
+<div class="design-section">
+  <h3>Does this look right?</h3>
+  <p>Let me know in the terminal if anything needs to change — layout, what goes on which side, the button labels, or the files affected.</p>
+</div>

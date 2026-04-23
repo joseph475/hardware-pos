@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Item Adder — Detailed Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f10; color: #e8e8ea; min-height: 100vh; padding: 32px 24px; }
+
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; color: #fff; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 32px; }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .panel {
+    background: #1a1a1f;
+    border: 1.5px solid #2a2a32;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .panel-header {
+    background: #16161c;
+    border-bottom: 1px solid #2a2a32;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-header h3 { font-size: 14px; font-weight: 600; color: #fff; }
+  .panel-header .tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .tag.quot { background: #1e3055; color: #7eb8f7; }
+  .tag.po { background: #1e3a2a; color: #4ade80; }
+
+  .panel-body { padding: 16px; }
+
+  /* Form rows above items */
+  .form-fields { margin-bottom: 16px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .form-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #666; margin-bottom: 4px; }
+  .form-input {
+    background: #0f0f14;
+    border: 1px solid #2e2e3e;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 12px;
+    color: #e8e8ea;
+    width: 100%;
+  }
+  .form-input.filled { border-color: #3a3a52; color: #c4b5fd; }
+
+  /* Divider */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: #444;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+  }
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #2a2a32;
+  }
+
+  /* Search bar */
+  .search-wrap { position: relative; margin-bottom: 8px; }
+  .search-input {
+    width: 100%;
+    background: #0f0f14;
+    border: 1.5px solid #3a3a52;
+    border-radius: 7px;
+    padding: 8px 10px 8px 32px;
+    font-size: 12px;
+    color: #e8e8ea;
+  }
+  .search-input:focus-within { border-color: #7c6ff7; }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #666; font-size: 13px; }
+  .search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #555; font-size: 11px; cursor: pointer; }
+
+  /* Results dropdown */
+  .results {
+    background: #12121a;
+    border: 1px solid #2a2a38;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .result-item {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e1e26;
+    cursor: pointer;
+    transition: background .1s;
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-item:hover, .result-item.active { background: #1e1e2e; }
+  .result-item .ri-left .ri-name { font-size: 12px; color: #e8e8ea; }
+  .result-item.active .ri-left .ri-name { color: #a78bfa; }
+  .result-item .ri-left .ri-meta { font-size: 10px; color: #555; margin-top: 2px; }
+  .result-item .ri-right { display: flex; align-items: center; gap: 8px; }
+  .result-item .ri-price { font-size: 11px; color: #7c6ff7; font-weight: 600; }
+  .result-item .ri-add {
+    width: 20px; height: 20px;
+    background: #2a2a3e;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #a78bfa;
+    font-weight: 600;
+  }
+  .result-item.active .ri-add { background: #3d2f7a; }
+
+  /* Added items list */
+  .items-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .item-row {
+    background: #13131c;
+    border: 1px solid #252534;
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .item-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .item-row-top .ir-name { font-size: 12px; color: #e8e8ea; font-weight: 500; }
+  .item-row-top .ir-sku { font-size: 10px; color: #555; margin-top: 1px; }
+  .item-row-top .ir-remove { color: #3a3a48; font-size: 12px; cursor: pointer; }
+  .item-row-top .ir-remove:hover { color: #f87171; }
+
+  .item-row-controls { display: flex; align-items: center; gap: 6px; }
+
+  .control-group { display: flex; flex-direction: column; gap: 3px; }
+  .control-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #555; }
+
+  .qty-ctrl {
+    display: flex;
+    align-items: center;
+    background: #0f0f14;
+    border: 1px solid #2a2a38;
+    border-radius: 5px;
+    overflow: hidden;
+    height: 26px;
+  }
+  .qty-btn {
+    width: 22px; height: 26px;
+    background: none;
+    border: none;
+    color: #a78bfa;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .qty-val {
+    min-width: 28px;
+    text-align: center;
+    font-size: 12px;
+    color: #e8e8ea;
+    font-weight: 600;
+    background: none;
+    border: none;
+    border-left: 1px solid #2a2a38;
+    border-right: 1px solid #2a2a38;
+    padding: 0 4px;
+    height: 100%;
+  }
+
+  .price-input {
+    background: #0f0f14;
+    border: 1px solid #2a2a38;
+    border-radius: 5px;
+    padding: 0 8px;
+    height: 26px;
+    width: 72px;
+    font-size: 12px;
+    color: #e8e8ea;
+    text-align: right;
+  }
+
+  .disc-input {
+    background: #0f0f14;
+    border: 1px solid #2a2a38;
+    border-radius: 5px;
+    padding: 0 8px;
+    height: 26px;
+    width: 64px;
+    font-size: 12px;
+    color: #e8e8ea;
+    text-align: right;
+  }
+
+  .item-total {
+    margin-left: auto;
+    text-align: right;
+  }
+  .item-total .total-label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: .06em; }
+  .item-total .total-val { font-size: 13px; font-weight: 700; color: #7c6ff7; }
+
+  /* Summary bar */
+  .summary-bar {
+    margin-top: 12px;
+    background: #12121a;
+    border: 1px solid #2a2a32;
+    border-radius: 7px;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .summary-bar .s-item { text-align: center; }
+  .summary-bar .s-label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: .06em; }
+  .summary-bar .s-val { font-size: 13px; font-weight: 700; color: #e8e8ea; }
+  .summary-bar .s-val.highlight { color: #a78bfa; }
+
+  /* no items */
+  .empty-state {
+    text-align: center;
+    padding: 20px;
+    color: #444;
+    font-size: 12px;
+    border: 1.5px dashed #252530;
+    border-radius: 7px;
+    margin-bottom: 0;
+  }
+  .empty-state .empty-icon { font-size: 24px; margin-bottom: 6px; }
+
+  .note { font-size: 11px; color: #555; margin-top: 6px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>Detailed Design — POS-style Item Adder</h1>
+<p class="subtitle">Left: Quotation Dialog &nbsp;·&nbsp; Right: Purchase Order Sheet &nbsp;·&nbsp; Both use the same search component</p>
+
+<div class="split">
+
+  <!-- QUOTATION DIALOG -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Quotation Dialog</h3>
+      <div class="tag quot">Quotation</div>
+    </div>
+    <div class="panel-body">
+
+      <!-- Header fields (existing, unchanged) -->
+      <div class="form-fields">
+        <div class="form-row">
+          <div>
+            <div class="form-label">Customer</div>
+            <div class="form-input filled">Araneta Construction Co.</div>
+          </div>
+          <div>
+            <div class="form-label">Validity (days)</div>
+            <div class="form-input filled">30</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <div class="form-label">Notes</div>
+            <div class="form-input" style="color:#555;">Optional notes…</div>
+          </div>
+          <div>
+            <div class="form-label">Status</div>
+            <div class="form-input filled">Draft</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider">Line Items</div>
+
+      <!-- Search bar -->
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <div class="search-input" style="display:flex;align-items:center;color:#888;">Search or scan barcode…</div>
+      </div>
+
+      <!-- Empty state (shown when no results / not searching) -->
+      <div class="empty-state">
+        <div class="empty-icon">📦</div>
+        Start typing to search products
+      </div>
+
+      <div style="height:16px;"></div>
+
+      <!-- Added items -->
+      <div class="items-list">
+
+        <div class="item-row">
+          <div class="item-row-top">
+            <div>
+              <div class="ir-name">Cordless Drill 18V</div>
+              <div class="ir-sku">SKU-DR-001</div>
+            </div>
+            <div class="ir-remove">✕</div>
+          </div>
+          <div class="item-row-controls">
+            <div class="control-group">
+              <div class="control-label">Qty</div>
+              <div class="qty-ctrl">
+                <button class="qty-btn">−</button>
+                <input class="qty-val" value="2" readonly>
+                <button class="qty-btn">+</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="control-label">Unit Price</div>
+              <input class="price-input" value="2,450.00">
+            </div>
+            <div class="control-group">
+              <div class="control-label">Discount</div>
+              <input class="disc-input" value="0.00">
+            </div>
+            <div class="item-total" style="flex:1;">
+              <div class="total-label">Total</div>
+              <div class="total-val">₱4,900</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-row-top">
+            <div>
+              <div class="ir-name">Safety Helmet Class B</div>
+              <div class="ir-sku">SKU-SF-008</div>
+            </div>
+            <div class="ir-remove">✕</div>
+          </div>
+          <div class="item-row-controls">
+            <div class="control-group">
+              <div class="control-label">Qty</div>
+              <div class="qty-ctrl">
+                <button class="qty-btn">−</button>
+                <input class="qty-val" value="10" readonly>
+                <button class="qty-btn">+</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="control-label">Unit Price</div>
+              <input class="price-input" value="350.00">
+            </div>
+            <div class="control-group">
+              <div class="control-label">Discount</div>
+              <input class="disc-input" value="200.00" style="color:#fb923c;">
+            </div>
+            <div class="item-total" style="flex:1;">
+              <div class="total-label">Total</div>
+              <div class="total-val">₱3,300</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Summary -->
+      <div class="summary-bar">
+        <div class="s-item"><div class="s-label">Items</div><div class="s-val">2</div></div>
+        <div class="s-item"><div class="s-label">Subtotal</div><div class="s-val">₱8,200</div></div>
+        <div class="s-item"><div class="s-label">Discount</div><div class="s-val" style="color:#fb923c;">−₱200</div></div>
+        <div class="s-item"><div class="s-label">Total</div><div class="s-val highlight">₱8,000</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PURCHASE ORDER SHEET -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>New Purchase Order</h3>
+      <div class="tag po">Purchase Order</div>
+    </div>
+    <div class="panel-body">
+
+      <!-- Header fields -->
+      <div class="form-fields">
+        <div class="form-row">
+          <div>
+            <div class="form-label">Supplier</div>
+            <div class="form-input filled">Manila Hardware Supply</div>
+          </div>
+          <div>
+            <div class="form-label">Expected Delivery</div>
+            <div class="form-input filled">Apr 28, 2026</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div style="grid-column:span 2;">
+            <div class="form-label">Notes</div>
+            <div class="form-input" style="color:#555;">Optional notes…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider">Items to Order</div>
+
+      <!-- Search with active results -->
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <div class="search-input" style="display:flex;align-items:center;color:#e8e8ea;">cement</div>
+        <span class="search-clear">✕</span>
+      </div>
+
+      <!-- Results showing (active search) -->
+      <div class="results">
+        <div class="result-item active">
+          <div class="ri-left">
+            <div class="ri-name">Portland Cement 40kg</div>
+            <div class="ri-meta">SKU-CM-001 · Building Materials</div>
+          </div>
+          <div class="ri-right">
+            <div class="ri-price">₱245</div>
+            <div class="ri-add">+</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <div class="ri-left">
+            <div class="ri-name">Rapid Set Cement 25kg</div>
+            <div class="ri-meta">SKU-CM-004 · Building Materials</div>
+          </div>
+          <div class="ri-right">
+            <div class="ri-price">₱180</div>
+            <div class="ri-add">+</div>
+          </div>
+        </div>
+        <div class="result-item">
+          <div class="ri-left">
+            <div class="ri-name">White Cement 40kg</div>
+            <div class="ri-meta">SKU-CM-007 · Building Materials</div>
+          </div>
+          <div class="ri-right">
+            <div class="ri-price">₱320</div>
+            <div class="ri-add">+</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="note">↑ Press Enter or click + to add the highlighted item</p>
+
+      <!-- Added items (PO — no discount column) -->
+      <div class="items-list" style="margin-top:12px;">
+
+        <div class="item-row">
+          <div class="item-row-top">
+            <div>
+              <div class="ir-name">Deformed Bar 10mm x 6m</div>
+              <div class="ir-sku">SKU-RB-010</div>
+            </div>
+            <div class="ir-remove">✕</div>
+          </div>
+          <div class="item-row-controls">
+            <div class="control-group">
+              <div class="control-label">Qty Ordered</div>
+              <div class="qty-ctrl">
+                <button class="qty-btn">−</button>
+                <input class="qty-val" value="50" readonly>
+                <button class="qty-btn">+</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="control-label">Unit Cost</div>
+              <input class="price-input" value="185.00">
+            </div>
+            <div class="item-total" style="flex:1;">
+              <div class="total-label">Subtotal</div>
+              <div class="total-val">₱9,250</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-row-top">
+            <div>
+              <div class="ir-name">G.I. Flat Bar 2" x 3mm x 6m</div>
+              <div class="ir-sku">SKU-GI-022</div>
+            </div>
+            <div class="ir-remove">✕</div>
+          </div>
+          <div class="item-row-controls">
+            <div class="control-group">
+              <div class="control-label">Qty Ordered</div>
+              <div class="qty-ctrl">
+                <button class="qty-btn">−</button>
+                <input class="qty-val" value="20" readonly>
+                <button class="qty-btn">+</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="control-label">Unit Cost</div>
+              <input class="price-input" value="420.00">
+            </div>
+            <div class="item-total" style="flex:1;">
+              <div class="total-label">Subtotal</div>
+              <div class="total-val">₱8,400</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Summary (simpler for PO) -->
+      <div class="summary-bar">
+        <div class="s-item"><div class="s-label">Items</div><div class="s-val">2</div></div>
+        <div class="s-item"><div class="s-label">Total Units</div><div class="s-val">70</div></div>
+        <div class="s-item"><div class="s-label">Order Total</div><div class="s-val highlight">₱17,650</div></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:28px;background:#13131a;border:1px solid #2a2a32;border-radius:8px;padding:16px 20px;">
+  <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#666;margin-bottom:10px;">Behavior notes</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;color:#aaa;line-height:1.5;">
+    <div>• Search filters by name + SKU in real-time (client-side, no extra requests)</div>
+    <div>• Adding a product that's already in the list <strong style="color:#e8e8ea;">increments quantity</strong> instead of adding a duplicate</div>
+    <div>• Results highlight on hover/keyboard — <strong style="color:#e8e8ea;">Enter</strong> adds the first/highlighted item</div>
+    <div>• Barcode scanner friendly — fast-type + Enter adds immediately</div>
+    <div>• Search clears after adding a product</div>
+    <div>• Quotation rows show Discount; PO rows show Unit Cost only (no discount)</div>
+  </div>
+</div>
+
+</body>
+</html>

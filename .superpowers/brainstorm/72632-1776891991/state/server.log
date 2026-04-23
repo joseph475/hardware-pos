@@ -1,0 +1,5 @@
+{"type":"server-started","port":64254,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:64254","screen_dir":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/72632-1776891991/content","state_dir":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/72632-1776891991/state"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/72632-1776891991/content/pos-layout-concepts.html"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/72632-1776891991/content/pos-layout-v2.html"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/72632-1776891991/content/waiting-1.html"}
+{"type":"server-stopped","reason":"idle timeout"}

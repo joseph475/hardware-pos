@@ -1,0 +1,534 @@
+<h2>POS Layout Concepts</h2>
+<p class="subtitle">Three directions for the redesigned point-of-sale interface — no product grid, no separate cart panel.</p>
+
+<style>
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 24px;
+}
+.concept-card {
+  border: 2px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--card-bg, #fff);
+}
+.concept-card:hover {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 4px 20px rgba(99,102,241,0.15);
+}
+.concept-card.selected {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.25);
+}
+.concept-label {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent, #6366f1);
+  background: rgba(99,102,241,0.06);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.concept-name {
+  padding: 12px 16px 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+}
+.concept-desc {
+  padding: 4px 16px 12px;
+  font-size: 12px;
+  color: var(--muted, #64748b);
+  line-height: 1.5;
+}
+.screen-mock {
+  margin: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  overflow: hidden;
+  font-size: 10px;
+  background: var(--bg, #f8fafc);
+}
+.mock-topbar {
+  background: var(--surface, #1e293b);
+  color: #fff;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+.mock-topbar-pill {
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+}
+.mock-topbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.mock-search {
+  margin: 8px;
+  background: #fff;
+  border: 1.5px solid #6366f1;
+  border-radius: 6px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 10px;
+}
+.mock-search-icon {
+  color: #6366f1;
+  font-size: 12px;
+}
+
+/* --- CONCEPT A: Command Bar --- */
+.cmd-suggestions {
+  margin: 0 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+.cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 9px;
+}
+.cmd-row:last-child { border-bottom: none; }
+.cmd-img {
+  width: 24px; height: 24px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 8px;
+  font-weight: bold;
+}
+.cmd-img.yellow { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.cmd-img.green { background: linear-gradient(135deg, #34d399, #10b981); }
+.cmd-info { flex: 1; }
+.cmd-name { font-weight: 600; color: #1e293b; }
+.cmd-sub { color: #94a3b8; font-size: 8px; }
+.cmd-price { font-weight: 700; color: #6366f1; }
+.cmd-badge { margin-left: 4px; background: #f0fdf4; color: #16a34a; border-radius: 3px; padding: 1px 4px; font-size: 7px; }
+
+.order-list {
+  margin: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.order-row {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.order-img {
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  flex-shrink: 0;
+}
+.order-img.y { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.order-img.g { background: linear-gradient(135deg, #34d399, #10b981); }
+.order-qty {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-weight: 700;
+  font-size: 9px;
+  color: #475569;
+}
+.order-name { flex: 1; font-weight: 600; color: #1e293b; font-size: 9px; }
+.order-total { font-weight: 700; color: #1e293b; font-size: 9px; }
+.serial-badge {
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 7px;
+  font-weight: 600;
+}
+
+.summary-bar {
+  margin: 4px 8px 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.summary-total { font-weight: 800; color: #1e293b; font-size: 11px; }
+.summary-btn {
+  background: #6366f1;
+  color: #fff;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-weight: 700;
+  font-size: 9px;
+}
+
+/* --- CONCEPT B: Two-panel search --- */
+.two-panel {
+  display: flex;
+  height: 140px;
+}
+.panel-left {
+  width: 42%;
+  border-right: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+.panel-right {
+  flex: 1;
+  overflow: hidden;
+  background: #f8fafc;
+}
+.panel-hdr {
+  padding: 4px 8px;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  border-bottom: 1px solid #f1f5f9;
+}
+.search-result-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 8px;
+}
+.sr-img {
+  width: 18px; height: 18px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  flex-shrink: 0;
+}
+.sr-img.y { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.sr-img.g { background: linear-gradient(135deg, #34d399, #10b981); }
+.sr-selected {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+}
+.sr-name { flex: 1; color: #1e293b; font-weight: 500; }
+.sr-sku { color: #94a3b8; font-size: 7px; }
+
+.order-item-b {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #e8edf5;
+  font-size: 8px;
+}
+.oib-img {
+  width: 22px; height: 22px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+}
+.oib-img.y { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.oib-name { flex: 1; font-weight: 600; color: #1e293b; }
+.oib-qty { color: #6366f1; font-weight: 700; }
+.oib-price { font-weight: 700; color: #1e293b; }
+
+/* --- CONCEPT C: Full-width receipt style --- */
+.receipt-style {
+  margin: 6px 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.receipt-search {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: #64748b;
+}
+.receipt-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 8px;
+}
+.ri-num {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ri-img {
+  width: 22px; height: 22px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  flex-shrink: 0;
+}
+.ri-img.y { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.ri-img.g { background: linear-gradient(135deg, #34d399, #10b981); }
+.ri-name { flex: 1; font-weight: 600; color: #1e293b; }
+.ri-serial { background: #fef3c7; color: #92400e; border-radius: 3px; padding: 0 3px; font-size: 7px; }
+.ri-qty { color: #64748b; }
+.ri-price { font-weight: 700; color: #1e293b; }
+
+.receipt-footer {
+  padding: 5px 8px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  font-size: 8px;
+}
+.rf-total { font-weight: 800; color: #1e293b; font-size: 11px; }
+.rf-btn { background: #6366f1; color: #fff; border-radius: 4px; padding: 3px 8px; font-size: 8px; font-weight: 700; }
+.rf-btn-outline { border: 1px solid #e2e8f0; color: #64748b; border-radius: 4px; padding: 3px 8px; font-size: 8px; }
+</style>
+
+<div class="concept-grid">
+
+  <!-- CONCEPT A -->
+  <div class="concept-card option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="concept-label">A — Recommended</div>
+    <div class="concept-name">Command Bar</div>
+    <div class="concept-desc">Spotlight-style search dominates the top. Results drop below as you type. Selected items build up as an order list with images.</div>
+    <div class="screen-mock">
+      <div class="mock-topbar">
+        <span style="font-weight:700">HardwarePOS</span>
+        <span class="mock-topbar-pill">Branch A</span>
+        <div class="mock-topbar-right">
+          <span class="mock-topbar-pill">Hold</span>
+          <span class="mock-topbar-pill">Customer</span>
+        </div>
+      </div>
+      <div class="mock-search">
+        <span class="mock-search-icon">⌕</span>
+        <span>Search product, SKU, or scan barcode...</span>
+        <span style="margin-left:auto;font-size:9px;color:#94a3b8">F2</span>
+      </div>
+      <div class="cmd-suggestions">
+        <div class="cmd-row" style="background:#ede9fe;">
+          <div class="cmd-img">H</div>
+          <div class="cmd-info">
+            <div class="cmd-name">Hammer — 16oz</div>
+            <div class="cmd-sub">SKU: HMR-001 · Barcode: 4891234</div>
+          </div>
+          <div class="cmd-price">₱299</div>
+          <div class="cmd-badge">In stock</div>
+        </div>
+        <div class="cmd-row">
+          <div class="cmd-img yellow">N</div>
+          <div class="cmd-info">
+            <div class="cmd-name">Nails — Box 100pcs</div>
+            <div class="cmd-sub">SKU: NAI-040 · Barcode: 4891235</div>
+          </div>
+          <div class="cmd-price">₱45</div>
+          <div class="cmd-badge">In stock</div>
+        </div>
+        <div class="cmd-row">
+          <div class="cmd-img green">S</div>
+          <div class="cmd-info">
+            <div class="cmd-name">Screwdriver Set</div>
+            <div class="cmd-sub">SKU: SDR-012 · Serial required</div>
+          </div>
+          <div class="cmd-price">₱850</div>
+          <div class="cmd-badge">In stock</div>
+        </div>
+      </div>
+      <div style="margin:6px 8px 4px;font-size:8px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Order Items</div>
+      <div class="order-list">
+        <div class="order-row">
+          <div class="order-img"></div>
+          <div class="order-name">Hammer — 16oz</div>
+          <div class="order-qty">×2</div>
+          <div class="order-total">₱598</div>
+        </div>
+        <div class="order-row">
+          <div class="order-img y"></div>
+          <div class="order-name">Nails — Box 100pcs</div>
+          <div class="order-qty">×5</div>
+          <div class="order-total">₱225</div>
+        </div>
+      </div>
+      <div class="summary-bar">
+        <div>
+          <div style="font-size:7px;color:#94a3b8">3 items · Tax incl.</div>
+          <div class="summary-total">₱823.00</div>
+        </div>
+        <div class="summary-btn">Charge →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCEPT B -->
+  <div class="concept-card option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="concept-label">B</div>
+    <div class="concept-name">Split Panel</div>
+    <div class="concept-desc">Left panel shows live search results. Right panel is the running order. Both always visible — fast switching between lookup and review.</div>
+    <div class="screen-mock">
+      <div class="mock-topbar">
+        <span style="font-weight:700">HardwarePOS</span>
+        <span class="mock-topbar-pill">Branch A</span>
+        <div class="mock-topbar-right">
+          <span class="mock-topbar-pill">Hold</span>
+        </div>
+      </div>
+      <div class="mock-search" style="margin:6px 8px 0;">
+        <span class="mock-search-icon">⌕</span>
+        <span>ham</span>
+        <span style="margin-left:auto;font-size:9px;background:#6366f1;color:#fff;border-radius:3px;padding:1px 4px;">↵ Add</span>
+      </div>
+      <div class="two-panel">
+        <div class="panel-left">
+          <div class="panel-hdr">Results</div>
+          <div class="search-result-row sr-selected">
+            <div class="sr-img"></div>
+            <div>
+              <div class="sr-name">Hammer — 16oz</div>
+              <div class="sr-sku">HMR-001 · ₱299</div>
+            </div>
+          </div>
+          <div class="search-result-row">
+            <div class="sr-img yellow"></div>
+            <div>
+              <div class="sr-name">Hammer — 20oz</div>
+              <div class="sr-sku">HMR-002 · ₱450</div>
+            </div>
+          </div>
+          <div class="search-result-row">
+            <div class="sr-img green"></div>
+            <div>
+              <div class="sr-name">Hammer Drill</div>
+              <div class="sr-sku">HMR-DRL · ₱3,200</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-right">
+          <div class="panel-hdr">Order · 2 items</div>
+          <div class="order-item-b">
+            <div class="oib-img"></div>
+            <div class="oib-name">Hammer — 16oz</div>
+            <div class="oib-qty">×2</div>
+            <div class="oib-price">₱598</div>
+          </div>
+          <div class="order-item-b">
+            <div class="oib-img y"></div>
+            <div class="oib-name">Nails — Box</div>
+            <div class="oib-qty">×5</div>
+            <div class="oib-price">₱225</div>
+          </div>
+          <div style="padding:4px 6px;border-top:1px solid #e2e8f0;background:#f8fafc;font-size:9px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-weight:800;">₱823</div>
+            <div style="background:#6366f1;color:#fff;border-radius:4px;padding:2px 7px;font-weight:700;font-size:8px;">Charge</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCEPT C -->
+  <div class="concept-card option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="concept-label">C</div>
+    <div class="concept-name">Receipt-First</div>
+    <div class="concept-desc">Full-width order list styled like a receipt. Search bar at top triggers a floating dropdown. Clean, minimal, familiar to cashiers.</div>
+    <div class="screen-mock">
+      <div class="mock-topbar">
+        <span style="font-weight:700">HardwarePOS</span>
+        <span class="mock-topbar-pill">Branch A</span>
+        <div class="mock-topbar-right">
+          <span class="mock-topbar-pill">Customer</span>
+          <span class="mock-topbar-pill">Hold</span>
+        </div>
+      </div>
+      <div class="receipt-style">
+        <div class="receipt-search">
+          <span style="color:#6366f1;font-size:12px;">⌕</span>
+          <span style="color:#94a3b8;">Scan or search product...</span>
+        </div>
+        <div class="receipt-item">
+          <div class="ri-num">1</div>
+          <div class="ri-img"></div>
+          <div class="ri-name">Hammer — 16oz</div>
+          <div class="ri-qty">×2</div>
+          <div class="ri-price">₱598</div>
+        </div>
+        <div class="receipt-item">
+          <div class="ri-num">2</div>
+          <div class="ri-img y"></div>
+          <div class="ri-name">Nails — Box 100pcs</div>
+          <div class="ri-qty">×5</div>
+          <div class="ri-price">₱225</div>
+        </div>
+        <div class="receipt-item">
+          <div class="ri-num">3</div>
+          <div class="ri-img g"></div>
+          <div class="ri-name">Screwdriver Set <span class="ri-serial">Serial req.</span></div>
+          <div class="ri-qty">×1</div>
+          <div class="ri-price">₱850</div>
+        </div>
+        <div class="receipt-footer">
+          <div style="display:flex;gap:6px;">
+            <div class="rf-btn-outline">Hold</div>
+            <div class="rf-btn-outline">Discount</div>
+          </div>
+          <div>
+            <div style="font-size:7px;color:#94a3b8;text-align:right;">Total (incl. tax)</div>
+            <div class="rf-total">₱1,673</div>
+          </div>
+          <div class="rf-btn">Charge →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:14px 16px;background:rgba(99,102,241,0.06);border-radius:8px;border:1px solid rgba(99,102,241,0.15);">
+  <div style="font-size:11px;font-weight:700;color:#6366f1;margin-bottom:6px;">Notes on all three concepts</div>
+  <ul style="font-size:12px;color:#475569;line-height:1.8;margin:0;padding-left:16px;">
+    <li>All three eliminate the product grid — search/scan is the only entry point</li>
+    <li>All show product image thumbnails in the order list</li>
+    <li>All surface <strong>serial required</strong> badge on eligible products</li>
+    <li>Serial number entry happens at charge time (one serial per unit, barcode-scannable)</li>
+  </ul>
+</div>
+</content>
+</invoke>

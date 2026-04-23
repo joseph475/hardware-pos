@@ -1,0 +1,364 @@
+<h2>POS Layout Concepts</h2>
+<p class="subtitle">Three directions for the redesigned point-of-sale — no product grid, no cart panel. Click one to select.</p>
+
+<style>
+  /* Tiny UI building blocks for the mockups */
+  .topbar {
+    background: #1e293b;
+    color: #fff;
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .topbar-pill {
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 9px;
+    font-weight: 500;
+  }
+  .topbar-right { margin-left: auto; display: flex; gap: 5px; }
+
+  .search-bar {
+    margin: 8px;
+    border: 1.5px solid #6366f1;
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #94a3b8;
+    background: #fff;
+  }
+  .search-icon { color: #6366f1; font-size: 13px; line-height: 1; }
+
+  /* Dropdown suggestions */
+  .dropdown {
+    margin: 0 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .dropdown-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 9px;
+  }
+  .dropdown-row:last-child { border-bottom: none; }
+  .dropdown-row.highlighted { background: #ede9fe; }
+  .thumb {
+    width: 26px; height: 26px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 9px; font-weight: 700;
+  }
+  .thumb-v { background: linear-gradient(135deg, #818cf8, #6366f1); }
+  .thumb-y { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+  .thumb-g { background: linear-gradient(135deg, #34d399, #10b981); }
+  .prod-name { flex: 1; font-weight: 600; color: #1e293b; }
+  .prod-sub { color: #94a3b8; font-size: 8px; }
+  .prod-price { font-weight: 700; color: #6366f1; font-size: 9px; }
+  .stock-ok { background: #f0fdf4; color: #16a34a; border-radius: 3px; padding: 1px 4px; font-size: 7px; font-weight: 700; }
+  .serial-tag { background: #fef3c7; color: #92400e; border-radius: 3px; padding: 1px 4px; font-size: 7px; font-weight: 700; }
+
+  /* Order list */
+  .section-label {
+    margin: 7px 8px 3px;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+  }
+  .order-list { margin: 0 8px; display: flex; flex-direction: column; gap: 3px; }
+  .order-row {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    padding: 5px 7px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+  }
+  .order-thumb { width: 24px; height: 24px; border-radius: 3px; flex-shrink: 0; }
+  .order-name { flex: 1; font-weight: 600; color: #1e293b; }
+  .order-qty { background: #f1f5f9; border-radius: 3px; padding: 1px 5px; color: #475569; font-weight: 700; font-size: 8px; }
+  .order-price { font-weight: 700; color: #1e293b; }
+
+  /* Summary footer */
+  .summary {
+    margin: 6px 8px 8px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .summary-label { font-size: 7px; color: #94a3b8; }
+  .summary-total { font-size: 12px; font-weight: 800; color: #1e293b; }
+  .charge-btn {
+    background: #6366f1;
+    color: #fff;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-weight: 700;
+    font-size: 9px;
+  }
+
+  /* Split panel (concept B) */
+  .split-body { display: flex; height: 130px; }
+  .panel-l { width: 45%; border-right: 1px solid #e2e8f0; overflow: hidden; }
+  .panel-r { flex: 1; background: #f8fafc; overflow: hidden; }
+  .panel-hdr { padding: 4px 7px; font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; border-bottom: 1px solid #f1f5f9; }
+  .sr { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border-bottom: 1px solid #f8fafc; font-size: 8px; }
+  .sr.active { background: #ede9fe; }
+  .sr-thumb { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
+  .sr-info { flex: 1; }
+  .sr-name { font-weight: 600; color: #1e293b; font-size: 8px; }
+  .sr-sku { color: #94a3b8; font-size: 7px; }
+  .order-b { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border-bottom: 1px solid #e8edf5; font-size: 8px; }
+  .ob-thumb { width: 20px; height: 20px; border-radius: 3px; flex-shrink: 0; }
+  .ob-name { flex: 1; font-weight: 600; color: #1e293b; font-size: 8px; }
+  .ob-qty { color: #6366f1; font-weight: 700; font-size: 8px; }
+  .ob-price { font-weight: 700; color: #1e293b; font-size: 8px; }
+  .panel-footer { padding: 4px 6px; border-top: 1px solid #e2e8f0; background: #fff; display: flex; justify-content: space-between; align-items: center; font-size: 8px; }
+
+  /* Receipt style (concept C) */
+  .receipt { margin: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; }
+  .receipt-search { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 5px; font-size: 9px; color: #94a3b8; }
+  .receipt-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid #f8fafc; font-size: 8px; }
+  .rr-num { width: 14px; height: 14px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 700; flex-shrink: 0; }
+  .rr-thumb { width: 20px; height: 20px; border-radius: 3px; flex-shrink: 0; }
+  .rr-name { flex: 1; font-weight: 600; color: #1e293b; }
+  .rr-qty { color: #64748b; }
+  .rr-price { font-weight: 700; color: #1e293b; }
+  .receipt-footer { padding: 5px 8px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
+  .rf-total { font-size: 11px; font-weight: 800; color: #1e293b; }
+  .rf-btn { background: #6366f1; color: #fff; border-radius: 4px; padding: 3px 9px; font-size: 8px; font-weight: 700; }
+  .rf-ghost { border: 1px solid #e2e8f0; color: #64748b; border-radius: 4px; padding: 3px 9px; font-size: 8px; }
+</style>
+
+<div class="cards">
+
+  <!-- CONCEPT A: Command Bar -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0; display:block; background:#f8fafc;">
+      <div class="topbar">
+        <span>HardwarePOS</span>
+        <span class="topbar-pill">Branch A</span>
+        <div class="topbar-right">
+          <span class="topbar-pill">Customer</span>
+          <span class="topbar-pill">Hold</span>
+        </div>
+      </div>
+      <div class="search-bar">
+        <span class="search-icon">⌕</span>
+        <span>ham</span>
+        <span style="margin-left:auto;font-size:8px;color:#94a3b8">F2</span>
+      </div>
+      <div class="dropdown">
+        <div class="dropdown-row highlighted">
+          <div class="thumb thumb-v">H</div>
+          <div style="flex:1">
+            <div class="prod-name">Hammer — 16oz</div>
+            <div class="prod-sub">SKU: HMR-001</div>
+          </div>
+          <span class="prod-price">₱299</span>
+          <span class="stock-ok">In stock</span>
+        </div>
+        <div class="dropdown-row">
+          <div class="thumb thumb-y">N</div>
+          <div style="flex:1">
+            <div class="prod-name">Hammer — 20oz</div>
+            <div class="prod-sub">SKU: HMR-002</div>
+          </div>
+          <span class="prod-price">₱450</span>
+          <span class="stock-ok">In stock</span>
+        </div>
+        <div class="dropdown-row">
+          <div class="thumb thumb-g">D</div>
+          <div style="flex:1">
+            <div class="prod-name">Hammer Drill</div>
+            <div class="prod-sub">SKU: HMR-DRL · <span class="serial-tag">Serial req.</span></div>
+          </div>
+          <span class="prod-price">₱3,200</span>
+          <span class="stock-ok">In stock</span>
+        </div>
+      </div>
+      <div class="section-label">Order Items</div>
+      <div class="order-list">
+        <div class="order-row">
+          <div class="order-thumb thumb-v"></div>
+          <span class="order-name">Hammer — 16oz</span>
+          <span class="order-qty">×2</span>
+          <span class="order-price">₱598</span>
+        </div>
+        <div class="order-row">
+          <div class="order-thumb thumb-y"></div>
+          <span class="order-name">Nails — Box 100pcs</span>
+          <span class="order-qty">×5</span>
+          <span class="order-price">₱225</span>
+        </div>
+      </div>
+      <div class="summary">
+        <div>
+          <div class="summary-label">2 items · Tax incl.</div>
+          <div class="summary-total">₱823.00</div>
+        </div>
+        <div class="charge-btn">Charge →</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Command Bar <span style="font-size:11px;color:#6366f1;font-weight:500;">(recommended)</span></h3>
+      <p>Spotlight-style search at top. Results drop below as you type. Order builds up as a list beneath. Cleanest flow.</p>
+    </div>
+  </div>
+
+  <!-- CONCEPT B: Split Panel -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0; display:block; background:#f8fafc;">
+      <div class="topbar">
+        <span>HardwarePOS</span>
+        <span class="topbar-pill">Branch A</span>
+        <div class="topbar-right">
+          <span class="topbar-pill">Hold</span>
+        </div>
+      </div>
+      <div class="search-bar" style="margin-bottom:4px;">
+        <span class="search-icon">⌕</span>
+        <span>ham</span>
+        <span style="margin-left:auto;background:#6366f1;color:#fff;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:700;">↵ Add</span>
+      </div>
+      <div class="split-body">
+        <div class="panel-l">
+          <div class="panel-hdr">Results</div>
+          <div class="sr active">
+            <div class="sr-thumb thumb-v"></div>
+            <div class="sr-info">
+              <div class="sr-name">Hammer — 16oz</div>
+              <div class="sr-sku">HMR-001 · ₱299</div>
+            </div>
+          </div>
+          <div class="sr">
+            <div class="sr-thumb thumb-y"></div>
+            <div class="sr-info">
+              <div class="sr-name">Hammer — 20oz</div>
+              <div class="sr-sku">HMR-002 · ₱450</div>
+            </div>
+          </div>
+          <div class="sr">
+            <div class="sr-thumb thumb-g"></div>
+            <div class="sr-info">
+              <div class="sr-name">Hammer Drill</div>
+              <div class="sr-sku">HMR-DRL · ₱3,200</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-r">
+          <div class="panel-hdr">Order · 2 items</div>
+          <div class="order-b">
+            <div class="ob-thumb thumb-v"></div>
+            <span class="ob-name">Hammer — 16oz</span>
+            <span class="ob-qty">×2</span>
+            <span class="ob-price">₱598</span>
+          </div>
+          <div class="order-b">
+            <div class="ob-thumb thumb-y"></div>
+            <span class="ob-name">Nails — Box</span>
+            <span class="ob-qty">×5</span>
+            <span class="ob-price">₱225</span>
+          </div>
+          <div class="panel-footer">
+            <span style="font-weight:800;font-size:10px;">₱823</span>
+            <div style="background:#6366f1;color:#fff;border-radius:4px;padding:2px 8px;font-size:8px;font-weight:700;">Charge</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Split Panel</h3>
+      <p>Left shows search results, right shows the live order. Both always visible. Good for high-volume cashiers.</p>
+    </div>
+  </div>
+
+  <!-- CONCEPT C: Receipt-First -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0; display:block; background:#f8fafc;">
+      <div class="topbar">
+        <span>HardwarePOS</span>
+        <span class="topbar-pill">Branch A</span>
+        <div class="topbar-right">
+          <span class="topbar-pill">Customer</span>
+          <span class="topbar-pill">Hold</span>
+        </div>
+      </div>
+      <div class="receipt">
+        <div class="receipt-search">
+          <span style="color:#6366f1;font-size:12px;">⌕</span>
+          <span>Scan or search product...</span>
+        </div>
+        <div class="receipt-row">
+          <div class="rr-num">1</div>
+          <div class="rr-thumb thumb-v"></div>
+          <span class="rr-name">Hammer — 16oz</span>
+          <span class="rr-qty">×2</span>
+          <span class="rr-price">₱598</span>
+        </div>
+        <div class="receipt-row">
+          <div class="rr-num">2</div>
+          <div class="rr-thumb thumb-y"></div>
+          <span class="rr-name">Nails — Box 100pcs</span>
+          <span class="rr-qty">×5</span>
+          <span class="rr-price">₱225</span>
+        </div>
+        <div class="receipt-row">
+          <div class="rr-num">3</div>
+          <div class="rr-thumb thumb-g"></div>
+          <span class="rr-name">Screwdriver Set <span class="serial-tag">Serial req.</span></span>
+          <span class="rr-qty">×1</span>
+          <span class="rr-price">₱850</span>
+        </div>
+        <div class="receipt-footer">
+          <div style="display:flex;gap:5px;">
+            <div class="rf-ghost">Hold</div>
+            <div class="rf-ghost">Disc.</div>
+          </div>
+          <div>
+            <div style="font-size:7px;color:#94a3b8;text-align:right;">Total (incl. tax)</div>
+            <div class="rf-total">₱1,673</div>
+          </div>
+          <div class="rf-btn">Charge →</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Receipt-First</h3>
+      <p>Order list takes the full screen, styled like a receipt. Search sits at top as a floating dropdown. Simple and familiar.</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:14px 18px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;">
+  <div class="label" style="margin-bottom:6px;">Shared across all three designs</div>
+  <ul style="font-size:13px;color:var(--text-secondary);line-height:1.9;margin:0;padding-left:18px;">
+    <li>No product grid — search or scan is the only way to add items</li>
+    <li>Product image thumbnails shown in the order list</li>
+    <li><strong>Serial required</strong> badge surfaces on eligible products at lookup</li>
+    <li>Serial entry happens at charge time — one serial per unit, barcode-scannable</li>
+  </ul>
+</div>
+</content>
