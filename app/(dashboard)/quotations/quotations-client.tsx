@@ -36,6 +36,8 @@ import {
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
 import type { QuotationStatus } from '@/types/database'
 import { QuotationDialog, type QuotationFormValues } from './components/quotation-dialog'
+import { QuotationDetailSheet } from './components/quotation-detail-sheet'
+import { CustomerSelectDialog } from '@/components/pos/customer-select-dialog'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,7 +48,7 @@ interface Props {
   initialQuotations: QuotationWithRelations[]
   customers: Array<{ id: string; name: string; company_name: string | null }>
   branches: Array<{ id: string; name: string }>
-  products: Array<{ id: string; name: string; sku: string; selling_price: number }>
+  products: Array<{ id: string; name: string; sku: string; selling_price: number; serial_required: boolean; image_url: string | null }>
   userRole: 'owner' | 'manager' | 'cashier'
   userBranchId: string | null
 }
@@ -95,6 +97,10 @@ export function QuotationsClient({
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingQuotation, setEditingQuotation] = React.useState<QuotationWithRelations | null>(null)
   const [isPending, setIsPending] = React.useState(false)
+  const [detailSheetOpen, setDetailSheetOpen] = React.useState(false)
+  const [viewingQuotation, setViewingQuotation] = React.useState<QuotationWithRelations | null>(null)
+  const [customerStepOpen, setCustomerStepOpen] = React.useState(false)
+  const [pendingCustomer, setPendingCustomer] = React.useState<{ id: string | null; name: string | null }>({ id: null, name: null })
 
   // Sync when server re-renders
   React.useEffect(() => {
@@ -201,7 +207,8 @@ export function QuotationsClient({
         <Button
           onClick={() => {
             setEditingQuotation(null)
-            setDialogOpen(true)
+            setPendingCustomer({ id: null, name: null })
+            setCustomerStepOpen(true)
           }}
         >
           <Plus className="h-4 w-4" />
@@ -272,7 +279,19 @@ export function QuotationsClient({
                   const canDelete = q.status === 'draft'
 
                   return (
-                    <TableRow key={q.id} className="border-b border-border/50">
+                    <TableRow
+                      key={q.id}
+                      className="border-b border-border/50 cursor-pointer"
+                      onClick={() => {
+                        if (q.status === 'draft') {
+                          setEditingQuotation(q)
+                          setDialogOpen(true)
+                        } else {
+                          setViewingQuotation(q)
+                          setDetailSheetOpen(true)
+                        }
+                      }}
+                    >
                       <TableCell className="pl-4">
                         <span className="font-mono text-xs font-medium text-foreground">
                           {q.id.slice(0, 8).toUpperCase()}
@@ -304,7 +323,7 @@ export function QuotationsClient({
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {q.created_at.slice(0, 10)}
                       </TableCell>
-                      <TableCell className="pr-4">
+                      <TableCell className="pr-4" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
@@ -322,6 +341,16 @@ export function QuotationsClient({
                                 }}
                               >
                                 Edit
+                              </DropdownMenuItem>
+                            )}
+                            {!canEdit && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setViewingQuotation(q)
+                                  setDetailSheetOpen(true)
+                                }}
+                              >
+                                View Details
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
@@ -371,6 +400,18 @@ export function QuotationsClient({
         Showing {filtered.length} of {quotations.length} quotations
       </p>
 
+      {/* Customer step (new quotation only) */}
+      <CustomerSelectDialog
+        open={customerStepOpen}
+        onOpenChange={setCustomerStepOpen}
+        customers={customers.map((c) => ({ ...c, email: null, phone: null, is_active: true }))}
+        onConfirm={(id, name) => {
+          setPendingCustomer({ id, name })
+          setCustomerStepOpen(false)
+          setDialogOpen(true)
+        }}
+      />
+
       {/* Quotation Dialog */}
       <QuotationDialog
         quotation={editingQuotation}
@@ -384,6 +425,39 @@ export function QuotationsClient({
         }}
         onSave={handleSave}
         isPending={isPending}
+        preselectedCustomer={!editingQuotation ? pendingCustomer : null}
+        userRole={userRole}
+        userBranchId={userBranchId}
+      />
+
+      {/* Quotation Detail Sheet (non-draft) */}
+      <QuotationDetailSheet
+        quotation={viewingQuotation}
+        productMeta={products.map((p) => ({
+          id: p.id,
+          image_url: p.image_url,
+          serial_required: p.serial_required,
+        }))}
+        open={detailSheetOpen}
+        onOpenChange={(open) => {
+          setDetailSheetOpen(open)
+          if (!open) setViewingQuotation(null)
+        }}
+        onMarkSent={async (id) => {
+          await handleMarkSent(id)
+          setDetailSheetOpen(false)
+          setViewingQuotation(null)
+        }}
+        onApprove={async (id) => {
+          await handleApprove(id)
+          setDetailSheetOpen(false)
+          setViewingQuotation(null)
+        }}
+        onReject={async (id) => {
+          await handleReject(id)
+          setDetailSheetOpen(false)
+          setViewingQuotation(null)
+        }}
       />
     </div>
   )
