@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { notFound, redirect } from 'next/navigation'
-import { getQuotations } from '@/lib/actions/quotations'
+import { getQuotationById } from '@/lib/actions/quotations'
 import { QuotationFormClient } from '../../components/quotation-form-client'
 
 function getAdminClient() {
@@ -22,13 +22,13 @@ export default async function EditQuotationPage({ params }: Props) {
   const { id } = await params
   const supabase = getAdminClient()
 
-  const [profileResult, quotations, branchesResult, productsResult, customersResult] = await Promise.all([
+  const [profileResult, quotation, branchesResult, productsResult, customersResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('role, branch_id')
       .eq('clerk_user_id', userId)
       .single(),
-    getQuotations(),
+    getQuotationById(id),
     supabase
       .from('branches')
       .select('id, name')
@@ -52,10 +52,13 @@ export default async function EditQuotationPage({ params }: Props) {
   const userRole = (profileResult.data?.role ?? 'cashier') as 'owner' | 'manager' | 'cashier'
   const userBranchId = profileResult.data?.branch_id ?? null
 
-  const quotation = quotations.find((q) => q.id === id) ?? null
-
   if (!quotation) notFound()
   if (quotation.status !== 'draft') redirect('/quotations')
+
+  // Non-owner roles can only edit quotations belonging to their branch
+  if (userRole !== 'owner' && userBranchId && quotation.branch_id !== userBranchId) {
+    notFound()
+  }
 
   const customers = (customersResult.data ?? []) as Array<{
     id: string

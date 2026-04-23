@@ -79,6 +79,31 @@ export async function getQuotations(filters?: {
 }
 
 // ---------------------------------------------------------------------------
+// getQuotationById
+// ---------------------------------------------------------------------------
+export async function getQuotationById(id: string): Promise<QuotationWithRelations | null> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+  const supabase = getAdminClient()
+
+  const { data, error } = await supabase
+    .from('quotations')
+    .select(`
+      *,
+      customers(name, email, company_name),
+      branches(name),
+      creator:profiles!created_by(full_name),
+      quotation_items(*)
+    `)
+    .eq('org_id', ORG_ID)
+    .eq('id', id)
+    .single()
+
+  if (error) return null
+  return data as unknown as QuotationWithRelations
+}
+
+// ---------------------------------------------------------------------------
 // createQuotation
 // ---------------------------------------------------------------------------
 export async function createQuotation(params: {
@@ -124,7 +149,7 @@ export async function createQuotation(params: {
       branch_id: params.branch_id,
       created_by: profile.id,
       status: 'draft',
-      valid_until: params.valid_until ?? null,
+      valid_until: params.valid_until || null,
       notes: params.notes ?? null,
       subtotal,
       discount_amount: params.discount_amount ?? 0,
