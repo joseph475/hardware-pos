@@ -25,19 +25,8 @@ export default async function NewQuotationPage({ searchParams }: Props) {
 
   const supabase = getAdminClient()
 
-  let userRole: 'owner' | 'manager' | 'cashier' = 'cashier'
-  let userBranchId: string | null = null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, branch_id')
-    .eq('clerk_user_id', userId)
-    .single()
-
-  userRole = profile?.role ?? 'cashier'
-  userBranchId = profile?.branch_id ?? null
-
-  const [branchesResult, productsResult] = await Promise.all([
+  const [profileResult, branchesResult, productsResult, customerResult] = await Promise.all([
+    supabase.from('profiles').select('role, branch_id').eq('clerk_user_id', userId).single(),
     supabase
       .from('branches')
       .select('id, name')
@@ -50,18 +39,21 @@ export default async function NewQuotationPage({ searchParams }: Props) {
       .eq('org_id', '00000000-0000-0000-0000-000000000001')
       .eq('is_active', true)
       .order('name'),
+    supabase
+      .from('customers')
+      .select('id, name, company_name')
+      .eq('id', customer_id)
+      .eq('org_id', '00000000-0000-0000-0000-000000000001')
+      .eq('is_active', true)
+      .single(),
   ])
 
-  const { data: customerData } = await supabase
-    .from('customers')
-    .select('id, name, company_name')
-    .eq('id', customer_id)
-    .single()
+  const userRole = (profileResult.data?.role ?? 'cashier') as 'owner' | 'manager' | 'cashier'
+  const userBranchId = profileResult.data?.branch_id ?? null
+  const customerData = customerResult.data
+  if (!customerData) redirect('/quotations')
 
-  const customers = customerData
-    ? [{ id: customerData.id, name: customerData.name, company_name: customerData.company_name }]
-    : []
-
+  const customers = [{ id: customerData.id, name: customerData.name, company_name: customerData.company_name }]
   const branches = (branchesResult.data ?? []) as Array<{ id: string; name: string }>
   const products = (productsResult.data ?? []) as Array<{
     id: string
