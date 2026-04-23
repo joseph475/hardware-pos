@@ -27,21 +27,15 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrency } from '@/lib/context/currency'
 import {
-  createQuotation,
-  updateQuotation,
   deleteQuotation,
   updateQuotationStatus,
   approveQuotation,
 } from '@/lib/actions/quotations'
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
 import type { QuotationStatus } from '@/types/database'
-import { QuotationDialog, type QuotationFormValues } from './components/quotation-dialog'
 import { QuotationDetailSheet } from './components/quotation-detail-sheet'
 import { CustomerSelectDialog } from '@/components/pos/customer-select-dialog'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 type StatusFilter = QuotationStatus | 'all'
 
 interface Props {
@@ -53,13 +47,7 @@ interface Props {
   userBranchId: string | null
 }
 
-// ---------------------------------------------------------------------------
-// Status config
-// ---------------------------------------------------------------------------
-const STATUS_CONFIG: Record<
-  QuotationStatus,
-  { label: string; className: string }
-> = {
+const STATUS_CONFIG: Record<QuotationStatus, { label: string; className: string }> = {
   draft:     { label: 'Draft',     className: 'bg-muted text-muted-foreground border-transparent' },
   sent:      { label: 'Sent',      className: 'bg-blue-500/15 text-blue-500 border-transparent' },
   accepted:  { label: 'Accepted',  className: 'bg-green-500/15 text-green-600 border-transparent' },
@@ -77,13 +65,10 @@ const STATUS_TABS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'rejected',  label: 'Rejected' },
 ]
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 export function QuotationsClient({
   initialQuotations,
   customers,
-  branches,
+  branches: _branches,
   products,
   userRole,
   userBranchId,
@@ -94,65 +79,20 @@ export function QuotationsClient({
   const [quotations, setQuotations] = React.useState(initialQuotations)
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all')
   const [search, setSearch] = React.useState('')
-  const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [editingQuotation, setEditingQuotation] = React.useState<QuotationWithRelations | null>(null)
-  const [isPending, setIsPending] = React.useState(false)
   const [detailSheetOpen, setDetailSheetOpen] = React.useState(false)
   const [viewingQuotation, setViewingQuotation] = React.useState<QuotationWithRelations | null>(null)
   const [customerStepOpen, setCustomerStepOpen] = React.useState(false)
-  const [pendingCustomer, setPendingCustomer] = React.useState<{ id: string | null; name: string | null }>({ id: null, name: null })
 
-  // Sync when server re-renders
   React.useEffect(() => {
     setQuotations(initialQuotations)
   }, [initialQuotations])
 
-  // ---------------------------------------------------------------------------
-  // Filter
-  // ---------------------------------------------------------------------------
   const filtered = quotations.filter((q) => {
     const matchStatus = statusFilter === 'all' || q.status === statusFilter
     const customerName = q.customers?.name?.toLowerCase() ?? ''
     const matchSearch = !search || customerName.includes(search.toLowerCase())
     return matchStatus && matchSearch
   })
-
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
-  async function handleSave(values: QuotationFormValues) {
-    setIsPending(true)
-    try {
-      if (editingQuotation) {
-        await updateQuotation(editingQuotation.id, {
-          customer_id: values.customer_id,
-          branch_id: values.branch_id,
-          valid_until: values.valid_until,
-          notes: values.notes,
-          discount_amount: values.discount_amount,
-          items: values.items,
-        })
-        toast.success('Quotation updated')
-      } else {
-        await createQuotation({
-          customer_id: values.customer_id,
-          branch_id: values.branch_id,
-          valid_until: values.valid_until,
-          notes: values.notes,
-          discount_amount: values.discount_amount,
-          items: values.items,
-        })
-        toast.success('Quotation created')
-      }
-      setDialogOpen(false)
-      setEditingQuotation(null)
-      router.refresh()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save quotation')
-    } finally {
-      setIsPending(false)
-    }
-  }
 
   async function handleMarkSent(id: string) {
     try {
@@ -194,6 +134,10 @@ export function QuotationsClient({
     }
   }
 
+  // Suppress unused-var warnings for props kept for parent compat
+  void userRole
+  void userBranchId
+
   return (
     <div className="p-6 space-y-5">
       {/* Header */}
@@ -205,11 +149,7 @@ export function QuotationsClient({
           </p>
         </div>
         <Button
-          onClick={() => {
-            setEditingQuotation(null)
-            setPendingCustomer({ id: null, name: null })
-            setCustomerStepOpen(true)
-          }}
+          onClick={() => setCustomerStepOpen(true)}
         >
           <Plus className="h-4 w-4" />
           New Quotation
@@ -274,8 +214,7 @@ export function QuotationsClient({
                   const canEdit = q.status === 'draft'
                   const canMarkSent = q.status === 'draft'
                   const canApprove = q.status !== 'converted' && q.status !== 'rejected'
-                  const canReject =
-                    q.status === 'draft' || q.status === 'sent' || q.status === 'accepted'
+                  const canReject = q.status === 'draft' || q.status === 'sent' || q.status === 'accepted'
                   const canDelete = q.status === 'draft'
 
                   return (
@@ -284,8 +223,7 @@ export function QuotationsClient({
                       className="border-b border-border/50 cursor-pointer"
                       onClick={() => {
                         if (q.status === 'draft') {
-                          setEditingQuotation(q)
-                          setDialogOpen(true)
+                          router.push(`/quotations/${q.id}/edit`)
                         } else {
                           setViewingQuotation(q)
                           setDetailSheetOpen(true)
@@ -335,10 +273,7 @@ export function QuotationsClient({
                           <DropdownMenuContent align="end">
                             {canEdit && (
                               <DropdownMenuItem
-                                onClick={() => {
-                                  setEditingQuotation(q)
-                                  setDialogOpen(true)
-                                }}
+                                onClick={() => router.push(`/quotations/${q.id}/edit`)}
                               >
                                 Edit
                               </DropdownMenuItem>
@@ -400,37 +335,18 @@ export function QuotationsClient({
         Showing {filtered.length} of {quotations.length} quotations
       </p>
 
-      {/* Customer step (new quotation only) */}
+      {/* Customer picker — navigates to /quotations/new on confirm */}
       <CustomerSelectDialog
         open={customerStepOpen}
         onOpenChange={setCustomerStepOpen}
         customers={customers.map((c) => ({ ...c, email: null, phone: null, is_active: true }))}
-        onConfirm={(id, name) => {
-          setPendingCustomer({ id, name })
+        onConfirm={(id) => {
           setCustomerStepOpen(false)
-          setDialogOpen(true)
+          router.push(`/quotations/new?customer_id=${id}`)
         }}
       />
 
-      {/* Quotation Dialog */}
-      <QuotationDialog
-        quotation={editingQuotation}
-        customers={customers}
-        branches={branches}
-        products={products}
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open)
-          if (!open) setEditingQuotation(null)
-        }}
-        onSave={handleSave}
-        isPending={isPending}
-        preselectedCustomer={!editingQuotation ? pendingCustomer : null}
-        userRole={userRole}
-        userBranchId={userBranchId}
-      />
-
-      {/* Quotation Detail Sheet (non-draft) */}
+      {/* Detail sheet — non-draft view only */}
       <QuotationDetailSheet
         quotation={viewingQuotation}
         productMeta={products.map((p) => ({
