@@ -158,6 +158,7 @@ export function QuotationFormClient({
   const grandTotal = subtotal - overallDiscount
 
   const customer = customers.find((c) => c.id === watchedCustomerId)
+  const customerDisplayName = customer?.name ?? quotation?.customers?.name ?? '—'
   const pageTitle = quotation
     ? `Edit Quotation — ${quotation.customers?.name ?? ''}`
     : `New Quotation${customer ? ` — ${customer.name}` : ''}`
@@ -520,7 +521,7 @@ export function QuotationFormClient({
             <div className="space-y-1.5">
               <Label>Customer</Label>
               <div className="flex h-9 w-full items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
-                {customer?.name ?? '—'}
+                {customerDisplayName}
               </div>
             </div>
 

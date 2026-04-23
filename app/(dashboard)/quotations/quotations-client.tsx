@@ -41,10 +41,7 @@ type StatusFilter = QuotationStatus | 'all'
 interface Props {
   initialQuotations: QuotationWithRelations[]
   customers: Array<{ id: string; name: string; company_name: string | null }>
-  branches: Array<{ id: string; name: string }>
   products: Array<{ id: string; name: string; sku: string; selling_price: number; serial_required: boolean; image_url: string | null }>
-  userRole: 'owner' | 'manager' | 'cashier'
-  userBranchId: string | null
 }
 
 const STATUS_CONFIG: Record<QuotationStatus, { label: string; className: string }> = {
@@ -68,7 +65,6 @@ const STATUS_TABS: Array<{ value: StatusFilter; label: string }> = [
 export function QuotationsClient({
   initialQuotations,
   customers,
-  branches: _branches,
   products,
 }: Props) {
   const router = useRouter()
