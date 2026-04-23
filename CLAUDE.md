@@ -1,7 +1,7 @@
 # Inventory POS — Claude Project Context
 
 ## What This Is
-A multi-branch inventory and point-of-sale system. Businesses can manage products, stock, purchases, and sales across multiple branches. Users have role-based access (owner, super_admin, manager, cashier). Demo mode is supported for quick role-based testing.
+A multi-branch inventory and point-of-sale system. Businesses can manage products, stock, purchases, and sales across multiple branches. Users have role-based access (owner, manager, cashier). Demo mode is supported for quick role-based testing.
 
 ## Tech Stack
 - **Framework**: Next.js 16.1.7 (App Router), React 19.2.3
@@ -90,7 +90,7 @@ Single-org setup. All tables have `org_id` that references `'00000000-0000-0000-
 
 Key tables: `organizations`, `branches`, `profiles`, `categories`, `products`, `inventory`, `inventory_movements`, `transactions`, `transaction_items`, `stock_transfers`, `stock_transfer_items`, `purchase_orders`, `purchase_order_items`, `suppliers`
 
-The `profiles` table links Clerk users (`clerk_user_id`) to roles and branches. Roles: `owner`, `super_admin`, `manager`, `cashier`.
+The `profiles` table links Clerk users (`clerk_user_id`) to roles and branches. Roles: `owner`, `manager`, `cashier`.
 
 Migrations (7 total):
 1. `001_initial_schema.sql` — Tables, RLS, indexes
@@ -190,8 +190,7 @@ When a table has multiple FK columns pointing to the same table, Supabase requir
 ## Role-Based Access
 - `cashier`: POS only, cannot approve transfers, cannot access settings
 - `manager`: All operations except user/branch management
-- `super_admin`: Full access including user/branch management, but NOT organization settings
-- `owner`: Top-level role — only role that can access **Settings → Organization** (currency, tax rate, QR payment URLs)
+- `owner`: Top-level role — only role that can access **Settings → Organization** (currency, tax rate, QR payment URLs), Branches, and Users
 
 Role checks should be done **server-side** in server actions (throw error) AND **client-side** (hide UI). Get role from the `profiles` table via `clerk_user_id`.
 
@@ -263,6 +262,17 @@ When `initialProfile` is provided, the client-side `getMyProfile()` fetch is ski
 | `components/auth/demo-login-buttons.tsx` | Demo mode role quick-login buttons |
 | `proxy.ts` | Clerk auth middleware (protects all non-public routes) |
 
+## Profile Role Gotcha
+`ensureProfile()` in `app/(dashboard)/layout.tsx` defaults any new Clerk user to `role: "cashier"`. After a DB reset or if demo users sign in before their roles are set, fix manually:
+```sql
+UPDATE profiles SET role = 'owner'   WHERE email = 'markjoseph475+owner@gmail.com';
+UPDATE profiles SET role = 'manager' WHERE email = 'markjoseph475+manager@gmail.com';
+```
+
+## Local Dev Environment Warning
+The parent `practice/` directory has `node_modules.bak` and `package.json.bak`. **Do NOT restore these** — they cause Turbopack to resolve modules from the wrong directory, breaking all imports.
+If the app shows a blank/loading page, check for stale `.next` cache: `rm -rf .next` then restart.
+
 ## Commands
 ```bash
 npm run dev      # Start dev server (port 3000)
@@ -291,12 +301,12 @@ NEXT_PUBLIC_DEFAULT_ORG_ID=00000000-0000-0000-0000-000000000001
 
 # Demo mode (optional)
 NEXT_PUBLIC_DEMO_MODE=true
-DEMO_SUPER_ADMIN_EMAIL
-DEMO_SUPER_ADMIN_PASSWORD
+DEMO_OWNER_EMAIL
+DEMO_OWNER_PASSWORD
 DEMO_MANAGER_EMAIL
 DEMO_MANAGER_PASSWORD
 DEMO_CASHIER_EMAIL
 DEMO_CASHIER_PASSWORD
-DEMO_OWNER_EMAIL
-DEMO_OWNER_PASSWORD
 ```
+
+# Supabase project ID: ulgfpurffyfrtdlahoal (hardware-pos, ap-southeast-1)

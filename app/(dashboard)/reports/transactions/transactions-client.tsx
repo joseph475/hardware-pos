@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import { format } from "date-fns"
 import { getTransactions, voidTransaction, type TransactionSummary } from "@/lib/actions/transactions"
 import { useCurrency } from "@/lib/context/currency"
 import { cn } from "@/lib/utils"
@@ -164,6 +165,7 @@ interface TransactionsClientProps {
   initialDateFrom: string
   initialDateTo: string
   userRole: string
+  userBranchId?: string | null
   orgSettings: OrgSettingsForReceipt
 }
 
@@ -189,6 +191,7 @@ export function TransactionsClient({
   initialDateFrom,
   initialDateTo,
   userRole,
+  userBranchId,
   orgSettings,
 }: TransactionsClientProps) {
   const { formatCurrency } = useCurrency()
@@ -262,6 +265,7 @@ export function TransactionsClient({
           dateTo: to,
           paymentMethod: payment || undefined,
           status: status || undefined,
+          branchId: userBranchId ?? undefined,
         })
         setData(result)
       } catch (err) {
@@ -413,9 +417,9 @@ export function TransactionsClient({
                           : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                         }
                       </TableCell>
-                      <TableCell className="text-sm" suppressHydrationWarning>
-                        <div className="font-medium">{dt.toLocaleDateString()}</div>
-                        <div className="text-xs text-muted-foreground">{dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                      <TableCell className="text-sm">
+                        <div className="font-medium">{format(dt, 'MMM d, yyyy')}</div>
+                        <div className="text-xs text-muted-foreground">{format(dt, 'h:mm a')}</div>
                       </TableCell>
                       <TableCell className="text-sm">{tx.cashier_name}</TableCell>
                       <TableCell className="text-center text-sm">{tx.item_count}</TableCell>

@@ -21,7 +21,6 @@ import {
   Settings2,
   History,
   FileBarChart2,
-  FileText,
   Users2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,15 +68,18 @@ const NAV_ENTRIES: NavEntry[] = [
     roles: ["owner", "manager", "cashier"],
   },
   {
-    type: "section",
-    label: "Sales",
-    icon: FileText,
-    defaultOpen: false,
-    roles: ["owner", "manager"],
-    items: [
-      { label: "Customers", href: "/customers", icon: Users2 },
-      { label: "Quotations", href: "/quotations", icon: ClipboardList },
-    ],
+    type: "link",
+    label: "Customers",
+    href: "/customers",
+    icon: Users2,
+    roles: ["owner", "manager", "cashier"],
+  },
+  {
+    type: "link",
+    label: "Quotations",
+    href: "/quotations",
+    icon: ClipboardList,
+    roles: ["owner", "manager", "cashier"],
   },
   {
     type: "section",
@@ -135,7 +137,7 @@ const NAV_ENTRIES: NavEntry[] = [
     defaultOpen: false,
     roles: ["owner", "manager"],
     items: [
-      { label: "Organization", href: "/settings/organization", icon: Settings2, roles: ["owner", "manager"] },
+      { label: "Organization", href: "/settings/organization", icon: Settings2, roles: ["owner"] },
       { label: "Branches", href: "/settings/branches", icon: Building2, roles: ["owner"] },
       { label: "Users", href: "/settings/users", icon: Users, roles: ["owner"] },
       { label: "Categories", href: "/settings/categories", icon: Tag, roles: ["owner", "manager"] },

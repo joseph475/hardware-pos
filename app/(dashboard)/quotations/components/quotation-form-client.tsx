@@ -6,7 +6,7 @@ import { useTransition } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
-import { ArrowLeft, PackageOpen, Search, Package, X, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, PackageOpen, Search, Package, X, Minus, Plus, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,7 @@ const lineItemSchema = z.object({
   quantity: z.number({ message: 'Enter a valid qty' }).positive('Qty must be > 0'),
   unit_price: z.number({ message: 'Enter a valid price' }).min(0, 'Price must be ≥ 0'),
   discount_amount: z.number().min(0).optional(),
+  add_tax_pct: z.number().min(0).max(100).optional(),
 })
 
 const quotationSchema = z.object({
@@ -43,6 +44,7 @@ const quotationSchema = z.object({
   valid_until: z.string().optional(),
   notes: z.string().optional(),
   discount_amount: z.number().min(0).optional(),
+  tax_rate_pct: z.number().min(0).max(100).optional(),
   items: z.array(lineItemSchema).min(1, 'At least one item required'),
 })
 
@@ -114,12 +116,14 @@ export function QuotationFormClient({
         valid_until: quotation.valid_until ?? '',
         notes: quotation.notes ?? '',
         discount_amount: quotation.discount_amount,
+        tax_rate_pct: Math.round(quotation.tax_rate * 10000) / 100,
         items: quotation.quotation_items.map((item) => ({
           product_id: item.product_id,
           product_name: item.product_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
           discount_amount: item.discount_amount,
+          add_tax_pct: item.add_tax_pct ?? 0,
         })),
       }
     }
@@ -129,6 +133,7 @@ export function QuotationFormClient({
       valid_until: '',
       notes: '',
       discount_amount: 0,
+      tax_rate_pct: 0,
       items: [],
     }
   }, [quotation, preselectedCustomerId, userBranchId])
@@ -150,12 +155,20 @@ export function QuotationFormClient({
   const watchedBranchId = watch('branch_id')
   const watchedDiscount = watch('discount_amount')
   const watchedCustomerId = watch('customer_id')
+  const watchedTaxRatePct = watch('tax_rate_pct')
 
-  const subtotal = (watchedItems ?? []).reduce((sum, item) => {
-    return sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0) - (Number(item.discount_amount) || 0)
+  const baseSubtotal = (watchedItems ?? []).reduce((sum, item) => {
+    return sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0)
   }, 0)
+  const addTaxTotal = (watchedItems ?? []).reduce((sum, item) => {
+    return sum + (Number(item.unit_price) || 0) * (Number(item.quantity) || 0) * ((Number(item.add_tax_pct) || 0) / 100)
+  }, 0)
+  const itemDiscounts = (watchedItems ?? []).reduce((sum, item) => sum + (Number(item.discount_amount) || 0), 0)
+  const subtotal = baseSubtotal + addTaxTotal - itemDiscounts
   const overallDiscount = Number(watchedDiscount) || 0
-  const grandTotal = subtotal - overallDiscount
+  const taxRatePct = Number(watchedTaxRatePct) || 0
+  const taxAmount = (subtotal - overallDiscount) * (taxRatePct / 100)
+  const grandTotal = subtotal - overallDiscount + taxAmount
 
   const customer = customers.find((c) => c.id === watchedCustomerId)
   const customerDisplayName = customer?.name ?? quotation?.customers?.name ?? '—'
@@ -179,6 +192,7 @@ export function QuotationFormClient({
         quantity: 1,
         unit_price: product.selling_price,
         discount_amount: 0,
+        add_tax_pct: 0,
       })
     }
     setProductSearch('')
@@ -200,25 +214,27 @@ export function QuotationFormClient({
   function onSubmit(values: QuotationFormValues) {
     startTransition(async () => {
       try {
+        const payload = {
+          customer_id: values.customer_id,
+          branch_id: values.branch_id,
+          valid_until: values.valid_until,
+          notes: values.notes,
+          discount_amount: values.discount_amount,
+          tax_rate: (Number(values.tax_rate_pct) || 0) / 100,
+          items: values.items.map((item) => ({
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount_amount: item.discount_amount ?? 0,
+            add_tax_pct: item.add_tax_pct ?? 0,
+          })),
+        }
         if (quotation) {
-          await updateQuotation(quotation.id, {
-            customer_id: values.customer_id,
-            branch_id: values.branch_id,
-            valid_until: values.valid_until,
-            notes: values.notes,
-            discount_amount: values.discount_amount,
-            items: values.items,
-          })
+          await updateQuotation(quotation.id, payload)
           toast.success('Quotation updated')
         } else {
-          await createQuotation({
-            customer_id: values.customer_id,
-            branch_id: values.branch_id,
-            valid_until: values.valid_until,
-            notes: values.notes,
-            discount_amount: values.discount_amount,
-            items: values.items,
-          })
+          await createQuotation(payload)
           toast.success('Quotation created')
         }
         router.push('/quotations')
@@ -335,105 +351,155 @@ export function QuotationFormClient({
               <p className="text-sm">Search for products above to add line items</p>
             </div>
           ) : (
-            <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-              {fields.map((field, index) => {
-                const qty = Number(watchedItems?.[index]?.quantity) || 0
-                const price = Number(watchedItems?.[index]?.unit_price) || 0
-                const disc = Number(watchedItems?.[index]?.discount_amount) || 0
-                const lineTotal = qty * price - disc
-                const product = products.find((p) => p.id === field.product_id)
-                const sku = product?.sku ?? ''
-                const isSerialRequired = product?.serial_required ?? false
-                const fieldSerials = itemSerials[field.id] ?? []
+            <div className="rounded-lg border border-border overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[1fr_80px_64px_80px_96px_80px_40px] gap-x-2 border-b border-border bg-muted/40 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span>Item</span>
+                <span className="text-right">Price</span>
+                <span className="text-center">Tax%</span>
+                <span className="text-right">Amount</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Total</span>
+                <span />
+              </div>
 
-                return (
-                  <div key={field.id} className="px-4 py-3">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                        {product?.image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={product.image_url} alt={field.product_name} className="h-full w-full object-cover" />
-                        ) : (
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium text-foreground truncate">
-                            {watchedItems?.[index]?.product_name || '—'}
-                          </span>
-                          {isSerialRequired && (
-                            <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
-                              Serial req.
-                            </Badge>
-                          )}
+              <div className="divide-y divide-border">
+                {fields.map((field, index) => {
+                  const qty = Number(watchedItems?.[index]?.quantity) || 0
+                  const price = Number(watchedItems?.[index]?.unit_price) || 0
+                  const disc = Number(watchedItems?.[index]?.discount_amount) || 0
+                  const addTaxPct = Number(watchedItems?.[index]?.add_tax_pct) || 0
+                  const amount = price * (1 + addTaxPct / 100)
+                  const lineTotal = qty * amount - disc
+                  const product = products.find((p) => p.id === field.product_id)
+                  const sku = product?.sku ?? ''
+                  const isSerialRequired = product?.serial_required ?? false
+                  const fieldSerials = itemSerials[field.id] ?? []
+
+                  return (
+                    <div key={field.id}>
+                      <div className="grid grid-cols-[1fr_80px_64px_80px_96px_80px_40px] items-center gap-x-2 px-4 py-2">
+                        {/* Item name */}
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                            {product?.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={product.image_url} alt={field.product_name} className="h-full w-full object-cover" />
+                            ) : (
+                              <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block truncate text-xs font-medium text-foreground">
+                              {watchedItems?.[index]?.product_name || '—'}
+                            </span>
+                            {sku && <span className="block truncate font-mono text-[10px] text-muted-foreground">{sku}</span>}
+                            {isSerialRequired && (
+                              <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
+                                Serial req.
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        {sku && <span className="font-mono text-xs text-muted-foreground">{sku}</span>}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-xs"
-                          onClick={() => {
-                            const newQty = Math.max(1, qty - 1)
-                            setValue(`items.${index}.quantity`, newQty, { shouldValidate: true })
-                            if (isSerialRequired) {
-                              setItemSerials((prev) => ({
-                                ...prev,
-                                [field.id]: (prev[field.id] ?? []).slice(0, newQty),
-                              }))
-                            }
-                          }}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
+
+                        {/* Unit price input */}
                         <Input
                           type="number"
-                          min={1}
-                          aria-invalid={!!errors.items?.[index]?.quantity}
-                          className="h-6 w-12 px-1 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                          {...register(`items.${index}.quantity`, {
-                            valueAsNumber: true,
-                            onChange: (e) => {
-                              const val = parseInt(e.target.value, 10)
-                              if (!isNaN(val) && isSerialRequired) {
-                                setItemSerials((prev) => {
-                                  const current = prev[field.id] ?? []
-                                  if (val > current.length) {
-                                    return {
-                                      ...prev,
-                                      [field.id]: [...current, ...Array(val - current.length).fill('')],
-                                    }
-                                  }
-                                  return { ...prev, [field.id]: current.slice(0, val) }
-                                })
-                              }
-                            },
-                          })}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          aria-invalid={!!errors.items?.[index]?.unit_price}
+                          className="h-7 text-right text-xs"
+                          {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-xs"
-                          onClick={() => {
-                            const newQty = qty + 1
-                            setValue(`items.${index}.quantity`, newQty, { shouldValidate: true })
-                            if (isSerialRequired) {
-                              setItemSerials((prev) => ({
-                                ...prev,
-                                [field.id]: [...(prev[field.id] ?? []), ''],
-                              }))
-                            }
-                          }}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-sm font-semibold text-foreground tabular-nums">
+
+                        {/* Add Tax % input */}
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            placeholder="0"
+                            className="h-7 w-full pr-4 text-right text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            {...register(`items.${index}.add_tax_pct`, { valueAsNumber: true })}
+                          />
+                          <Percent className="pointer-events-none absolute inset-y-0 right-1 my-auto h-2.5 w-2.5 text-muted-foreground" />
+                        </div>
+
+                        {/* Amount (computed) */}
+                        <span className={cn(
+                          'text-right text-xs tabular-nums',
+                          addTaxPct > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+                        )}>
+                          {formatCurrency(amount)}
+                        </span>
+
+                        {/* Qty controls */}
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => {
+                              const newQty = Math.max(1, qty - 1)
+                              setValue(`items.${index}.quantity`, newQty, { shouldValidate: true })
+                              if (isSerialRequired) {
+                                setItemSerials((prev) => ({
+                                  ...prev,
+                                  [field.id]: (prev[field.id] ?? []).slice(0, newQty),
+                                }))
+                              }
+                            }}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            aria-invalid={!!errors.items?.[index]?.quantity}
+                            className="h-7 w-10 px-1 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            {...register(`items.${index}.quantity`, {
+                              valueAsNumber: true,
+                              onChange: (e) => {
+                                const val = parseInt(e.target.value, 10)
+                                if (!isNaN(val) && isSerialRequired) {
+                                  setItemSerials((prev) => {
+                                    const current = prev[field.id] ?? []
+                                    if (val > current.length) {
+                                      return { ...prev, [field.id]: [...current, ...Array(val - current.length).fill('')] }
+                                    }
+                                    return { ...prev, [field.id]: current.slice(0, val) }
+                                  })
+                                }
+                              },
+                            })}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => {
+                              const newQty = qty + 1
+                              setValue(`items.${index}.quantity`, newQty, { shouldValidate: true })
+                              if (isSerialRequired) {
+                                setItemSerials((prev) => ({
+                                  ...prev,
+                                  [field.id]: [...(prev[field.id] ?? []), ''],
+                                }))
+                              }
+                            }}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        {/* Line total */}
+                        <span className="text-right text-xs font-semibold tabular-nums text-foreground">
                           {formatCurrency(lineTotal)}
                         </span>
+
+                        {/* Remove */}
                         <Button
                           type="button"
                           variant="ghost"
@@ -444,68 +510,41 @@ export function QuotationFormClient({
                           <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                    </div>
 
-                    {/* Price + Discount row */}
-                    <div className="ml-13 mt-2 flex items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">Price</span>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          aria-invalid={!!errors.items?.[index]?.unit_price}
-                          className="h-6 w-24 text-right text-sm"
-                          {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">Disc ({currencySymbol})</span>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          className="h-6 w-20 text-right text-sm"
-                          {...register(`items.${index}.discount_amount`, { valueAsNumber: true })}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Serial slots */}
-                    {isSerialRequired && (
-                      <div className="ml-13 mt-2 space-y-1.5">
-                        <p className="text-xs text-muted-foreground">
-                          Serial numbers <span className="text-[10px]">(optional reference)</span>:
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {Array.from({ length: qty }, (_, i) => (
-                            <input
-                              key={i}
-                              className={cn(
-                                'h-7 w-40 rounded border bg-background px-2 font-mono text-xs transition-colors',
-                                fieldSerials[i]
-                                  ? 'border-green-500/50 text-foreground'
-                                  : 'border-border text-foreground placeholder:text-muted-foreground'
-                              )}
-                              placeholder={`SN ${i + 1}`}
-                              value={fieldSerials[i] ?? ''}
-                              onChange={(e) => {
-                                setItemSerials((prev) => {
-                                  const current = [...(prev[field.id] ?? [])]
-                                  current[i] = e.target.value
-                                  return { ...prev, [field.id]: current }
-                                })
-                              }}
-                            />
-                          ))}
+                      {/* Serial slots */}
+                      {isSerialRequired && (
+                        <div className="mx-4 mb-2 space-y-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            Serial numbers <span className="text-[10px]">(optional reference)</span>:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from({ length: qty }, (_, i) => (
+                              <input
+                                key={i}
+                                className={cn(
+                                  'h-7 w-40 rounded border bg-background px-2 font-mono text-xs transition-colors',
+                                  fieldSerials[i]
+                                    ? 'border-green-500/50 text-foreground'
+                                    : 'border-border text-foreground placeholder:text-muted-foreground'
+                                )}
+                                placeholder={`SN ${i + 1}`}
+                                value={fieldSerials[i] ?? ''}
+                                onChange={(e) => {
+                                  setItemSerials((prev) => {
+                                    const current = [...(prev[field.id] ?? [])]
+                                    current[i] = e.target.value
+                                    return { ...prev, [field.id]: current }
+                                  })
+                                }}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -594,6 +633,27 @@ export function QuotationFormClient({
               />
             </div>
 
+            {/* Tax Rate */}
+            <div className="space-y-1.5">
+              <Label htmlFor="tax_rate_pct">
+                Tax Rate (%){' '}
+                <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="tax_rate_pct"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  placeholder="0"
+                  className="pr-7"
+                  {...register('tax_rate_pct', { valueAsNumber: true })}
+                />
+                <Percent className="pointer-events-none absolute inset-y-0 right-2.5 my-auto h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+            </div>
+
             {/* Notes */}
             <div className="space-y-1.5">
               <Label htmlFor="notes">
@@ -614,10 +674,22 @@ export function QuotationFormClient({
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="tabular-nums">{formatCurrency(subtotal)}</span>
               </div>
+              {addTaxTotal > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Add Tax</span>
+                  <span className="tabular-nums text-blue-600 dark:text-blue-400">+{formatCurrency(addTaxTotal)}</span>
+                </div>
+              )}
               {overallDiscount > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Discount</span>
                   <span className="tabular-nums text-destructive">−{formatCurrency(overallDiscount)}</span>
+                </div>
+              )}
+              {taxAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tax ({taxRatePct}%)</span>
+                  <span className="tabular-nums">+{formatCurrency(taxAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold">

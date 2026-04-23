@@ -52,7 +52,7 @@ export type SalesReportData = {
   branchComparison: { branch: string; revenue: number; transactions: number }[]
 }
 
-export async function getSalesReport(range: string): Promise<SalesReportData> {
+export async function getSalesReport(range: string, branchId?: string | null): Promise<SalesReportData> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
@@ -60,12 +60,16 @@ export async function getSalesReport(range: string): Promise<SalesReportData> {
   const startDate = getRangeStart(range)
 
   // 1. Fetch all completed transactions in range
-  const { data: txns, error: txnError } = await supabase
+  let txnQuery = supabase
     .from('transactions')
     .select('id, total, payment_method, created_at, branch_id, cashier_id')
     .eq('status', 'completed')
     .gte('created_at', startDate)
     .order('created_at', { ascending: false })
+
+  if (branchId) txnQuery = txnQuery.eq('branch_id', branchId)
+
+  const { data: txns, error: txnError } = await txnQuery
 
   if (txnError) throw new Error(txnError.message)
 
@@ -210,7 +214,7 @@ export type ZReportData = {
   byPaymentMethod: { method: string; count: number; total: number }[]
 }
 
-export async function getZReport(date: string): Promise<ZReportData> {
+export async function getZReport(date: string, branchId?: string | null): Promise<ZReportData> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
@@ -219,11 +223,15 @@ export async function getZReport(date: string): Promise<ZReportData> {
   const dayStart = `${date}T00:00:00.000Z`
   const dayEnd = `${date}T23:59:59.999Z`
 
-  const { data: txns, error } = await supabase
+  let zQuery = supabase
     .from('transactions')
     .select('id, total, discount_amount, payment_method, status')
     .gte('created_at', dayStart)
     .lte('created_at', dayEnd)
+
+  if (branchId) zQuery = zQuery.eq('branch_id', branchId)
+
+  const { data: txns, error } = await zQuery
 
   if (error) throw new Error(error.message)
 
@@ -290,7 +298,7 @@ export type DashboardData = {
   branchSales: { branch: string; revenue: number }[]
 }
 
-export async function getDashboardStats(): Promise<DashboardData> {
+export async function getDashboardStats(branchId?: string | null): Promise<DashboardData> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
@@ -302,12 +310,16 @@ export async function getDashboardStats(): Promise<DashboardData> {
   yesterdayStart.setDate(yesterdayStart.getDate() - 1)
 
   // 1. Fetch today + yesterday completed transactions
-  const { data: txns } = await supabase
+  let txnQuery = supabase
     .from('transactions')
     .select('id, total, payment_method, created_at, branch_id, cashier_id')
     .eq('status', 'completed')
     .gte('created_at', yesterdayStart.toISOString())
     .order('created_at', { ascending: false })
+
+  if (branchId) txnQuery = txnQuery.eq('branch_id', branchId)
+
+  const { data: txns } = await txnQuery
 
   const allTxns = txns ?? []
   const todayIso = todayStart.toISOString()
@@ -402,12 +414,16 @@ export async function getDashboardStats(): Promise<DashboardData> {
     .sort((a, b) => b.revenue - a.revenue)
 
   // 6. Low stock items
-  const { data: lowStockRows } = await supabase
+  let lowStockQuery = supabase
     .from('inventory')
     .select('id, quantity, low_stock_threshold, products(name, sku, categories(name))')
     .not('low_stock_threshold', 'is', null)
     .order('quantity', { ascending: true })
     .limit(50)
+
+  if (branchId) lowStockQuery = lowStockQuery.eq('branch_id', branchId)
+
+  const { data: lowStockRows } = await lowStockQuery
 
   const lowStockItems = ((lowStockRows ?? []) as any[])
     .filter((inv) => inv.low_stock_threshold != null && inv.quantity <= inv.low_stock_threshold)

@@ -12,7 +12,6 @@ import {
   Banknote,
   SplitSquareHorizontal,
   Package,
-  User,
   Clock,
   Receipt,
   Smartphone,
@@ -80,22 +79,26 @@ export function POSClient({
   receiptFooter?: string | null
   hasPinConfigured?: boolean
 }) {
-  const { formatCurrency, taxRate } = useCurrency()
+  const { formatCurrency } = useCurrency()
   const { branch } = useUserProfile()
 
   const {
     items,
     discount,
+    taxRate,
     addItem,
     removeItem,
     updateQuantity,
     updateItemDiscount,
+    updateItemAddTax,
     updateItemSerials,
     isReadyToCharge,
     setDiscount,
+    setTaxRate,
     clearCart,
     subtotal,
     totalDiscount,
+    totalAddTax,
     tax,
     total,
   } = useCartStore()
@@ -305,15 +308,6 @@ export function POSClient({
             variant="ghost"
             size="sm"
             className="h-8 gap-1.5 text-xs"
-            onClick={() => setCustomerStepOpen(true)}
-          >
-            <User className="h-3.5 w-3.5" />
-            {selectedCustomerName ?? "Walk-in"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
             onClick={() => setHeldOrdersOpen(true)}
           >
             <Clock className="h-3.5 w-3.5" />
@@ -425,88 +419,125 @@ export function POSClient({
               </div>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {items.map((item) => {
-                const itemTotal = item.unit_price * item.quantity - item.discount_amount
-                const isDiscountOpen = itemDiscountTarget === item.product.id
-                if (!serialRefs.current[item.product.id]) {
-                  serialRefs.current[item.product.id] = []
-                }
+            <div className="overflow-x-auto">
+              {/* Table header */}
+              <div className="grid grid-cols-[1fr_68px_60px_72px_88px_76px_52px] gap-x-2 border-b border-border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span>Item</span>
+                <span className="text-right">Price</span>
+                <span className="text-center">Tax%</span>
+                <span className="text-right">Amount</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Total</span>
+                <span />
+              </div>
 
-                return (
-                  <div key={item.product.id} className="px-4 py-3">
-                    {/* Main row */}
-                    <div className="flex items-start gap-3">
-                      {/* Thumbnail */}
-                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                        {(item.product as POSProduct).image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={(item.product as POSProduct).image_url!}
-                            alt={item.product.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
+              <div className="divide-y divide-border">
+                {items.map((item) => {
+                  const addTaxAmt = item.unit_price * (item.add_tax_pct / 100)
+                  const amount = item.unit_price + addTaxAmt
+                  const itemTotal = amount * item.quantity - item.discount_amount
+                  const isDiscountOpen = itemDiscountTarget === item.product.id
+                  if (!serialRefs.current[item.product.id]) {
+                    serialRefs.current[item.product.id] = []
+                  }
 
-                      {/* Name + badges */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium text-foreground">
-                            {item.product.name}
-                          </span>
-                          {item.product.serial_required && (
-                            <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
-                              Serial req.
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {formatCurrency(item.unit_price)} each
-                          {item.discount_pct > 0 && (
-                            <span className="ml-1.5 text-orange-500 dark:text-orange-400">
-                              {item.discount_pct}% off
+                  return (
+                    <div key={item.product.id}>
+                      {/* Main row */}
+                      <div className="grid grid-cols-[1fr_68px_60px_72px_88px_76px_52px] items-center gap-x-2 px-3 py-2">
+                        {/* Item name + image */}
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted">
+                            {(item.product as POSProduct).image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={(item.product as POSProduct).image_url!}
+                                alt={item.product.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <Package className="h-3 w-3 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block truncate text-xs font-medium text-foreground">
+                              {item.product.name}
                             </span>
-                          )}
+                            {item.product.serial_required && (
+                              <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
+                                Serial req.
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Unit price */}
+                        <span className="text-right text-xs tabular-nums text-muted-foreground">
+                          {formatCurrency(item.unit_price)}
                         </span>
-                      </div>
 
-                      {/* Qty controls */}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon-xs"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(e) => handleQuantityInput(item.product.id, e)}
-                          className="h-6 w-12 px-1 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon-xs"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
+                        {/* Add Tax % input */}
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            value={item.add_tax_pct}
+                            onChange={(e) =>
+                              updateItemAddTax(
+                                item.product.id,
+                                Math.min(100, Math.max(0, Number(e.target.value) || 0))
+                              )
+                            }
+                            className="h-6 w-full pr-4 text-right text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <Percent className="pointer-events-none absolute inset-y-0 right-1 my-auto h-2.5 w-2.5 text-muted-foreground" />
+                        </div>
 
-                      {/* Total + actions */}
-                      <div className="flex flex-col items-end gap-1">
+                        {/* Amount (unit price + add tax) */}
                         <span className={cn(
-                          "text-sm font-semibold",
+                          "text-right text-xs tabular-nums",
+                          item.add_tax_pct > 0 ? "text-blue-600 dark:text-blue-400" : "text-foreground"
+                        )}>
+                          {formatCurrency(amount)}
+                        </span>
+
+                        {/* Qty controls */}
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => handleQuantityInput(item.product.id, e)}
+                            className="h-6 w-10 px-1 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        {/* Line total */}
+                        <span className={cn(
+                          "text-right text-xs font-semibold tabular-nums",
                           item.discount_pct > 0 ? "text-orange-500 dark:text-orange-400" : "text-foreground"
                         )}>
                           {formatCurrency(itemTotal)}
                         </span>
-                        <div className="flex items-center gap-0.5">
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-end gap-0.5">
                           <Button
                             variant="ghost"
                             size="icon-xs"
@@ -528,76 +559,76 @@ export function POSClient({
                           </Button>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Item discount inline input */}
-                    {isDiscountOpen && (
-                      <div className="ml-13 mt-2 flex items-center gap-2 rounded-lg bg-muted/50 px-2 py-1.5">
-                        <div className="relative flex-1">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={1}
-                            placeholder="0"
-                            value={itemDiscountInput}
-                            onChange={(e) => setItemDiscountInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") applyItemDiscount(item.product.id)
-                              if (e.key === "Escape") { setItemDiscountTarget(null); setItemDiscountInput("") }
-                            }}
-                            className="h-6 pr-6 text-right text-sm"
-                            autoFocus
-                          />
-                          <Percent className="pointer-events-none absolute inset-y-0 right-1.5 my-auto h-3 w-3 text-muted-foreground" />
-                        </div>
-                        <Button size="xs" onClick={() => applyItemDiscount(item.product.id)} className="h-6 px-2 text-xs">
-                          Apply
-                        </Button>
-                        <Button size="xs" variant="ghost" onClick={() => { setItemDiscountTarget(null); setItemDiscountInput("") }} className="h-6 px-2 text-xs">
-                          Cancel
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Serial number slots */}
-                    {item.product.serial_required && (
-                      <div className="ml-13 mt-2 space-y-1.5">
-                        <p className="text-xs text-muted-foreground">Serial numbers:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {Array.from({ length: item.quantity }, (_, i) => (
-                            <input
-                              key={i}
-                              ref={(el) => {
-                                if (!serialRefs.current[item.product.id]) {
-                                  serialRefs.current[item.product.id] = []
-                                }
-                                serialRefs.current[item.product.id][i] = el
+                      {/* Item discount inline input */}
+                      {isDiscountOpen && (
+                        <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg bg-muted/50 px-2 py-1.5">
+                          <div className="relative flex-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              placeholder="0"
+                              value={itemDiscountInput}
+                              onChange={(e) => setItemDiscountInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") applyItemDiscount(item.product.id)
+                                if (e.key === "Escape") { setItemDiscountTarget(null); setItemDiscountInput("") }
                               }}
-                              className={cn(
-                                "h-7 w-44 rounded border bg-background px-2 font-mono text-xs transition-colors",
-                                item.serials[i]
-                                  ? "border-green-500/50 text-foreground"
-                                  : "border-border text-foreground placeholder:text-muted-foreground"
-                              )}
-                              placeholder={`SN ${i + 1}`}
-                              value={item.serials[i] ?? ""}
-                              onChange={(e) => {
-                                const newSerials = [...item.serials]
-                                newSerials[i] = e.target.value
-                                updateItemSerials(item.product.id, newSerials)
-                              }}
-                              onKeyDown={(e) =>
-                                handleSerialKeyDown(e, item.product.id, i, item.quantity)
-                              }
+                              className="h-6 pr-6 text-right text-sm"
+                              autoFocus
                             />
-                          ))}
+                            <Percent className="pointer-events-none absolute inset-y-0 right-1.5 my-auto h-3 w-3 text-muted-foreground" />
+                          </div>
+                          <Button size="xs" onClick={() => applyItemDiscount(item.product.id)} className="h-6 px-2 text-xs">
+                            Apply
+                          </Button>
+                          <Button size="xs" variant="ghost" onClick={() => { setItemDiscountTarget(null); setItemDiscountInput("") }} className="h-6 px-2 text-xs">
+                            Cancel
+                          </Button>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                      )}
+
+                      {/* Serial number slots */}
+                      {item.product.serial_required && (
+                        <div className="mx-3 mb-2 space-y-1.5">
+                          <p className="text-xs text-muted-foreground">Serial numbers:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from({ length: item.quantity }, (_, i) => (
+                              <input
+                                key={i}
+                                ref={(el) => {
+                                  if (!serialRefs.current[item.product.id]) {
+                                    serialRefs.current[item.product.id] = []
+                                  }
+                                  serialRefs.current[item.product.id][i] = el
+                                }}
+                                className={cn(
+                                  "h-7 w-44 rounded border bg-background px-2 font-mono text-xs transition-colors",
+                                  item.serials[i]
+                                    ? "border-green-500/50 text-foreground"
+                                    : "border-border text-foreground placeholder:text-muted-foreground"
+                                )}
+                                placeholder={`SN ${i + 1}`}
+                                value={item.serials[i] ?? ""}
+                                onChange={(e) => {
+                                  const newSerials = [...item.serials]
+                                  newSerials[i] = e.target.value
+                                  updateItemSerials(item.product.id, newSerials)
+                                }}
+                                onKeyDown={(e) =>
+                                  handleSerialKeyDown(e, item.product.id, i, item.quantity)
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </ScrollArea>
@@ -636,10 +667,30 @@ export function POSClient({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Tax ({Math.round(taxRate * 10000) / 100}%)
-                  </span>
+                {totalAddTax() > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Add Tax</span>
+                    <span className="text-blue-600 dark:text-blue-400">+{formatCurrency(totalAddTax())}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-muted-foreground">Tax</span>
+                    <div className="relative w-16">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        placeholder="0"
+                        value={Math.round(taxRate * 10000) / 100}
+                        onChange={(e) => setTaxRate((Number(e.target.value) || 0) / 100)}
+                        className="h-6 pr-5 text-right text-sm"
+                      />
+                      <Percent className="pointer-events-none absolute inset-y-0 right-1 my-auto h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </div>
                   <span>{formatCurrency(tax())}</span>
                 </div>
 

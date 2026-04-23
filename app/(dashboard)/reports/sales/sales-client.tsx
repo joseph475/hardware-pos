@@ -93,9 +93,10 @@ function makeTooltip(formatCurrency: (v: number) => string) {
 interface Props {
   initialData: SalesReportData;
   initialRange: DateRange;
+  userBranchId?: string | null;
 }
 
-export default function SalesClient({ initialData, initialRange }: Props) {
+export default function SalesClient({ initialData, initialRange, userBranchId }: Props) {
   const { formatCurrency, currencyCode, locale } = useCurrency();
   const [data, setData] = React.useState<SalesReportData>(initialData);
   const [range, setRange] = React.useState<DateRange>(initialRange);
@@ -118,7 +119,7 @@ export default function SalesClient({ initialData, initialRange }: Props) {
     setRange(newRange);
     setLoading(true);
     try {
-      const result = await getSalesReport(RANGE_MAP[newRange]);
+      const result = await getSalesReport(RANGE_MAP[newRange], userBranchId);
       setData(result);
     } finally {
       setLoading(false);

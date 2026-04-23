@@ -41,7 +41,7 @@ export async function upsertCustomer(params: {
   tax_id?: string
   notes?: string
   is_active?: boolean
-}): Promise<void> {
+}): Promise<{ id: string }> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
@@ -64,15 +64,20 @@ export async function upsertCustomer(params: {
       .update(payload)
       .eq('id', params.id)
     if (error) throw new Error(error.message)
+    revalidateTag(CACHE_TAGS.CUSTOMERS, {})
+    revalidatePath('/customers')
+    return { id: params.id }
   } else {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('customers')
       .insert({ ...payload, org_id: ORG_ID })
+      .select('id')
+      .single()
     if (error) throw new Error(error.message)
+    revalidateTag(CACHE_TAGS.CUSTOMERS, {})
+    revalidatePath('/customers')
+    return { id: (data as { id: string }).id }
   }
-
-  revalidateTag(CACHE_TAGS.CUSTOMERS, {})
-  revalidatePath('/customers')
 }
 
 export async function deleteCustomer(id: string): Promise<void> {

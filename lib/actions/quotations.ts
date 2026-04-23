@@ -119,6 +119,7 @@ export async function createQuotation(params: {
     quantity: number
     unit_price: number
     discount_amount?: number
+    add_tax_pct?: number
   }>
 }): Promise<{ id: string }> {
   const { userId } = await auth()
@@ -133,11 +134,20 @@ export async function createQuotation(params: {
   if (profileError || !profile) throw new Error('Profile not found')
 
   // Compute totals
-  const itemsWithTotals = params.items.map((item) => ({
-    ...item,
-    total: item.quantity * item.unit_price - (item.discount_amount ?? 0),
-  }))
+  const itemsWithTotals = params.items.map((item) => {
+    const addTaxPct = item.add_tax_pct ?? 0
+    const amount = item.unit_price * (1 + addTaxPct / 100)
+    return {
+      ...item,
+      add_tax_pct: addTaxPct,
+      total: amount * item.quantity - (item.discount_amount ?? 0),
+    }
+  })
   const subtotal = itemsWithTotals.reduce((s, i) => s + i.total, 0)
+  const addTaxAmount = params.items.reduce(
+    (s, i) => s + i.unit_price * i.quantity * ((i.add_tax_pct ?? 0) / 100),
+    0
+  )
   const taxAmount = subtotal * (params.tax_rate ?? 0)
   const grandTotal = subtotal - (params.discount_amount ?? 0) + taxAmount
 
@@ -154,6 +164,8 @@ export async function createQuotation(params: {
       subtotal,
       discount_amount: params.discount_amount ?? 0,
       tax_amount: taxAmount,
+      add_tax_amount: addTaxAmount,
+      tax_rate: params.tax_rate ?? 0,
       total: grandTotal,
     })
     .select('id')
@@ -168,6 +180,7 @@ export async function createQuotation(params: {
       quantity: item.quantity,
       unit_price: item.unit_price,
       discount_amount: item.discount_amount ?? 0,
+      add_tax_pct: item.add_tax_pct,
       total: item.total,
     }))
   )
@@ -195,6 +208,7 @@ export async function updateQuotation(
       quantity: number
       unit_price: number
       discount_amount?: number
+      add_tax_pct?: number
     }>
   }
 ): Promise<void> {
@@ -206,7 +220,7 @@ export async function updateQuotation(
   // Guard: must be draft
   const { data: existing } = await supabase
     .from('quotations')
-    .select('status, subtotal, discount_amount, tax_amount, total')
+    .select('status, subtotal, discount_amount, tax_amount, add_tax_amount, tax_rate, total')
     .eq('id', id)
     .single()
   if (!existing) throw new Error('Quotation not found')
@@ -214,16 +228,26 @@ export async function updateQuotation(
 
   let subtotal = existing.subtotal
   let taxAmount = existing.tax_amount
+  let addTaxAmount = existing.add_tax_amount
   let discountAmount = params.discount_amount ?? existing.discount_amount
   let grandTotal = existing.total
 
   if (params.items) {
-    const itemsWithTotals = params.items.map((item) => ({
-      ...item,
-      total: item.quantity * item.unit_price - (item.discount_amount ?? 0),
-    }))
+    const itemsWithTotals = params.items.map((item) => {
+      const addTaxPct = item.add_tax_pct ?? 0
+      const amount = item.unit_price * (1 + addTaxPct / 100)
+      return {
+        ...item,
+        add_tax_pct: addTaxPct,
+        total: amount * item.quantity - (item.discount_amount ?? 0),
+      }
+    })
     subtotal = itemsWithTotals.reduce((s, i) => s + i.total, 0)
-    taxAmount = subtotal * (params.tax_rate ?? 0)
+    addTaxAmount = params.items.reduce(
+      (s, i) => s + i.unit_price * i.quantity * ((i.add_tax_pct ?? 0) / 100),
+      0
+    )
+    taxAmount = subtotal * (params.tax_rate ?? existing.tax_rate)
     grandTotal = subtotal - discountAmount + taxAmount
 
     // Replace items
@@ -236,16 +260,22 @@ export async function updateQuotation(
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount_amount: item.discount_amount ?? 0,
+        add_tax_pct: item.add_tax_pct,
         total: item.total,
       }))
     )
     if (itemsError) throw new Error(itemsError.message)
+  } else if (params.tax_rate !== undefined) {
+    taxAmount = subtotal * params.tax_rate
+    grandTotal = subtotal - discountAmount + taxAmount
   }
 
   const updatePayload: Record<string, unknown> = {
     subtotal,
     discount_amount: discountAmount,
     tax_amount: taxAmount,
+    add_tax_amount: addTaxAmount,
+    tax_rate: params.tax_rate ?? existing.tax_rate,
     total: grandTotal,
     updated_at: new Date().toISOString(),
   }

@@ -421,6 +421,7 @@ export type Database = {
           quantity: number;
           unit_price: number;
           discount_amount: number;
+          add_tax_pct: number;
           total: number;
         };
         Insert: {
@@ -431,6 +432,7 @@ export type Database = {
           quantity: number;
           unit_price: number;
           discount_amount?: number;
+          add_tax_pct?: number;
           total: number;
         };
         Update: {
@@ -441,6 +443,7 @@ export type Database = {
           quantity?: number;
           unit_price?: number;
           discount_amount?: number;
+          add_tax_pct?: number;
           total?: number;
         };
         Relationships: [];
@@ -457,6 +460,8 @@ export type Database = {
           subtotal: number;
           discount_amount: number;
           tax_amount: number;
+          add_tax_amount: number;
+          tax_rate: number;
           total: number;
           notes: string | null;
           transaction_id: string | null;
@@ -474,6 +479,8 @@ export type Database = {
           subtotal?: number;
           discount_amount?: number;
           tax_amount?: number;
+          add_tax_amount?: number;
+          tax_rate?: number;
           total?: number;
           notes?: string | null;
           transaction_id?: string | null;
@@ -491,6 +498,8 @@ export type Database = {
           subtotal?: number;
           discount_amount?: number;
           tax_amount?: number;
+          add_tax_amount?: number;
+          tax_rate?: number;
           total?: number;
           notes?: string | null;
           transaction_id?: string | null;

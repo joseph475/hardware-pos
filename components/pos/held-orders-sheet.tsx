@@ -2,13 +2,12 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { PauseCircle, RotateCcw, Trash2, ShoppingBag, Clock } from "lucide-react"
+import { RotateCcw, Trash2, ShoppingBag, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   Sheet,
   SheetContent,
-  SheetTrigger,
 } from "@/components/ui/sheet"
 import { useCartStore } from "@/lib/store/cart"
 import { useCurrency } from "@/lib/context/currency"
@@ -122,15 +121,6 @@ export function HeldOrdersSheet({ open: controlledOpen, onOpenChange: controlled
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger render={<Button variant="outline" className="relative" />} nativeButton={true}>
-        <PauseCircle className="h-4 w-4" />
-        Held Orders
-        {heldOrders.length > 0 && (
-          <Badge className="ml-1 h-5 min-w-5 justify-center px-1.5 text-xs">
-            {heldOrders.length}
-          </Badge>
-        )}
-      </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-sm p-0 flex flex-col">
         <div className="px-5 pt-5 pb-4 border-b border-border">
           <div className="flex items-center justify-between">

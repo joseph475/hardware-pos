@@ -19,12 +19,14 @@ export default async function SalesPage() {
   const supabase = getAdminClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, branch_id")
     .eq("clerk_user_id", userId)
     .single();
 
   if (profile?.role === "cashier") redirect("/pos");
 
-  const data = await getSalesReport("month");
-  return <SalesClient initialData={data} initialRange="This Month" />;
+  const branchId = profile?.role !== "owner" ? (profile?.branch_id ?? null) : null;
+
+  const data = await getSalesReport("month", branchId);
+  return <SalesClient initialData={data} initialRange="This Month" userBranchId={branchId} />;
 }

@@ -16,6 +16,7 @@ import {
 import { useCurrency } from '@/lib/context/currency'
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
 import type { QuotationStatus } from '@/types/database'
+import { cn } from '@/lib/utils'
 
 const STATUS_CONFIG: Record<QuotationStatus, { label: string; className: string }> = {
   draft:     { label: 'Draft',     className: 'bg-muted text-muted-foreground border-transparent' },
@@ -51,7 +52,7 @@ export function QuotationDetailSheet({
   onApprove,
   onReject,
 }: QuotationDetailSheetProps) {
-  const { formatCurrency, taxRate } = useCurrency()
+  const { formatCurrency } = useCurrency()
   const [isPending, setIsPending] = React.useState(false)
 
   if (!quotation) return null
@@ -153,57 +154,69 @@ export function QuotationDetailSheet({
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
               Items ({quotation.quotation_items.length})
             </p>
-            <div className="space-y-2">
-              {quotation.quotation_items.map((item) => {
-                const meta = productMeta.find((p) => p.id === item.product_id)
-                const lineTotal = item.quantity * item.unit_price - item.discount_amount
+            <div className="rounded-lg border border-border overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[1fr_60px_48px_60px_40px_64px] gap-x-2 border-b border-border bg-muted/40 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span>Item</span>
+                <span className="text-right">Price</span>
+                <span className="text-center">Tax%</span>
+                <span className="text-right">Amount</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Total</span>
+              </div>
+              <div className="divide-y divide-border">
+                {quotation.quotation_items.map((item) => {
+                  const meta = productMeta.find((p) => p.id === item.product_id)
+                  const addTaxPct = item.add_tax_pct ?? 0
+                  const amount = item.unit_price * (1 + addTaxPct / 100)
+                  const lineTotal = amount * item.quantity - item.discount_amount
 
-                return (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5"
-                  >
-                    {/* Thumbnail */}
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                      {meta?.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={meta.image_url}
-                          alt={item.product_name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    {/* Info */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {item.product_name}
-                        </span>
-                        {meta?.serial_required && (
-                          <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
-                            Serial req.
-                          </Badge>
-                        )}
+                  return (
+                    <div key={item.id} className="grid grid-cols-[1fr_60px_48px_60px_40px_64px] items-center gap-x-2 px-3 py-2">
+                      {/* Item name */}
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted">
+                          {meta?.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={meta.image_url} alt={item.product_name} className="h-full w-full object-cover" />
+                          ) : (
+                            <Package className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block truncate text-xs font-medium text-foreground">{item.product_name}</span>
+                          {meta?.serial_required && (
+                            <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
+                              Serial req.
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatCurrency(item.unit_price)} × {item.quantity}
-                        {item.discount_amount > 0 && (
-                          <span className="ml-1 text-destructive">
-                            −{formatCurrency(item.discount_amount)}
-                          </span>
-                        )}
+                      <span className="text-right text-xs tabular-nums text-muted-foreground">
+                        {formatCurrency(item.unit_price)}
+                      </span>
+                      <span className={cn(
+                        'text-center text-xs tabular-nums',
+                        addTaxPct > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+                      )}>
+                        {addTaxPct}%
+                      </span>
+                      <span className={cn(
+                        'text-right text-xs tabular-nums',
+                        addTaxPct > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
+                      )}>
+                        {formatCurrency(amount)}
+                      </span>
+                      <span className="text-center text-xs tabular-nums text-foreground">
+                        {item.quantity}
+                      </span>
+                      <span className="text-right text-xs font-semibold tabular-nums text-foreground">
+                        {formatCurrency(lineTotal)}
                       </span>
                     </div>
-                    {/* Total */}
-                    <span className="text-sm font-semibold text-foreground tabular-nums">
-                      {formatCurrency(lineTotal)}
-                    </span>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
 
@@ -215,6 +228,14 @@ export function QuotationDetailSheet({
               <span className="text-muted-foreground">Subtotal</span>
               <span className="tabular-nums">{formatCurrency(quotation.subtotal)}</span>
             </div>
+            {(quotation.add_tax_amount ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Add Tax</span>
+                <span className="tabular-nums text-blue-600 dark:text-blue-400">
+                  +{formatCurrency(quotation.add_tax_amount)}
+                </span>
+              </div>
+            )}
             {quotation.discount_amount > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Discount</span>
@@ -226,7 +247,7 @@ export function QuotationDetailSheet({
             {quotation.tax_amount > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  Tax ({Math.round(taxRate * 10000) / 100}%)
+                  Tax ({Math.round((quotation.tax_rate ?? 0) * 10000) / 100}%)
                 </span>
                 <span className="tabular-nums">{formatCurrency(quotation.tax_amount)}</span>
               </div>

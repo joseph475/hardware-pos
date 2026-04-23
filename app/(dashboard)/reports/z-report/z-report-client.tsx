@@ -59,9 +59,11 @@ function paymentLabel(method: string): string {
 export function ZReportClient({
   initialData,
   initialDate,
+  userBranchId,
 }: {
   initialData: ZReportData
   initialDate: string
+  userBranchId?: string | null
 }) {
   const { formatCurrency } = useCurrency()
   const [data, setData] = React.useState(initialData)
@@ -72,7 +74,7 @@ export function ZReportClient({
     setDate(val)
     startTransition(async () => {
       try {
-        const result = await getZReport(val)
+        const result = await getZReport(val, userBranchId)
         setData(result)
       } catch (err) {
         toast.error("Failed to load report", {

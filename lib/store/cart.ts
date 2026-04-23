@@ -7,6 +7,7 @@ interface CartItem {
   unit_price: number;
   discount_amount: number; // flat amount (computed)
   discount_pct: number;    // percentage 0-100 (source of truth)
+  add_tax_pct: number;     // additional % tax per item, default 0
   serials: string[];       // one slot per unit, empty string = unfilled
 }
 
@@ -18,6 +19,7 @@ interface CartStore {
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   updateItemDiscount: (productId: string, pct: number) => void;
+  updateItemAddTax: (productId: string, pct: number) => void;
   updateItemSerials: (productId: string, serials: string[]) => void;
   setDiscount: (discount: number) => void;
   setTaxRate: (rate: number) => void;
@@ -26,6 +28,7 @@ interface CartStore {
   // Computed
   subtotal: () => number;
   totalDiscount: () => number;
+  totalAddTax: () => number;
   tax: () => number;
   total: () => number;
   isReadyToCharge: () => boolean;
@@ -61,6 +64,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
             unit_price: product.selling_price,
             discount_amount: 0,
             discount_pct: 0,
+            add_tax_pct: 0,
             serials: product.serial_required ? [""] : [],
           },
         ],
@@ -103,6 +107,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
       }),
     }),
 
+  updateItemAddTax: (productId, pct) =>
+    set({
+      items: get().items.map((i) =>
+        i.product.id === productId ? { ...i, add_tax_pct: pct } : i
+      ),
+    }),
+
   updateItemSerials: (productId, serials) =>
     set({
       items: get().items.map((i) =>
@@ -125,6 +136,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         unit_price: item.unit_price,
         discount_amount: item.discount_amount,
         discount_pct: 0,
+        add_tax_pct: 0,
         serials: [],
       })),
     }),
@@ -141,9 +153,16 @@ export const useCartStore = create<CartStore>((set, get) => ({
     return itemDiscounts + overallDiscount;
   },
 
+  totalAddTax: () =>
+    get().items.reduce(
+      (sum, i) => sum + i.unit_price * i.quantity * (i.add_tax_pct / 100),
+      0
+    ),
+
   tax: () => (get().subtotal() - get().totalDiscount()) * get().taxRate,
 
-  total: () => get().subtotal() - get().totalDiscount() + get().tax(),
+  total: () =>
+    get().subtotal() - get().totalDiscount() + get().totalAddTax() + get().tax(),
 
   isReadyToCharge: () =>
     get().items.every(

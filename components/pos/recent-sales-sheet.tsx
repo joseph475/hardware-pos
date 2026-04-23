@@ -2,14 +2,13 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { History, ShoppingBag, Ban, Search } from "lucide-react"
+import { ShoppingBag, Ban, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   Sheet,
   SheetContent,
-  SheetTrigger,
 } from "@/components/ui/sheet"
 import { useCurrency } from "@/lib/context/currency"
 import { useUserProfile } from "@/lib/context/user-profile"
@@ -112,10 +111,6 @@ export function RecentSalesSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger render={<Button variant="outline" />} nativeButton={true}>
-          <History className="h-4 w-4" />
-          Recent Sales
-        </SheetTrigger>
         <SheetContent side="right" className="w-full sm:max-w-sm p-0 flex flex-col">
           <div className="px-5 pt-5 pb-4 border-b border-border">
             <h2 className="text-base font-semibold text-foreground">Sales</h2>

@@ -4,7 +4,7 @@ import * as React from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, PackageOpen } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { useCurrency } from "@/lib/context/currency"
 import { createPurchaseOrder } from "@/lib/actions/purchasing"
+import { ProductSearchInput } from "@/components/pos/product-search-input"
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -86,7 +87,7 @@ export function NewPOSheet({ suppliers, branches, products, userBranchId, userRo
     supplier_id: "",
     branch_id: userBranchId ?? "",
     notes: "",
-    items: [{ product_id: "", quantity_ordered: undefined as unknown as number, unit_cost: undefined as unknown as number }],
+    items: [],
   }
 
   const {
@@ -250,100 +251,113 @@ export function NewPOSheet({ suppliers, branches, products, userBranchId, userRo
               Section 2 — Line Items
           ---------------------------------------------------------------- */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Line Items
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  append({
-                    product_id: "",
-                    quantity_ordered: undefined as unknown as number,
-                    unit_cost: undefined as unknown as number,
-                  })
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Line Items
+            </p>
+
+            <ProductSearchInput
+              products={products}
+              onSelect={(prod) => {
+                const product = products.find((p) => p.id === prod.id)
+                if (!product) return
+                const existingIndex = fields.findIndex((f) => f.product_id === prod.id)
+                if (existingIndex >= 0) {
+                  setValue(
+                    `items.${existingIndex}.quantity_ordered`,
+                    (Number(watchedItems[existingIndex]?.quantity_ordered) || 0) + 1,
+                    { shouldValidate: true }
+                  )
+                } else {
+                  append({ product_id: product.id, quantity_ordered: 1, unit_cost: product.cost_price })
                 }
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add Item
-              </Button>
-            </div>
+              }}
+              placeholder="Search by name or SKU to add items…"
+            />
 
             {errors.items?.root && (
               <p className="text-xs text-destructive">{errors.items.root.message}</p>
             )}
 
-            <div className="space-y-3">
+            {/* Empty state */}
+            {fields.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-8 text-muted-foreground">
+                <PackageOpen className="h-6 w-6" />
+                <p className="text-xs">Search for products above to add line items</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
               {fields.map((field, index) => {
                 const qty = Number(watchedItems?.[index]?.quantity_ordered) || 0
                 const cost = Number(watchedItems?.[index]?.unit_cost) || 0
                 const lineTotal = qty * cost
+                const sku = products.find((p) => p.id === field.product_id)?.sku ?? ""
+                const name = products.find((p) => p.id === field.product_id)?.name ?? "—"
 
                 return (
                   <div
                     key={field.id}
-                    className="rounded-lg border border-border bg-muted/20 p-3 space-y-3"
+                    className="rounded-lg border border-border bg-muted/20 p-3 space-y-2"
                   >
-                    {/* Product select */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Product</Label>
-                      <Select<string>
-                        value={watchedItems?.[index]?.product_id ?? ""}
-                        onValueChange={(val) => {
-                          if (val) {
-                            setValue(`items.${index}.product_id`, val, { shouldValidate: true })
-                            const prod = products.find((p) => p.id === val)
-                            if (prod) {
-                              setValue(`items.${index}.unit_cost`, prod.cost_price, {
-                                shouldValidate: true,
-                              })
-                            }
-                          }
-                        }}
+                    {/* Product name + SKU + remove */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium leading-tight truncate">{name}</p>
+                        {sku && <p className="text-xs text-muted-foreground mt-0.5">{sku}</p>}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => remove(index)}
+                        aria-label="Remove item"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
                       >
-                        <SelectTrigger
-                          className="w-full"
-                          aria-invalid={!!errors.items?.[index]?.product_id}
-                        >
-                          <SelectValue placeholder="Select product…">
-                            {(() => {
-                              const prod = products.find(
-                                (p) => p.id === watchedItems?.[index]?.product_id
-                              )
-                              return prod ? `${prod.name} (${prod.sku})` : null
-                            })()}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} ({p.sku})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.items?.[index]?.product_id && (
-                        <p className="text-xs text-destructive">
-                          {errors.items[index]?.product_id?.message}
-                        </p>
-                      )}
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
 
-                    {/* Qty + Cost + Total row */}
-                    <div className="grid grid-cols-3 gap-2 items-end">
-                      <div className="space-y-1.5">
+                    {/* Controls row */}
+                    <div className="flex items-end gap-2 flex-wrap">
+                      {/* Qty */}
+                      <div className="space-y-1">
                         <Label className="text-xs">Qty</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          step={1}
-                          placeholder="0"
-                          className="h-8"
-                          aria-invalid={!!errors.items?.[index]?.quantity_ordered}
-                          {...register(`items.${index}.quantity_ordered`, { valueAsNumber: true })}
-                        />
+                        <div className="flex items-center h-8 rounded-md border border-input overflow-hidden">
+                          <button
+                            type="button"
+                            className="px-2 h-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-base leading-none"
+                            onClick={() =>
+                              setValue(
+                                `items.${index}.quantity_ordered`,
+                                Math.max(1, qty - 1),
+                                { shouldValidate: true }
+                              )
+                            }
+                          >
+                            −
+                          </button>
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            className="h-full w-12 border-0 border-x border-input rounded-none text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            aria-invalid={!!errors.items?.[index]?.quantity_ordered}
+                            {...register(`items.${index}.quantity_ordered`, { valueAsNumber: true })}
+                          />
+                          <button
+                            type="button"
+                            className="px-2 h-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-base leading-none"
+                            onClick={() =>
+                              setValue(
+                                `items.${index}.quantity_ordered`,
+                                qty + 1,
+                                { shouldValidate: true }
+                              )
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
                         {errors.items?.[index]?.quantity_ordered && (
                           <p className="text-xs text-destructive">
                             {errors.items[index]?.quantity_ordered?.message}
@@ -351,47 +365,35 @@ export function NewPOSheet({ suppliers, branches, products, userBranchId, userRo
                         )}
                       </div>
 
-                      <div className="space-y-1.5">
+                      {/* Unit Cost */}
+                      <div className="space-y-1">
                         <Label className="text-xs">Unit Cost ({currencySymbol})</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          className="h-8"
-                          aria-invalid={!!errors.items?.[index]?.unit_cost}
-                          {...register(`items.${index}.unit_cost`, { valueAsNumber: true })}
-                        />
-                        {errors.items?.[index]?.unit_cost && (
-                          <p className="text-xs text-destructive">
-                            {errors.items[index]?.unit_cost?.message}
-                          </p>
-                        )}
+                        <>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            placeholder="0.00"
+                            className="h-8 w-28"
+                            aria-invalid={!!errors.items?.[index]?.unit_cost}
+                            {...register(`items.${index}.unit_cost`, { valueAsNumber: true })}
+                          />
+                          {errors.items?.[index]?.unit_cost && (
+                            <p className="text-xs text-destructive">
+                              {errors.items[index]?.unit_cost?.message}
+                            </p>
+                          )}
+                        </>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Line Total</Label>
-                        <div className="flex h-8 items-center rounded-lg border border-input bg-muted/40 px-2.5 text-sm font-medium tabular-nums">
+                      {/* Line total */}
+                      <div className="space-y-1 ml-auto">
+                        <Label className="text-xs text-muted-foreground">Total</Label>
+                        <div className="flex h-8 items-center justify-end text-sm font-semibold tabular-nums text-foreground">
                           {formatCurrency(lineTotal)}
                         </div>
                       </div>
                     </div>
-
-                    {/* Remove row button */}
-                    {fields.length > 1 && (
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => remove(index)}
-                          aria-label="Remove item"
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 )
               })}

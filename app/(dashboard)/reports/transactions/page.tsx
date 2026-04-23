@@ -20,17 +20,19 @@ export default async function TransactionsPage() {
   const supabase = getAdminClient()
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, branch_id")
     .eq("clerk_user_id", userId)
     .single()
 
   if (profile?.role === "cashier") redirect("/pos")
 
+  const branchId = profile?.role !== "owner" ? (profile?.branch_id ?? null) : null
+
   const dateTo = new Date().toISOString().slice(0, 10)
   const dateFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   const [initialData, orgSettings] = await Promise.all([
-    getTransactions({ dateFrom, dateTo }),
+    getTransactions({ dateFrom, dateTo, branchId: branchId ?? undefined }),
     getOrgSettings(),
   ])
 
@@ -40,6 +42,7 @@ export default async function TransactionsPage() {
       initialDateFrom={dateFrom}
       initialDateTo={dateTo}
       userRole={profile?.role ?? "manager"}
+      userBranchId={branchId}
       orgSettings={{
         tax_rate: orgSettings.tax_rate,
         receipt_header: orgSettings.receipt_header ?? null,

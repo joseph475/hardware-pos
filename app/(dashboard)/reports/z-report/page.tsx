@@ -19,14 +19,16 @@ export default async function ZReportPage() {
   const supabase = getAdminClient()
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, branch_id")
     .eq("clerk_user_id", userId)
     .single()
 
   if (profile?.role === "cashier") redirect("/pos")
 
-  const today = new Date().toISOString().slice(0, 10)
-  const initialData = await getZReport(today)
+  const branchId = profile?.role !== "owner" ? (profile?.branch_id ?? null) : null
 
-  return <ZReportClient initialData={initialData} initialDate={today} />
+  const today = new Date().toISOString().slice(0, 10)
+  const initialData = await getZReport(today, branchId)
+
+  return <ZReportClient initialData={initialData} initialDate={today} userBranchId={branchId} />
 }
