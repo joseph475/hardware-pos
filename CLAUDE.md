@@ -43,6 +43,14 @@ All DB writes go through `lib/actions/*.ts` marked `'use server'`. Use `getAdmin
 ## Client Components Pattern
 Pages = server components fetching data → pass to `*-client.tsx` client components. Client mutations use `useTransition` + `router.refresh()`.
 
+## Date & Number Formatting (CRITICAL — prevents hydration errors)
+Never call `toLocaleDateString()`, `toLocaleTimeString()`, or `toLocaleString()` directly in JSX. Node.js and the browser resolve locale differently → React hydration mismatch. Use the shared utilities from `lib/format.ts` instead:
+- `formatDate(value)` — "Apr 24, 2026"
+- `formatDateLong(value)` — "Thursday, April 24, 2026"
+- `formatTime(value)` — "2:30 PM"
+- `formatNumber(n)` — "1,234"
+All accept `string | Date`. Safe to call during SSR — output is identical on server and client.
+
 ## Base UI Gotchas (CRITICAL)
 This project uses `@base-ui/react`, NOT Radix UI:
 
