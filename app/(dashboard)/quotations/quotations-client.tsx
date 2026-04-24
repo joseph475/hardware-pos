@@ -29,7 +29,7 @@ import { useCurrency } from '@/lib/context/currency'
 import {
   deleteQuotation,
   updateQuotationStatus,
-  approveQuotation,
+  sendQuotationToPos,
 } from '@/lib/actions/quotations'
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
 import type { QuotationStatus } from '@/types/database'
@@ -102,13 +102,12 @@ export function QuotationsClient({
     }
   }
 
-  async function handleApprove(id: string) {
+  async function handleSendToPos(id: string) {
     try {
-      await approveQuotation(id)
-      toast.success('Quotation approved — sale recorded')
-      router.refresh()
+      await sendQuotationToPos(id)
+      router.push(`/pos?quotation_id=${id}`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to approve quotation')
+      toast.error(err instanceof Error ? err.message : 'Failed to send quotation to POS')
     }
   }
 
@@ -207,7 +206,7 @@ export function QuotationsClient({
                   const { label, className } = STATUS_CONFIG[q.status]
                   const canEdit = q.status === 'draft'
                   const canMarkSent = q.status === 'draft'
-                  const canApprove = q.status !== 'converted' && q.status !== 'rejected'
+                  const canSendToPos = q.status === 'sent'
                   const canReject = q.status === 'draft' || q.status === 'sent' || q.status === 'accepted'
                   const canDelete = q.status === 'draft'
 
@@ -293,10 +292,10 @@ export function QuotationsClient({
                                 Mark as Sent
                               </DropdownMenuItem>
                             )}
-                            {canApprove && (
-                              <DropdownMenuItem onClick={() => handleApprove(q.id)}>
+                            {canSendToPos && (
+                              <DropdownMenuItem onClick={() => handleSendToPos(q.id)}>
                                 <CheckCircle className="h-4 w-4" />
-                                Approve
+                                Send to POS
                               </DropdownMenuItem>
                             )}
                             {canReject && (
@@ -363,10 +362,8 @@ export function QuotationsClient({
           setDetailSheetOpen(false)
           setViewingQuotation(null)
         }}
-        onApprove={async (id) => {
-          await handleApprove(id)
-          setDetailSheetOpen(false)
-          setViewingQuotation(null)
+        onSendToPos={async (id) => {
+          await handleSendToPos(id)
         }}
         onReject={async (id) => {
           await handleReject(id)
