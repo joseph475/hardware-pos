@@ -790,7 +790,13 @@ export function POSClient({
             <Button
               className="flex-1 text-sm font-semibold"
               disabled={items.length === 0 || !readyToCharge}
-              onClick={() => setCustomerStepOpen(true)}
+              onClick={() => {
+                if (selectedCustomerId) {
+                  setPaymentDialogOpen(true)
+                } else {
+                  setCustomerStepOpen(true)
+                }
+              }}
               title={!readyToCharge ? "Enter all serial numbers to continue" : undefined}
             >
               {items.length > 0 && !readyToCharge ? "Enter serials first" : "Charge →"}
