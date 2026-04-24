@@ -13,6 +13,7 @@ import {
 import { useCurrency } from "@/lib/context/currency"
 import { useUserProfile } from "@/lib/context/user-profile"
 import { getRecentBranchTransactions, type TransactionSummary } from "@/lib/actions/transactions"
+import { formatDate, formatTime } from "@/lib/format"
 import { VoidWithPinDialog } from "@/components/pos/void-with-pin-dialog"
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -95,14 +96,10 @@ export function RecentSalesSheet({
     })
   }
 
-  function formatTime(iso: string) {
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  }
-
   const isToday = selectedDate === todayISO()
   const dateLabel = isToday
     ? "Today"
-    : new Date(selectedDate + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })
+    : formatDate(selectedDate + "T12:00:00")
 
   const subtitle = loading
     ? "Loading…"

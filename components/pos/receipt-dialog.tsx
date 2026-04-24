@@ -4,6 +4,7 @@ import * as React from "react"
 import { createPortal } from "react-dom"
 import { Printer, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatDate, formatTime } from "@/lib/format"
 import {
   Dialog,
   DialogContent,
@@ -67,8 +68,8 @@ function Divider({ char = "=" }: { char?: string }) {
 
 function ReceiptContent({ data }: { data: ReceiptData }) {
   const shortId = data.transactionId.slice(0, 8).toUpperCase()
-  const date = data.timestamp.toLocaleDateString()
-  const time = data.timestamp.toLocaleTimeString()
+  const date = formatDate(data.timestamp)
+  const time = formatTime(data.timestamp)
   const taxPct = `${Math.round(data.taxRate * 10000) / 100}%`
 
   function row(label: string, value: string) {

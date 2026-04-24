@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { useCurrency } from "@/lib/context/currency"
 import { voidTransaction, type TransactionSummary } from "@/lib/actions/transactions"
+import { formatTime } from "@/lib/format"
 
 interface VoidWithPinDialogProps {
   transaction: TransactionSummary | null
@@ -66,10 +67,7 @@ export function VoidWithPinDialog({ transaction, open, onOpenChange, onVoided }:
   if (!transaction) return null
 
   const shortId = transaction.id.slice(0, 8).toUpperCase()
-  const time = new Date(transaction.created_at).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  const time = formatTime(transaction.created_at)
   const canSubmit = reason.trim().length >= 3 && pin.length >= 4 && !pending
 
   return (
