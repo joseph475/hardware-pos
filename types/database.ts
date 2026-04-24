@@ -61,6 +61,7 @@ export type Database = {
           phone: string | null;
           timezone: string;
           is_active: boolean;
+          is_main: boolean;
           created_at: string;
         };
         Insert: {
@@ -71,6 +72,7 @@ export type Database = {
           phone?: string | null;
           timezone?: string;
           is_active?: boolean;
+          is_main?: boolean;
           created_at?: string;
         };
         Update: {
@@ -81,6 +83,7 @@ export type Database = {
           phone?: string | null;
           timezone?: string;
           is_active?: boolean;
+          is_main?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -518,12 +521,17 @@ export type Database = {
           discount_amount: number;
           tax_amount: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check";
           status: "completed" | "voided" | "held";
           notes: string | null;
           void_reason: string | null;
           voided_by: string | null;
           voided_at: string | null;
+          check_bank_name: string | null;
+          check_date: string | null;
+          check_number: string | null;
+          check_name: string | null;
+          check_amount: number | null;
           created_at: string;
         };
         Insert: {
@@ -535,12 +543,17 @@ export type Database = {
           discount_amount?: number;
           tax_amount?: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check";
           status?: "completed" | "voided" | "held";
           notes?: string | null;
           void_reason?: string | null;
           voided_by?: string | null;
           voided_at?: string | null;
+          check_bank_name?: string | null;
+          check_date?: string | null;
+          check_number?: string | null;
+          check_name?: string | null;
+          check_amount?: number | null;
           created_at?: string;
         };
         Update: {
@@ -552,12 +565,17 @@ export type Database = {
           discount_amount?: number;
           tax_amount?: number;
           total?: number;
-          payment_method?: "cash" | "card" | "split" | "gcash" | "maya";
+          payment_method?: "cash" | "card" | "split" | "gcash" | "maya" | "check";
           status?: "completed" | "voided" | "held";
           notes?: string | null;
           void_reason?: string | null;
           voided_by?: string | null;
           voided_at?: string | null;
+          check_bank_name?: string | null;
+          check_date?: string | null;
+          check_number?: string | null;
+          check_name?: string | null;
+          check_amount?: number | null;
           created_at?: string;
         };
         Relationships: [];
@@ -670,6 +688,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      branch_stock_requests: {
+        Row: {
+          id: string;
+          requesting_branch_id: string;
+          status: "pending" | "in_progress" | "fulfilled" | "cancelled";
+          notes: string | null;
+          created_by: string;
+          fulfillment_transfer_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          requesting_branch_id: string;
+          status?: "pending" | "in_progress" | "fulfilled" | "cancelled";
+          notes?: string | null;
+          created_by: string;
+          fulfillment_transfer_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          requesting_branch_id?: string;
+          status?: "pending" | "in_progress" | "fulfilled" | "cancelled";
+          notes?: string | null;
+          created_by?: string;
+          fulfillment_transfer_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      branch_stock_request_items: {
+        Row: {
+          id: string;
+          request_id: string;
+          product_id: string;
+          quantity: number;
+        };
+        Insert: {
+          id?: string;
+          request_id: string;
+          product_id: string;
+          quantity: number;
+        };
+        Update: {
+          id?: string;
+          request_id?: string;
+          product_id?: string;
+          quantity?: number;
+        };
+        Relationships: [];
+      };
     };
   };
 };
@@ -700,3 +772,18 @@ export type Quotation = Database["public"]["Tables"]["quotations"]["Row"];
 export type QuotationItem =
   Database["public"]["Tables"]["quotation_items"]["Row"];
 export type QuotationStatus = Quotation["status"];
+export type BranchStockRequest =
+  Database["public"]["Tables"]["branch_stock_requests"]["Row"];
+export type BranchStockRequestItem =
+  Database["public"]["Tables"]["branch_stock_request_items"]["Row"];
+export type BranchRequestStatus = BranchStockRequest["status"];
+
+export type BranchStockRequestWithRelations = BranchStockRequest & {
+  requesting_branch: { name: string } | null;
+  creator: { full_name: string } | null;
+  branch_stock_request_items: Array<
+    BranchStockRequestItem & {
+      product: { name: string; sku: string } | null;
+    }
+  >;
+};
