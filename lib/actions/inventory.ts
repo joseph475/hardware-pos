@@ -121,7 +121,7 @@ const getProductsForBranchCached = unstable_cache(
     const supabase = getAdminClient()
     const { data } = await supabase
       .from('products')
-      .select('id, name, sku, unit, cost_price, is_active')
+      .select('id, name, sku, unit, cost_price, is_active, image_url')
       .eq('is_active', true)
       .order('name')
     return data ?? []

@@ -48,6 +48,7 @@ export default async function BranchRequestsPage() {
     id: p.id,
     name: p.name,
     sku: p.sku,
+    image_url: p.image_url,
   }))
 
   return (

@@ -57,7 +57,7 @@ interface Props {
   requests: BranchStockRequestWithRelations[]
   isMainBranch: boolean
   mainBranchId: string | null
-  products: Array<{ id: string; name: string; sku: string }>
+  products: Array<{ id: string; name: string; sku: string; image_url: string | null }>
 }
 
 export function BranchRequestsClient({
