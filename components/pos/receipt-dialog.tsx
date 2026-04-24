@@ -31,11 +31,16 @@ export interface ReceiptData {
   taxAmount: number
   taxRate: number
   total: number
-  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya"
+  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check"
   cashTendered?: number
   change?: number
   splitCash?: number
   splitCard?: number
+  checkBankName?: string
+  checkDate?: string
+  checkNumber?: string
+  checkName?: string
+  checkAmount?: number
   receiptHeader?: string
   receiptFooter?: string
   formatCurrency: (n: number) => string
@@ -151,7 +156,7 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
       <Divider />
 
       {/* Payment */}
-      <ReceiptLine>{`Payment: ${data.paymentMethod === "gcash" ? "GCash" : data.paymentMethod === "maya" ? "Maya" : data.paymentMethod.charAt(0).toUpperCase() + data.paymentMethod.slice(1)}`}</ReceiptLine>
+      <ReceiptLine>{`Payment: ${data.paymentMethod === "gcash" ? "GCash" : data.paymentMethod === "maya" ? "Maya" : data.paymentMethod === "check" ? "Check" : data.paymentMethod.charAt(0).toUpperCase() + data.paymentMethod.slice(1)}`}</ReceiptLine>
       {data.paymentMethod === "cash" && data.cashTendered !== undefined && (
         <>
           {row("Tendered:", data.formatCurrency(data.cashTendered))}
@@ -162,6 +167,16 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
         <>
           {data.splitCash !== undefined && row("  Cash:", data.formatCurrency(data.splitCash))}
           {data.splitCard !== undefined && row("  Card:", data.formatCurrency(data.splitCard))}
+        </>
+      )}
+      {data.paymentMethod === "check" && data.checkAmount !== undefined && (
+        <>
+          {row("Check Amount:", data.formatCurrency(data.checkAmount))}
+          {data.checkBankName && row("Bank:", data.checkBankName)}
+          {data.checkNumber && row("Check #:", data.checkNumber)}
+          {data.checkName && row("Payee:", data.checkName)}
+          {data.checkDate && row("Check Date:", data.checkDate)}
+          {data.checkAmount > data.total && row("Change:", data.formatCurrency(data.checkAmount - data.total))}
         </>
       )}
       <Divider />
