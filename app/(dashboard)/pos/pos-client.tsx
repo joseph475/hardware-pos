@@ -15,6 +15,7 @@ import {
   Clock,
   Receipt,
   Smartphone,
+  CheckSquare,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -34,7 +35,7 @@ import type { POSProduct } from "@/lib/actions/inventory"
 import type { Customer } from "@/types/database"
 import { cn } from "@/lib/utils"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check"
 
 function StockBadge({ stock }: { stock: number }) {
   if (stock === 0) {
@@ -289,6 +290,7 @@ export function POSClient({
   const paymentMethods: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
     { value: "cash", label: "Cash", icon: <Banknote className="h-4 w-4" /> },
     { value: "card", label: "Card", icon: <CreditCard className="h-4 w-4" /> },
+    { value: "check", label: "Check", icon: <CheckSquare className="h-4 w-4" /> },
     { value: "split", label: "Split", icon: <SplitSquareHorizontal className="h-4 w-4" /> },
     ...(gcashQrUrl ? [{ value: "gcash" as const, label: "GCash", icon: <Smartphone className="h-4 w-4" /> }] : []),
     ...(mayaQrUrl ? [{ value: "maya" as const, label: "Maya", icon: <Smartphone className="h-4 w-4" /> }] : []),
