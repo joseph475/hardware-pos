@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { useCurrency } from "@/lib/context/currency";
 import type { DashboardData } from "@/lib/actions/reports";
+import { formatDateLong, formatNumber } from "@/lib/format";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -153,7 +154,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     },
     {
       label: "Total Transactions",
-      value: data.transactionCount.toLocaleString(),
+      value: formatNumber(data.transactionCount),
       trend: txTrend,
       icon: ShoppingBag,
       iconBg: "bg-violet-500/10",
@@ -161,7 +162,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     },
     {
       label: "Items Sold",
-      value: data.itemsSold.toLocaleString(),
+      value: formatNumber(data.itemsSold),
       trend: itemsTrend,
       icon: Package,
       iconBg: "bg-emerald-500/10",
@@ -169,7 +170,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     },
     {
       label: "Active Products",
-      value: data.activeProducts.toLocaleString(),
+      value: formatNumber(data.activeProducts),
       trend: null,
       icon: Activity,
       iconBg: "bg-amber-500/10",
@@ -186,14 +187,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           Dashboard
         </h1>
-        <p className="text-sm text-muted-foreground" suppressHydrationWarning>
-          Overview for today —{" "}
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
+        <p className="text-sm text-muted-foreground">
+          Overview for today — {formatDateLong(new Date())}
         </p>
       </div>
 
