@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import type { Database } from '@/types/database'
 
+const ORG_ID = '00000000-0000-0000-0000-000000000001'
+
 function getAdminClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +27,18 @@ function getRangeStart(range: string): string {
     now.setHours(0, 0, 0, 0)
   }
   return now.toISOString()
+}
+
+// Returns UTC ISO timestamps that correspond to midnight→23:59:59 in the given timezone.
+function getDateBoundsInTZ(dateStr: string, tz: string): { dayStart: string; dayEnd: string } {
+  // Use a midday probe (safe against DST at midnight edge) to compute the offset.
+  const probe = new Date(`${dateStr}T12:00:00Z`)
+  const utcMs = new Date(probe.toLocaleString('en-US', { timeZone: 'UTC' })).getTime()
+  const tzMs = new Date(probe.toLocaleString('en-US', { timeZone: tz })).getTime()
+  const offsetMs = utcMs - tzMs // positive when tz is ahead of UTC (e.g. +08:00)
+  const dayStart = new Date(new Date(`${dateStr}T00:00:00Z`).getTime() + offsetMs)
+  const dayEnd = new Date(new Date(`${dateStr}T23:59:59.999Z`).getTime() + offsetMs)
+  return { dayStart: dayStart.toISOString(), dayEnd: dayEnd.toISOString() }
 }
 
 export type DailySalePoint = {
@@ -212,6 +226,7 @@ export type ZReportData = {
   voidCount: number
   voidedTotal: number
   byPaymentMethod: { method: string; count: number; total: number }[]
+  hourlyBreakdown: { hour: number; revenue: number; count: number }[]
 }
 
 export async function getZReport(date: string, branchId?: string | null): Promise<ZReportData> {
@@ -220,12 +235,30 @@ export async function getZReport(date: string, branchId?: string | null): Promis
 
   const supabase = getAdminClient()
 
-  const dayStart = `${date}T00:00:00.000Z`
-  const dayEnd = `${date}T23:59:59.999Z`
+  // Resolve the timezone for this branch (or any branch in the org as fallback)
+  let timezone = 'UTC'
+  if (branchId) {
+    const { data: branch } = await supabase
+      .from('branches')
+      .select('timezone')
+      .eq('id', branchId)
+      .single()
+    if (branch?.timezone) timezone = branch.timezone
+  } else {
+    const { data: anyBranch } = await supabase
+      .from('branches')
+      .select('timezone')
+      .eq('org_id', ORG_ID)
+      .limit(1)
+      .single()
+    if (anyBranch?.timezone) timezone = anyBranch.timezone
+  }
+
+  const { dayStart, dayEnd } = getDateBoundsInTZ(date, timezone)
 
   let zQuery = supabase
     .from('transactions')
-    .select('id, total, discount_amount, payment_method, status')
+    .select('id, total, discount_amount, payment_method, status, created_at')
     .gte('created_at', dayStart)
     .lte('created_at', dayEnd)
 
@@ -239,23 +272,41 @@ export async function getZReport(date: string, branchId?: string | null): Promis
   const completed = all.filter((t) => t.status === 'completed')
   const voided = all.filter((t) => t.status === 'voided')
 
-  const totalRevenue = completed.reduce((s: number, t: any) => s + t.total, 0)
-  const totalDiscounts = completed.reduce((s: number, t: any) => s + t.discount_amount, 0)
+  const totalRevenue = completed.reduce((s: number, t: any) => s + (t.total ?? 0), 0)
+  const totalDiscounts = completed.reduce((s: number, t: any) => s + (t.discount_amount ?? 0), 0)
   const salesCount = completed.length
   const avgTransactionValue = salesCount > 0 ? totalRevenue / salesCount : 0
   const voidCount = voided.length
-  const voidedTotal = voided.reduce((s: number, t: any) => s + t.total, 0)
+  const voidedTotal = voided.reduce((s: number, t: any) => s + (t.total ?? 0), 0)
 
   const methodMap = new Map<string, { count: number; total: number }>()
   for (const t of completed) {
     const entry = methodMap.get(t.payment_method) ?? { count: 0, total: 0 }
     entry.count += 1
-    entry.total += t.total
+    entry.total += t.total ?? 0
     methodMap.set(t.payment_method, entry)
   }
   const byPaymentMethod = Array.from(methodMap.entries())
     .map(([method, vals]) => ({ method, count: vals.count, total: vals.total }))
     .sort((a, b) => b.total - a.total)
+
+  // Hourly breakdown — group by local hour in the branch timezone
+  const hourMap = new Map<number, { revenue: number; count: number }>()
+  for (const t of completed) {
+    const localHour = new Date(t.created_at).toLocaleString('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      hour12: false,
+    })
+    const hour = parseInt(localHour, 10) % 24
+    const entry = hourMap.get(hour) ?? { revenue: 0, count: 0 }
+    entry.revenue += t.total ?? 0
+    entry.count += 1
+    hourMap.set(hour, entry)
+  }
+  const hourlyBreakdown = Array.from(hourMap.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([hour, vals]) => ({ hour, revenue: Math.round(vals.revenue * 100) / 100, count: vals.count }))
 
   return {
     date,
@@ -266,7 +317,106 @@ export async function getZReport(date: string, branchId?: string | null): Promis
     voidCount,
     voidedTotal,
     byPaymentMethod,
+    hourlyBreakdown,
   }
+}
+
+// ─── Product Performance Report ────────────────────────────────────────────────
+
+export type ProductReportData = {
+  topByRevenue: { name: string; sku: string; revenue: number; units: number }[]
+  topByQuantity: { name: string; sku: string; revenue: number; units: number }[]
+  byCategory: { category: string; revenue: number; units: number }[]
+}
+
+export async function getProductReport(
+  range: string,
+  branchId?: string | null
+): Promise<ProductReportData> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+  const startDate = getRangeStart(range)
+
+  // 1. Completed transactions in range
+  let txnQuery = supabase
+    .from('transactions')
+    .select('id, branch_id')
+    .eq('status', 'completed')
+    .gte('created_at', startDate)
+
+  if (branchId) txnQuery = txnQuery.eq('branch_id', branchId)
+
+  const { data: txns } = await txnQuery
+  const txnIds = (txns ?? []).map((t) => t.id)
+
+  if (txnIds.length === 0) {
+    return { topByRevenue: [], topByQuantity: [], byCategory: [] }
+  }
+
+  // 2. Fetch transaction items
+  const { data: items } = await supabase
+    .from('transaction_items')
+    .select('product_id, product_name, quantity, total')
+    .in('transaction_id', txnIds)
+
+  // 3. Fetch product → sku + category mapping
+  const productIds = [...new Set((items ?? []).map((i) => i.product_id))]
+  const productMeta = new Map<string, { sku: string; category: string }>()
+  if (productIds.length > 0) {
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, sku, categories(name)')
+      .in('id', productIds)
+    for (const p of (products ?? []) as any[]) {
+      productMeta.set(p.id, {
+        sku: p.sku ?? '',
+        category: p.categories?.name ?? 'Uncategorized',
+      })
+    }
+  }
+
+  // 4. Group by product
+  const productMap = new Map<string, { name: string; sku: string; revenue: number; units: number }>()
+  const categoryMap = new Map<string, { revenue: number; units: number }>()
+
+  for (const item of items ?? []) {
+    const meta = productMeta.get(item.product_id) ?? { sku: '', category: 'Uncategorized' }
+
+    const existing = productMap.get(item.product_id) ?? {
+      name: item.product_name,
+      sku: meta.sku,
+      revenue: 0,
+      units: 0,
+    }
+    existing.revenue += item.total ?? 0
+    existing.units += item.quantity ?? 0
+    productMap.set(item.product_id, existing)
+
+    const cat = meta.category
+    const catEntry = categoryMap.get(cat) ?? { revenue: 0, units: 0 }
+    catEntry.revenue += item.total ?? 0
+    catEntry.units += item.quantity ?? 0
+    categoryMap.set(cat, catEntry)
+  }
+
+  const allProducts = Array.from(productMap.values()).map((p) => ({
+    ...p,
+    revenue: Math.round(p.revenue * 100) / 100,
+  }))
+
+  const topByRevenue = [...allProducts].sort((a, b) => b.revenue - a.revenue).slice(0, 10)
+  const topByQuantity = [...allProducts].sort((a, b) => b.units - a.units).slice(0, 10)
+  const byCategory = Array.from(categoryMap.entries())
+    .map(([category, vals]) => ({
+      category,
+      revenue: Math.round(vals.revenue * 100) / 100,
+      units: vals.units,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+
+  return { topByRevenue, topByQuantity, byCategory }
 }
 
 // ─── Dashboard stats ───────────────────────────────────────────────────────────
@@ -296,6 +446,8 @@ export type DashboardData = {
     category: string
   }[]
   branchSales: { branch: string; revenue: number }[]
+  weeklyRevenue: DailySalePoint[]
+  paymentMethods: { method: string; total: number; count: number }[]
 }
 
 export async function getDashboardStats(branchId?: string | null): Promise<DashboardData> {
@@ -308,13 +460,15 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
   todayStart.setHours(0, 0, 0, 0)
   const yesterdayStart = new Date(todayStart)
   yesterdayStart.setDate(yesterdayStart.getDate() - 1)
+  const sevenDaysStart = new Date(todayStart)
+  sevenDaysStart.setDate(sevenDaysStart.getDate() - 6) // 7 days including today
 
-  // 1. Fetch today + yesterday completed transactions
+  // 1. Fetch last 7 days of completed transactions
   let txnQuery = supabase
     .from('transactions')
     .select('id, total, payment_method, created_at, branch_id, cashier_id')
     .eq('status', 'completed')
-    .gte('created_at', yesterdayStart.toISOString())
+    .gte('created_at', sevenDaysStart.toISOString())
     .order('created_at', { ascending: false })
 
   if (branchId) txnQuery = txnQuery.eq('branch_id', branchId)
@@ -323,8 +477,11 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
 
   const allTxns = txns ?? []
   const todayIso = todayStart.toISOString()
+  const yesterdayIso = yesterdayStart.toISOString()
   const todayTxns = allTxns.filter((t) => t.created_at >= todayIso)
-  const yesterdayTxns = allTxns.filter((t) => t.created_at < todayIso)
+  const yesterdayTxns = allTxns.filter(
+    (t) => t.created_at >= yesterdayIso && t.created_at < todayIso
+  )
 
   const todayRevenue = todayTxns.reduce((s, t) => s + t.total, 0)
   const yesterdayRevenue = yesterdayTxns.reduce((s, t) => s + t.total, 0)
@@ -334,7 +491,7 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
   // 2. Items sold today + yesterday
   const todayTxnIds = todayTxns.map((t) => t.id)
   const yesterdayTxnIds = yesterdayTxns.map((t) => t.id)
-  const allTxnIds = [...todayTxnIds, ...yesterdayTxnIds]
+  const allTxnIds = [...new Set(allTxns.map((t) => t.id))]
   let itemsSold = 0
   let yesterdayItemsSold = 0
   if (allTxnIds.length > 0) {
@@ -344,7 +501,7 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
       .in('transaction_id', allTxnIds)
     for (const item of items ?? []) {
       if (todayTxnIds.includes(item.transaction_id)) itemsSold += item.quantity
-      else yesterdayItemsSold += item.quantity
+      else if (yesterdayTxnIds.includes(item.transaction_id)) yesterdayItemsSold += item.quantity
     }
   }
 
@@ -437,6 +594,41 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
       category: (inv.products?.categories?.name ?? 'Uncategorized') as string,
     }))
 
+  // 7. Weekly revenue (last 7 days grouped by day)
+  const dailyMap = new Map<string, { revenue: number; transactions: number }>()
+  for (const t of allTxns) {
+    const day = t.created_at.slice(0, 10)
+    const entry = dailyMap.get(day) ?? { revenue: 0, transactions: 0 }
+    entry.revenue += t.total
+    entry.transactions += 1
+    dailyMap.set(day, entry)
+  }
+  // Fill all 7 days (including days with no sales)
+  const weeklyRevenue: DailySalePoint[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(todayStart)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    const vals = dailyMap.get(key) ?? { revenue: 0, transactions: 0 }
+    weeklyRevenue.push({
+      date: d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
+      revenue: Math.round(vals.revenue * 100) / 100,
+      transactions: vals.transactions,
+    })
+  }
+
+  // 8. Today's payment method breakdown
+  const pmMap = new Map<string, { total: number; count: number }>()
+  for (const t of todayTxns) {
+    const entry = pmMap.get(t.payment_method) ?? { total: 0, count: 0 }
+    entry.total += t.total
+    entry.count += 1
+    pmMap.set(t.payment_method, entry)
+  }
+  const paymentMethods = Array.from(pmMap.entries())
+    .map(([method, vals]) => ({ method, total: Math.round(vals.total * 100) / 100, count: vals.count }))
+    .sort((a, b) => b.total - a.total)
+
   return {
     todayRevenue,
     yesterdayRevenue,
@@ -448,5 +640,7 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
     recentTransactions,
     lowStockItems,
     branchSales,
+    weeklyRevenue,
+    paymentMethods,
   }
 }

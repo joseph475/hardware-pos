@@ -187,7 +187,15 @@ export function ReceiptDialog({ open, onOpenChange, data }: ReceiptDialogProps) 
   React.useEffect(() => { setMounted(true) }, [])
 
   function handlePrint() {
+    // Inject 80mm @page rule only for this print job
+    const style = document.createElement('style')
+    style.id = 'receipt-page-size'
+    style.textContent = '@page { size: 80mm auto; margin: 0; } body, html { margin: 0 !important; padding: 0 !important; width: 80mm !important; }'
+    document.head.appendChild(style)
+    document.body.setAttribute('data-printing', 'receipt')
     window.print()
+    document.body.removeAttribute('data-printing')
+    document.head.removeChild(style)
   }
 
   return (

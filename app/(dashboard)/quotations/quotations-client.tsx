@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Plus, Search, Send, CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Plus, Search, Send, CheckCircle, XCircle, Trash2, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +34,7 @@ import {
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
 import type { QuotationStatus } from '@/types/database'
 import { QuotationDetailSheet } from './components/quotation-detail-sheet'
+import { QuotationPrintDialog } from '@/components/quotations/quotation-print-dialog'
 import { CustomerSelectDialog } from '@/components/pos/customer-select-dialog'
 
 type StatusFilter = QuotationStatus | 'all'
@@ -42,6 +43,7 @@ interface Props {
   initialQuotations: QuotationWithRelations[]
   customers: Array<{ id: string; name: string; company_name: string | null }>
   products: Array<{ id: string; name: string; sku: string; selling_price: number; serial_required: boolean; image_url: string | null }>
+  orgName: string
 }
 
 const STATUS_CONFIG: Record<QuotationStatus, { label: string; className: string }> = {
@@ -66,6 +68,7 @@ export function QuotationsClient({
   initialQuotations,
   customers,
   products,
+  orgName,
 }: Props) {
   const router = useRouter()
   const { formatCurrency } = useCurrency()
@@ -76,6 +79,7 @@ export function QuotationsClient({
   const [detailSheetOpen, setDetailSheetOpen] = React.useState(false)
   const [viewingQuotation, setViewingQuotation] = React.useState<QuotationWithRelations | null>(null)
   const [customerStepOpen, setCustomerStepOpen] = React.useState(false)
+  const [printTarget, setPrintTarget] = React.useState<QuotationWithRelations | null>(null)
 
   React.useEffect(() => {
     setQuotations(initialQuotations)
@@ -278,6 +282,10 @@ export function QuotationsClient({
                                 View Details
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem onClick={() => setPrintTarget(q)}>
+                              <Printer className="h-4 w-4" />
+                              Print
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {canMarkSent && (
                               <DropdownMenuItem onClick={() => handleMarkSent(q.id)}>
@@ -344,6 +352,7 @@ export function QuotationsClient({
           image_url: p.image_url,
           serial_required: p.serial_required,
         }))}
+        orgName={orgName}
         open={detailSheetOpen}
         onOpenChange={(open) => {
           setDetailSheetOpen(open)
@@ -365,6 +374,16 @@ export function QuotationsClient({
           setViewingQuotation(null)
         }}
       />
+
+      {/* List-level print dialog */}
+      {printTarget && (
+        <QuotationPrintDialog
+          quotation={printTarget}
+          orgName={orgName}
+          open={!!printTarget}
+          onOpenChange={(open) => { if (!open) setPrintTarget(null) }}
+        />
+      )}
     </div>
   )
 }

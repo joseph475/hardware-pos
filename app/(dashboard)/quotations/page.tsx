@@ -29,7 +29,7 @@ export default async function QuotationsPage() {
 
   const supabase = getAdminClient()
 
-  const [quotations, customersResult, productsResult] = await Promise.all([
+  const [quotations, customersResult, productsResult, orgResult] = await Promise.all([
     getQuotations(userRole !== 'owner' && userBranchId ? { branchId: userBranchId } : undefined),
     supabase
       .from('customers')
@@ -43,6 +43,11 @@ export default async function QuotationsPage() {
       .eq('org_id', '00000000-0000-0000-0000-000000000001')
       .eq('is_active', true)
       .order('name'),
+    supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .single(),
   ])
 
   const customers = (customersResult.data ?? []) as Array<{
@@ -60,11 +65,14 @@ export default async function QuotationsPage() {
     image_url: string | null
   }>
 
+  const orgName = orgResult.data?.name ?? ''
+
   return (
     <QuotationsClient
       initialQuotations={quotations}
       customers={customers}
       products={products}
+      orgName={orgName}
     />
   )
 }

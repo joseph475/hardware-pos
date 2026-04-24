@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Send, CheckCircle, XCircle, Package } from 'lucide-react'
+import { Send, CheckCircle, XCircle, Package, Printer } from 'lucide-react'
+import { QuotationPrintDialog } from '@/components/quotations/quotation-print-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -36,6 +37,7 @@ type ProductMeta = {
 interface QuotationDetailSheetProps {
   quotation: QuotationWithRelations | null
   productMeta: ProductMeta[]
+  orgName: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onMarkSent: (id: string) => Promise<void>
@@ -46,6 +48,7 @@ interface QuotationDetailSheetProps {
 export function QuotationDetailSheet({
   quotation,
   productMeta,
+  orgName,
   open,
   onOpenChange,
   onMarkSent,
@@ -54,6 +57,7 @@ export function QuotationDetailSheet({
 }: QuotationDetailSheetProps) {
   const { formatCurrency } = useCurrency()
   const [isPending, setIsPending] = React.useState(false)
+  const [printOpen, setPrintOpen] = React.useState(false)
 
   if (!quotation) return null
 
@@ -263,9 +267,19 @@ export function QuotationDetailSheet({
         {/* Footer actions */}
         <SheetFooter className="border-t border-border bg-background px-4 py-3">
           <div className="flex w-full items-center justify-between gap-2">
-            <SheetClose render={<Button variant="outline" type="button" />}>
-              Close
-            </SheetClose>
+            <div className="flex gap-2">
+              <SheetClose render={<Button variant="outline" type="button" />}>
+                Close
+              </SheetClose>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPrintOpen(true)}
+              >
+                <Printer className="h-3.5 w-3.5 mr-1.5" />
+                Print
+              </Button>
+            </div>
             {hasActions && (
               <div className="flex gap-2">
                 {canMarkSent && (
@@ -306,6 +320,12 @@ export function QuotationDetailSheet({
           </div>
         </SheetFooter>
       </SheetContent>
+      <QuotationPrintDialog
+        quotation={quotation}
+        orgName={orgName}
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+      />
     </Sheet>
   )
 }

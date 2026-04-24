@@ -27,7 +27,17 @@ export default async function ZReportPage() {
 
   const branchId = profile?.role !== "owner" ? (profile?.branch_id ?? null) : null
 
-  const today = new Date().toISOString().slice(0, 10)
+  // Resolve branch timezone so the initial date is today in local time, not UTC
+  let timezone = "UTC"
+  if (branchId) {
+    const { data: branch } = await supabase.from("branches").select("timezone").eq("id", branchId).single()
+    if (branch?.timezone) timezone = branch.timezone
+  } else {
+    const { data: anyBranch } = await supabase.from("branches").select("timezone").limit(1).single()
+    if (anyBranch?.timezone) timezone = anyBranch.timezone
+  }
+
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: timezone })
   const initialData = await getZReport(today, branchId)
 
   return <ZReportClient initialData={initialData} initialDate={today} userBranchId={branchId} />

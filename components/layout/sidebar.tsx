@@ -22,6 +22,7 @@ import {
   History,
   FileBarChart2,
   Users2,
+  PackageSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -126,6 +127,7 @@ const NAV_ENTRIES: NavEntry[] = [
     roles: ["owner", "manager"],
     items: [
       { label: "Sales", href: "/reports/sales", icon: BarChart3 },
+      { label: "Products", href: "/reports/products", icon: PackageSearch },
       { label: "Transaction History", href: "/reports/transactions", icon: History },
       { label: "Z-Report", href: "/reports/z-report", icon: FileBarChart2 },
     ],

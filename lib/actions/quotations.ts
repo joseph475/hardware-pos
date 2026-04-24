@@ -18,7 +18,7 @@ const ORG_ID = '00000000-0000-0000-0000-000000000001'
 
 export type QuotationWithRelations = Quotation & {
   customers: { name: string; email: string | null; company_name: string | null } | null
-  branches: { name: string } | null
+  branches: { name: string; address: string | null; phone: string | null } | null
   creator: { full_name: string } | null
   quotation_items: QuotationItem[]
 }
@@ -59,7 +59,7 @@ export async function getQuotations(filters?: {
     .select(`
       *,
       customers(name, email, company_name),
-      branches(name),
+      branches(name, address, phone),
       creator:profiles!created_by(full_name),
       quotation_items(*)
     `)
@@ -91,7 +91,7 @@ export async function getQuotationById(id: string): Promise<QuotationWithRelatio
     .select(`
       *,
       customers(name, email, company_name),
-      branches(name),
+      branches(name, address, phone),
       creator:profiles!created_by(full_name),
       quotation_items(*)
     `)

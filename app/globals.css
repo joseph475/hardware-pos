@@ -116,28 +116,20 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* ── Receipt print ─────────────────────────────────────────── */
-#pos-receipt {
+/* ── Print: shared hidden state ────────────────────────────── */
+#pos-receipt,
+#z-report-print,
+#quotation-print {
   display: none;
 }
 
+/* ── Receipt print (80mm thermal) ──────────────────────────── */
 @media print {
-  @page {
-    size: 80mm auto; /* thermal roll width, auto height = continuous feed */
-    margin: 0;
-  }
-
-  body > *:not(#pos-receipt) {
+  body[data-printing="receipt"] > *:not(#pos-receipt) {
     display: none !important;
   }
 
-  body, html {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 80mm !important;
-  }
-
-  #pos-receipt {
+  body[data-printing="receipt"] #pos-receipt {
     display: block !important;
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
@@ -147,6 +139,42 @@
     width: 80mm;
     margin: 0;
     padding: 4px 2mm;
+  }
+}
+
+/* ── Z-Report print (A4 / letter) ──────────────────────────── */
+@media print {
+  body[data-printing="z-report"] > *:not(#z-report-print) {
+    display: none !important;
+  }
+
+  body[data-printing="z-report"] #z-report-print {
+    display: block !important;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    padding: 32px;
+    width: 100%;
+  }
+}
+
+/* ── Quotation print (A4 / letter) ─────────────────────────── */
+@media print {
+  body[data-printing="quotation"] > *:not(#quotation-print) {
+    display: none !important;
+  }
+
+  body[data-printing="quotation"] #quotation-print {
+    display: block !important;
+    font-family: serif;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #000;
+    background: #fff;
+    padding: 32px;
+    width: 100%;
   }
 }
 

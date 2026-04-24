@@ -13,6 +13,11 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -73,6 +78,8 @@ function PaymentBadge({ method }: { method: string }) {
     cash: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
     card: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     split: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+    gcash: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+    maya: "bg-green-500/10 text-green-400 border-green-500/20",
   };
   const label = method.charAt(0).toUpperCase() + method.slice(1);
   return (
@@ -108,6 +115,21 @@ function makeTooltip(formatCurrency: (v: number) => string) {
     }
     return null;
   };
+}
+
+const PAYMENT_COLORS: Record<string, string> = {
+  cash:  "oklch(0.6 0 0)",
+  card:  "oklch(0.6 0.2 230)",
+  split: "oklch(0.6 0.2 290)",
+  gcash: "oklch(0.6 0.2 210)",
+  maya:  "oklch(0.6 0.2 145)",
+};
+
+function paymentLabel(method: string): string {
+  const map: Record<string, string> = {
+    cash: "Cash", card: "Card", split: "Split", gcash: "GCash", maya: "Maya",
+  };
+  return map[method] ?? method;
 }
 
 // ─── Main client component ────────────────────────────────────────────────────
@@ -154,6 +176,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       iconColor: "text-amber-400",
     },
   ];
+
+  const totalPaymentRevenue = data.paymentMethods.reduce((s, p) => s + p.total, 0);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -345,18 +369,151 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         </Card>
       </div>
 
+      {/* Charts row: weekly revenue + payment mix */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {/* 7-day revenue trend */}
+        <Card className="xl:col-span-2">
+          <CardHeader className="border-b border-border pb-3">
+            <CardTitle>Weekly Revenue</CardTitle>
+            <CardDescription>Last 7 days of completed sales</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {data.weeklyRevenue.every((d) => d.revenue === 0) ? (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                No sales data for the past 7 days
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart
+                  data={data.weeklyRevenue}
+                  margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    vertical={false}
+                    strokeDasharray="3 3"
+                    stroke="oklch(1 0 0 / 6%)"
+                  />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "oklch(0.708 0 0)", fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    dy={8}
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) =>
+                      v === 0 ? "0" : `${currencySymbol}${(v / 1000).toFixed(0)}k`
+                    }
+                    tick={{ fill: "oklch(0.708 0 0)", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    dx={-8}
+                    width={44}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ stroke: "oklch(1 0 0 / 10%)" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="oklch(0.488 0.243 264.376)"
+                    strokeWidth={2}
+                    dot={{ fill: "oklch(0.488 0.243 264.376)", r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Today's payment method mix */}
+        <Card>
+          <CardHeader className="border-b border-border pb-3">
+            <CardTitle>Payment Mix</CardTitle>
+            <CardDescription>Today&apos;s revenue by method</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {data.paymentMethods.length === 0 ? (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                No payments today
+              </p>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={data.paymentMethods}
+                      dataKey="total"
+                      nameKey="method"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={70}
+                      paddingAngle={2}
+                    >
+                      {data.paymentMethods.map((entry) => (
+                        <Cell
+                          key={entry.method}
+                          fill={PAYMENT_COLORS[entry.method] ?? "oklch(0.6 0 0)"}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const p = payload[0].payload as { method: string; total: number; count: number }
+                          return (
+                            <div className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 shadow-xl">
+                              <p className="text-xs font-medium text-zinc-400">{paymentLabel(p.method)}</p>
+                              <p className="text-sm font-semibold text-zinc-100">{formatCurrency(p.total)}</p>
+                              <p className="text-xs text-zinc-400">{p.count} txn{p.count !== 1 ? "s" : ""}</p>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Legend */}
+                <div className="w-full space-y-1.5">
+                  {data.paymentMethods.map((pm) => {
+                    const pct = totalPaymentRevenue > 0
+                      ? Math.round((pm.total / totalPaymentRevenue) * 100)
+                      : 0
+                    return (
+                      <div key={pm.method} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ background: PAYMENT_COLORS[pm.method] ?? "oklch(0.6 0 0)" }}
+                          />
+                          <span className="text-muted-foreground">{paymentLabel(pm.method)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 tabular-nums">
+                          <span className="text-foreground font-medium">{formatCurrency(pm.total)}</span>
+                          <span className="text-muted-foreground/60 w-8 text-right">{pct}%</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Sales by branch chart */}
-      <Card>
-        <CardHeader className="border-b border-border pb-3">
-          <CardTitle>Sales by Branch</CardTitle>
-          <CardDescription>Today&apos;s revenue across all branches</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {data.branchSales.length === 0 ? (
-            <p className="py-12 text-center text-sm text-muted-foreground">
-              No branch sales data for today
-            </p>
-          ) : (
+      {data.branchSales.length > 0 && (
+        <Card>
+          <CardHeader className="border-b border-border pb-3">
+            <CardTitle>Sales by Branch</CardTitle>
+            <CardDescription>Today&apos;s revenue across all branches</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
                 data={data.branchSales}
@@ -396,9 +553,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 />
               </BarChart>
             </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
