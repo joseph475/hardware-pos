@@ -337,6 +337,32 @@ export async function updateQuotationStatus(
 }
 
 // ---------------------------------------------------------------------------
+// sendQuotationToPos — marks quotation as converted without creating a sale
+// ---------------------------------------------------------------------------
+export async function sendQuotationToPos(id: string): Promise<void> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+
+  const { data: existing } = await supabase
+    .from('quotations')
+    .select('status')
+    .eq('id', id)
+    .single()
+  if (!existing) throw new Error('Quotation not found')
+  if (existing.status !== 'sent') throw new Error('Only sent quotations can be sent to POS')
+
+  const { error } = await supabase
+    .from('quotations')
+    .update({ status: 'converted', updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+
+  revalidateAll()
+}
+
+// ---------------------------------------------------------------------------
 // approveQuotation — converts a quotation into a transaction
 // ---------------------------------------------------------------------------
 export async function approveQuotation(id: string): Promise<{ transaction_id: string }> {
