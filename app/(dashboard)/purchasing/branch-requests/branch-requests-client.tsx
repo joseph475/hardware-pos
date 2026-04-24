@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
+import { formatDate } from "@/lib/format"
 import { Plus, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -152,7 +153,7 @@ export function BranchRequestsClient({
                         {req.creator?.full_name ?? "—"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(req.created_at).toLocaleDateString()}
+                        {formatDate(req.created_at)}
                       </TableCell>
                       <TableCell className="pr-4">
                         <DropdownMenu>

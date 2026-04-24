@@ -26,6 +26,7 @@ import {
 import { NewTransferSheet } from "./new-transfer-sheet";
 import { updateTransferStatus } from "@/lib/actions/transfers";
 import type { Branch, Product } from "@/types/database";
+import { formatDate } from "@/lib/format";
 
 type TransferStatus = "pending" | "approved" | "in_transit" | "completed" | "cancelled";
 
@@ -120,8 +121,8 @@ function TransfersTable({
               {t.items}
             </TableCell>
             <TableCell className="text-sm text-muted-foreground">{t.created_by}</TableCell>
-            <TableCell className="font-mono text-xs text-muted-foreground" suppressHydrationWarning>
-              {new Date(t.created_at).toLocaleDateString()}
+            <TableCell className="font-mono text-xs text-muted-foreground">
+              {formatDate(t.created_at)}
             </TableCell>
             <TableCell className="pr-4">
               <DropdownMenu>

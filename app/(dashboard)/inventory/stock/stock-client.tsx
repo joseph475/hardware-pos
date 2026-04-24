@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Branch } from "@/types/database";
+import { formatDate } from "@/lib/format";
 
 export interface StockRow {
   id: string;
@@ -227,8 +228,8 @@ export function StockClient({ initialRows, branches, userBranchId, userRole }: S
                     <TableCell>
                       <StatusBadge qty={row.quantity} threshold={row.threshold} />
                     </TableCell>
-                    <TableCell className="pr-4 text-xs text-muted-foreground font-mono" suppressHydrationWarning>
-                      {new Date(row.updated_at).toLocaleDateString()}
+                    <TableCell className="pr-4 text-xs text-muted-foreground font-mono">
+                      {formatDate(row.updated_at)}
                     </TableCell>
                   </TableRow>
                 ))}
