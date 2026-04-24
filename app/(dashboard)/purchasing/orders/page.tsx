@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 import { getPurchaseOrders, getSuppliers, getBranches } from "@/lib/actions/purchasing"
 import { getProductsForBranch } from "@/lib/actions/inventory"
 import { OrdersClient } from "./orders-client"
@@ -40,6 +41,8 @@ export default async function PurchaseOrdersPage() {
       .single()
     isMainBranch = branchData?.is_main ?? false
   }
+
+  if (!isMainBranch && userRole !== "owner") redirect("/purchasing/branch-requests")
 
   // Fetch all data in parallel
   const [orders, suppliers, branches, products] = await Promise.all([

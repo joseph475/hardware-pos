@@ -119,11 +119,12 @@ const NAV_ENTRIES: NavEntry[] = [
     defaultOpen: false,
     roles: ["owner", "manager"],
     items: [
-      { label: "Suppliers", href: "/purchasing/suppliers", icon: Truck },
+      { label: "Suppliers", href: "/purchasing/suppliers", icon: Truck, mainBranchOrOwnerOnly: true },
       {
         label: "Purchase Orders",
         href: "/purchasing/orders",
         icon: ClipboardList,
+        mainBranchOrOwnerOnly: true,
       },
       {
         label: "Branch Requests",
