@@ -826,7 +826,7 @@ export function POSClient({
         open={paymentDialogOpen}
         onOpenChange={(val) => {
           setPaymentDialogOpen(val)
-          if (!val) {
+          if (!val && items.length === 0) {
             setSelectedCustomerId(null)
             setSelectedCustomerName(null)
           }
