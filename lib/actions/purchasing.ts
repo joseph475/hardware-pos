@@ -45,10 +45,20 @@ export async function createPurchaseOrder(params: {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role')
+    .select('id, role, branch_id')
     .eq('clerk_user_id', userId)
     .single()
   if (!profile) throw new Error('Profile not found')
+
+  // Only main branch can create supplier POs
+  if (profile.branch_id) {
+    const { data: branch } = await supabase
+      .from('branches')
+      .select('is_main')
+      .eq('id', profile.branch_id)
+      .single()
+    if (!branch?.is_main) throw new Error('Only the main branch can create supplier purchase orders')
+  }
 
   const total = params.items.reduce((sum, item) => sum + item.quantity_ordered * item.unit_cost, 0)
 

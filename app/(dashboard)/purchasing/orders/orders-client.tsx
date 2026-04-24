@@ -59,6 +59,7 @@ interface Props {
   products: Array<{ id: string; name: string; sku: string; cost_price: number }>
   userBranchId: string | null
   userRole: "owner" | "manager" | "cashier"
+  isMainBranch: boolean
   supplierNames: string[]
 }
 
@@ -81,6 +82,7 @@ export function OrdersClient({
   products,
   userBranchId,
   userRole,
+  isMainBranch,
   supplierNames,
 }: Props) {
   const { formatCurrency } = useCurrency()
@@ -118,7 +120,15 @@ export function OrdersClient({
             Track orders from your suppliers
           </p>
         </div>
-        <NewPOSheet
+        {!isMainBranch && (
+          <a
+            href="/purchasing/branch-requests"
+            className="text-sm text-muted-foreground underline"
+          >
+            Use Stock Requests instead
+          </a>
+        )}
+        {isMainBranch && <NewPOSheet
           suppliers={suppliers}
           branches={branches}
           products={products}
@@ -127,7 +137,7 @@ export function OrdersClient({
           onSuccess={() => {
             // Page will revalidate via server action; re-render will update initialOrders
           }}
-        />
+        />}
       </div>
 
       {/* Filters */}

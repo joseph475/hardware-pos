@@ -30,6 +30,17 @@ export default async function PurchaseOrdersPage() {
     userRole = profile?.role ?? "cashier"
   }
 
+  let isMainBranch = false
+  if (userBranchId) {
+    const supabaseCheck = getAdminClient()
+    const { data: branchData } = await supabaseCheck
+      .from('branches')
+      .select('is_main')
+      .eq('id', userBranchId)
+      .single()
+    isMainBranch = branchData?.is_main ?? false
+  }
+
   // Fetch all data in parallel
   const [orders, suppliers, branches, products] = await Promise.all([
     getPurchaseOrders(),
@@ -69,6 +80,7 @@ export default async function PurchaseOrdersPage() {
       products={productList}
       userBranchId={userBranchId}
       userRole={userRole}
+      isMainBranch={isMainBranch}
       supplierNames={supplierNames}
     />
   )
