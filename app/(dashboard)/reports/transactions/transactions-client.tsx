@@ -428,15 +428,17 @@ export function TransactionsClient({
                       <TableCell><StatusBadge status={tx.status} /></TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => handleReprint(tx)}
-                            title="Print receipt"
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                          </Button>
+                          {tx.status !== "held" && (
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => handleReprint(tx)}
+                              title="Print receipt"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {canVoid && tx.status === "completed" && (
                             <Button
                               size="sm"
