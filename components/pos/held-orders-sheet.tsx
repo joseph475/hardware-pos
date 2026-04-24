@@ -17,6 +17,7 @@ import {
   clearExpiredHeldOrders,
   type HeldTransaction,
 } from "@/lib/actions/transactions"
+import { formatTime } from "@/lib/format"
 
 function getOrderAgeBadge(iso: string): "old" | "expired" | null {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -113,9 +114,6 @@ export function HeldOrdersSheet({ open: controlledOpen, onOpenChange: controlled
     }
   }
 
-  function formatTime(iso: string) {
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  }
 
   const hasExpired = heldOrders.some((o) => getOrderAgeBadge(o.created_at) === "expired")
 
