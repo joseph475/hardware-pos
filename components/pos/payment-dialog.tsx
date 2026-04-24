@@ -21,7 +21,7 @@ import { useUserProfile } from "@/lib/context/user-profile"
 import { createTransaction } from "@/lib/actions/transactions"
 import { ReceiptDialog, type ReceiptData } from "@/components/pos/receipt-dialog"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check"
 
 interface PaymentDialogProps {
   open: boolean
@@ -39,6 +39,7 @@ function paymentMethodLabel(method: PaymentMethod): string {
   if (method === "gcash") return "GCash"
   if (method === "maya") return "Maya"
   if (method === "split") return "Split"
+  if (method === "check") return "Check"
   return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
@@ -60,6 +61,11 @@ export function PaymentDialog({
   const [cashTendered, setCashTendered] = React.useState("")
   const [splitCash, setSplitCash] = React.useState("")
   const [splitCard, setSplitCard] = React.useState("")
+  const [checkBankName, setCheckBankName] = React.useState("")
+  const [checkDate, setCheckDate] = React.useState("")
+  const [checkNumber, setCheckNumber] = React.useState("")
+  const [checkName, setCheckName] = React.useState("")
+  const [checkAmountStr, setCheckAmountStr] = React.useState("")
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [qrConfirmed, setQrConfirmed] = React.useState(false)
   const [qrElapsed, setQrElapsed] = React.useState(0)
@@ -104,16 +110,27 @@ export function PaymentDialog({
   const splitTotal = Math.round((splitCashNum + splitCardNum) * 100) / 100
   const splitRemaining = orderTotal - splitTotal
 
+  const checkAmountNum = parseFloat(checkAmountStr) || 0
+
   const isCashValid =
     paymentMethod === "cash" ? cashTenderedNum >= orderTotal : true
   const isSplitValid =
     paymentMethod === "split"
       ? Math.abs(splitRemaining) < 0.005
       : true
+  const isCheckValid =
+    paymentMethod === "check"
+      ? checkBankName.trim() !== "" &&
+        checkDate !== "" &&
+        checkNumber.trim() !== "" &&
+        checkName.trim() !== "" &&
+        checkAmountNum >= orderTotal
+      : true
   const canConfirm =
     paymentMethod === "card" ||
     (paymentMethod === "cash" && isCashValid) ||
     (paymentMethod === "split" && isSplitValid) ||
+    (paymentMethod === "check" && isCheckValid) ||
     (isQrPayment && qrConfirmed)
 
   async function handleConfirm() {
@@ -135,6 +152,11 @@ export function PaymentDialog({
         total: orderTotal,
         payment_method: paymentMethod,
         customer_id: customerId ?? null,
+        check_bank_name: paymentMethod === "check" ? checkBankName : null,
+        check_date: paymentMethod === "check" ? checkDate : null,
+        check_number: paymentMethod === "check" ? checkNumber : null,
+        check_name: paymentMethod === "check" ? checkName : null,
+        check_amount: paymentMethod === "check" ? checkAmountNum : null,
       })
 
       // Capture receipt data before clearing cart
@@ -162,6 +184,11 @@ export function PaymentDialog({
         change: paymentMethod === "cash" ? change : undefined,
         splitCash: paymentMethod === "split" ? splitCashNum : undefined,
         splitCard: paymentMethod === "split" ? splitCardNum : undefined,
+        checkBankName: paymentMethod === "check" ? checkBankName : undefined,
+        checkDate: paymentMethod === "check" ? checkDate : undefined,
+        checkNumber: paymentMethod === "check" ? checkNumber : undefined,
+        checkName: paymentMethod === "check" ? checkName : undefined,
+        checkAmount: paymentMethod === "check" ? checkAmountNum : undefined,
         receiptHeader: receiptHeader ?? undefined,
         receiptFooter: receiptFooter ?? undefined,
         formatCurrency,
@@ -195,6 +222,11 @@ export function PaymentDialog({
         setCashTendered("")
         setSplitCash("")
         setSplitCard("")
+        setCheckBankName("")
+        setCheckDate("")
+        setCheckNumber("")
+        setCheckName("")
+        setCheckAmountStr("")
       }
       onOpenChange(value)
     }
@@ -408,6 +440,87 @@ export function PaymentDialog({
                   : formatCurrency(Math.abs(splitRemaining))}
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Check payment */}
+        {paymentMethod === "check" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="check-bank">Bank Name</Label>
+                <Input
+                  id="check-bank"
+                  placeholder="e.g. BDO"
+                  value={checkBankName}
+                  onChange={(e) => setCheckBankName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="check-date">Check Date</Label>
+                <Input
+                  id="check-date"
+                  type="date"
+                  value={checkDate}
+                  onChange={(e) => setCheckDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="check-number">Check #</Label>
+                <Input
+                  id="check-number"
+                  placeholder="123456"
+                  value={checkNumber}
+                  onChange={(e) => setCheckNumber(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="check-amount">Check Amount</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                    {currencySymbol}
+                  </span>
+                  <Input
+                    id="check-amount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    value={checkAmountStr}
+                    onChange={(e) => setCheckAmountStr(e.target.value)}
+                    className="pl-6"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="check-name">Check Name (Payee)</Label>
+              <Input
+                id="check-name"
+                placeholder="Name on check"
+                value={checkName}
+                onChange={(e) => setCheckName(e.target.value)}
+              />
+            </div>
+            {checkAmountNum > 0 && (
+              <div
+                className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium ${
+                  checkAmountNum >= orderTotal
+                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                    : "bg-destructive/10 text-destructive"
+                }`}
+              >
+                <span>{checkAmountNum >= orderTotal ? "Change" : "Insufficient"}</span>
+                <span>
+                  {checkAmountNum >= orderTotal
+                    ? formatCurrency(checkAmountNum - orderTotal)
+                    : `${formatCurrency(orderTotal - checkAmountNum)} short`}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
