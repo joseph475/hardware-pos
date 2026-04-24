@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { useCurrency } from "@/lib/context/currency";
 import { getSalesReport, type SalesReportData } from "@/lib/actions/reports";
+import { formatNumber } from "@/lib/format";
 
 const DATE_RANGES = ["Today", "This Week", "This Month"] as const;
 type DateRange = (typeof DATE_RANGES)[number];
@@ -138,7 +139,7 @@ export default function SalesClient({ initialData, initialRange, userBranchId }:
     },
     {
       label: "Transactions",
-      value: data.transactionCount.toLocaleString(),
+      value: formatNumber(data.transactionCount),
       icon: ShoppingCart,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
@@ -152,7 +153,7 @@ export default function SalesClient({ initialData, initialRange, userBranchId }:
     },
     {
       label: "Items Sold",
-      value: data.itemsSold.toLocaleString(),
+      value: formatNumber(data.itemsSold),
       icon: Package,
       color: "text-amber-500",
       bg: "bg-amber-500/10",

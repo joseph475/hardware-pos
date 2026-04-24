@@ -23,6 +23,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getProductReport, type ProductReportData } from "@/lib/actions/reports"
 import { useCurrency } from "@/lib/context/currency"
+import { formatNumber } from "@/lib/format"
 
 type Range = "today" | "week" | "month"
 
@@ -260,7 +261,7 @@ export function ProductReportClient({
                         {product.sku || "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-                        {product.units.toLocaleString()}
+                        {formatNumber(product.units)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium text-sm pr-4">
                         {formatCurrency(product.revenue)}
