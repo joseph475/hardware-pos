@@ -97,7 +97,6 @@ export function QuotationFormClient({
 
   const [productSearch, setProductSearch] = React.useState('')
   const [productDropdownOpen, setProductDropdownOpen] = React.useState(false)
-  const [itemSerials, setItemSerials] = React.useState<Record<string, string[]>>({})
   const productSearchRef = React.useRef<HTMLInputElement>(null)
 
   const filteredProducts = React.useMemo(() => {
@@ -181,10 +180,6 @@ export function QuotationFormClient({
     if (existingIndex >= 0) {
       const currentQty = Number(watchedItems[existingIndex]?.quantity) || 0
       setValue(`items.${existingIndex}.quantity`, currentQty + 1, { shouldValidate: true })
-      if (product.serial_required) {
-        const fieldId = fields[existingIndex].id
-        setItemSerials((prev) => ({ ...prev, [fieldId]: [...(prev[fieldId] ?? []), ''] }))
-      }
     } else {
       append({
         product_id: product.id,
@@ -200,15 +195,7 @@ export function QuotationFormClient({
   }
 
   function handleRemoveItem(index: number) {
-    const fieldId = fields[index]?.id
     remove(index)
-    if (fieldId) {
-      setItemSerials((prev) => {
-        const next = { ...prev }
-        delete next[fieldId]
-        return next
-      })
-    }
   }
 
   function onSubmit(values: QuotationFormValues) {
@@ -373,8 +360,6 @@ export function QuotationFormClient({
                   const lineTotal = qty * amount - disc
                   const product = products.find((p) => p.id === field.product_id)
                   const sku = product?.sku ?? ''
-                  const isSerialRequired = product?.serial_required ?? false
-                  const fieldSerials = itemSerials[field.id] ?? []
 
                   return (
                     <div key={field.id}>
@@ -394,7 +379,7 @@ export function QuotationFormClient({
                               {watchedItems?.[index]?.product_name || '—'}
                             </span>
                             {sku && <span className="block truncate font-mono text-[10px] text-muted-foreground">{sku}</span>}
-                            {isSerialRequired && (
+                            {product?.serial_required && (
                               <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
                                 Serial req.
                               </Badge>
@@ -444,12 +429,6 @@ export function QuotationFormClient({
                             onClick={() => {
                               const newQty = Math.max(1, qty - 1)
                               setValue(`items.${index}.quantity`, newQty, { shouldValidate: true })
-                              if (isSerialRequired) {
-                                setItemSerials((prev) => ({
-                                  ...prev,
-                                  [field.id]: (prev[field.id] ?? []).slice(0, newQty),
-                                }))
-                              }
                             }}
                           >
                             <Minus className="h-3 w-3" />
@@ -459,21 +438,7 @@ export function QuotationFormClient({
                             min={1}
                             aria-invalid={!!errors.items?.[index]?.quantity}
                             className="h-7 w-10 px-1 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            {...register(`items.${index}.quantity`, {
-                              valueAsNumber: true,
-                              onChange: (e) => {
-                                const val = parseInt(e.target.value, 10)
-                                if (!isNaN(val) && isSerialRequired) {
-                                  setItemSerials((prev) => {
-                                    const current = prev[field.id] ?? []
-                                    if (val > current.length) {
-                                      return { ...prev, [field.id]: [...current, ...Array(val - current.length).fill('')] }
-                                    }
-                                    return { ...prev, [field.id]: current.slice(0, val) }
-                                  })
-                                }
-                              },
-                            })}
+                            {...register(`items.${index}.quantity`, { valueAsNumber: true })}
                           />
                           <Button
                             type="button"
@@ -482,12 +447,6 @@ export function QuotationFormClient({
                             onClick={() => {
                               const newQty = qty + 1
                               setValue(`items.${index}.quantity`, newQty, { shouldValidate: true })
-                              if (isSerialRequired) {
-                                setItemSerials((prev) => ({
-                                  ...prev,
-                                  [field.id]: [...(prev[field.id] ?? []), ''],
-                                }))
-                              }
                             }}
                           >
                             <Plus className="h-3 w-3" />
@@ -511,36 +470,6 @@ export function QuotationFormClient({
                         </Button>
                       </div>
 
-                      {/* Serial slots */}
-                      {isSerialRequired && (
-                        <div className="mx-4 mb-2 space-y-1.5">
-                          <p className="text-xs text-muted-foreground">
-                            Serial numbers <span className="text-[10px]">(optional reference)</span>:
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {Array.from({ length: qty }, (_, i) => (
-                              <input
-                                key={i}
-                                className={cn(
-                                  'h-7 w-40 rounded border bg-background px-2 font-mono text-xs transition-colors',
-                                  fieldSerials[i]
-                                    ? 'border-green-500/50 text-foreground'
-                                    : 'border-border text-foreground placeholder:text-muted-foreground'
-                                )}
-                                placeholder={`SN ${i + 1}`}
-                                value={fieldSerials[i] ?? ''}
-                                onChange={(e) => {
-                                  setItemSerials((prev) => {
-                                    const current = [...(prev[field.id] ?? [])]
-                                    current[i] = e.target.value
-                                    return { ...prev, [field.id]: current }
-                                  })
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )
                 })}
