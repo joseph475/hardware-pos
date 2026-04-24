@@ -39,6 +39,7 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
   roles?: string[];
+  mainBranchOrOwnerOnly?: boolean;
 };
 
 type NavSection = {
@@ -102,6 +103,13 @@ const NAV_ENTRIES: NavEntry[] = [
         icon: ArrowLeftRight,
         roles: ["owner", "manager"],
       },
+      {
+        label: "Cross-Branch Stock",
+        href: "/inventory/cross-branch",
+        icon: BarChart3,
+        roles: ["owner", "manager"],
+        mainBranchOrOwnerOnly: true,
+      },
     ],
   },
   {
@@ -115,6 +123,11 @@ const NAV_ENTRIES: NavEntry[] = [
       {
         label: "Purchase Orders",
         href: "/purchasing/orders",
+        icon: ClipboardList,
+      },
+      {
+        label: "Branch Requests",
+        href: "/purchasing/branch-requests",
         icon: ClipboardList,
       },
     ],
@@ -181,14 +194,18 @@ function CollapsibleSection({
   section,
   pathname,
   role,
+  isMainBranch,
 }: {
   section: NavSection;
   pathname: string;
   role: string | null;
+  isMainBranch: boolean;
 }) {
-  const visibleItems = section.items.filter(
-    (item) => !item.roles || (role && item.roles.includes(role))
-  );
+  const visibleItems = section.items.filter((item) => {
+    if (item.roles && !(role && item.roles.includes(role))) return false;
+    if (item.mainBranchOrOwnerOnly && !isMainBranch && role !== "owner") return false;
+    return true;
+  });
   const isAnyChildActive = visibleItems.some((item) =>
     pathname.startsWith(item.href)
   );
@@ -251,6 +268,7 @@ export function SidebarNav({ className, onNavigate }: SidebarNavProps) {
   const { profile, branch } = useUserProfile();
 
   const role = profile?.role ?? null;
+  const isMainBranch = (branch as any)?.is_main === true;
 
   // Sections hidden from cashiers
   const CASHIER_HIDDEN_SECTIONS = ["Settings", "Purchasing", "Sales"];
@@ -350,6 +368,7 @@ export function SidebarNav({ className, onNavigate }: SidebarNavProps) {
                 section={entry}
                 pathname={pathname}
                 role={role}
+                isMainBranch={isMainBranch}
               />
             );
           })}
