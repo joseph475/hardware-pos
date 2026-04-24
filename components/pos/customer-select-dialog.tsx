@@ -30,6 +30,7 @@ interface CustomerSelectDialogProps {
   onOpenChange: (open: boolean) => void
   customers: CustomerItem[]
   onConfirm: (customerId: string | null, customerName: string | null) => void
+  requireSelection?: boolean
 }
 
 export function CustomerSelectDialog({
@@ -37,6 +38,7 @@ export function CustomerSelectDialog({
   onOpenChange,
   customers,
   onConfirm,
+  requireSelection = false,
 }: CustomerSelectDialogProps) {
   const [search, setSearch] = React.useState("")
   const [selected, setSelected] = React.useState<{ id: string; name: string } | null>(null)
@@ -186,10 +188,12 @@ export function CustomerSelectDialog({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={handleSkip}>
-              Walk-in / Skip
-            </Button>
-            <Button onClick={handleConfirm}>
+            {!requireSelection && (
+              <Button variant="ghost" onClick={handleSkip}>
+                Walk-in / Skip
+              </Button>
+            )}
+            <Button onClick={handleConfirm} disabled={requireSelection && !selected}>
               Continue →
             </Button>
           </DialogFooter>

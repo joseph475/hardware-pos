@@ -331,6 +331,7 @@ export function QuotationsClient({
         open={customerStepOpen}
         onOpenChange={setCustomerStepOpen}
         customers={customers.map((c) => ({ ...c, email: null, phone: null, is_active: true }))}
+        requireSelection
         onConfirm={(id) => {
           setCustomerStepOpen(false)
           if (id) router.push(`/quotations/new?customer_id=${id}`)
