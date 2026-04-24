@@ -25,6 +25,13 @@ interface CartStore {
   setTaxRate: (rate: number) => void;
   clearCart: () => void;
   loadHeldOrder: (heldItems: Array<{ product_id: string; product_name: string; quantity: number; unit_price: number; discount_amount: number }>) => void;
+  loadQuotationOrder: (items: Array<{
+    product: Product
+    quantity: number
+    unit_price: number
+    discount_amount: number
+    add_tax_pct: number
+  }>) => void;
   // Computed
   subtotal: () => number;
   totalDiscount: () => number;
@@ -139,6 +146,28 @@ export const useCartStore = create<CartStore>((set, get) => ({
         add_tax_pct: 0,
         serials: [],
       })),
+    }),
+
+  loadQuotationOrder: (items) =>
+    set({
+      discount: 0,
+      items: items.map((item) => {
+        const baseTotal = item.unit_price * item.quantity
+        const discount_pct = baseTotal > 0
+          ? (item.discount_amount / baseTotal) * 100
+          : 0
+        return {
+          product: item.product,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_amount: item.discount_amount,
+          discount_pct,
+          add_tax_pct: item.add_tax_pct,
+          serials: item.product.serial_required
+            ? Array(item.quantity).fill('')
+            : [],
+        }
+      }),
     }),
 
   subtotal: () =>
