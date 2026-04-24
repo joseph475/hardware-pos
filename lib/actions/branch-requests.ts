@@ -147,7 +147,7 @@ export async function fulfillBranchStockRequest(params: {
       to_branch_id: request.requesting_branch_id,
       notes: `Fulfills stock request ${params.requestId.slice(0, 8).toUpperCase()}`,
       created_by: profile.id,
-      status: 'pending',
+      status: 'in_transit',
     })
     .select('id')
     .single()

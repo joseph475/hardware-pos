@@ -163,6 +163,14 @@ export async function updateTransferStatus(params: {
   if (params.status === 'completed') {
     revalidateTag(CACHE_TAGS.INVENTORY, {})
     revalidateTag(CACHE_TAGS.INVENTORY_MOVEMENTS, {})
+
+    // Auto-fulfill any branch stock request linked to this transfer
+    await supabase
+      .from('branch_stock_requests')
+      .update({ status: 'fulfilled', updated_at: new Date().toISOString() })
+      .eq('fulfillment_transfer_id', params.transferId)
+
+    revalidatePath('/purchasing/branch-requests')
   }
   revalidatePath('/inventory/transfers')
 }

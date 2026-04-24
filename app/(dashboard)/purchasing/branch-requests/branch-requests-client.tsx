@@ -25,7 +25,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { NewRequestSheet } from "./new-request-sheet"
 import { FulfillRequestDialog } from "./fulfill-request-dialog"
+import { ViewRequestDialog } from "./view-request-dialog"
 import { updateBranchStockRequestStatus } from "@/lib/actions/branch-requests"
+import { updateTransferStatus } from "@/lib/actions/transfers"
 import type {
   BranchStockRequestWithRelations,
   BranchRequestStatus,
@@ -71,6 +73,8 @@ export function BranchRequestsClient({
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [fulfillTarget, setFulfillTarget] =
     React.useState<BranchStockRequestWithRelations | null>(null)
+  const [viewTarget, setViewTarget] =
+    React.useState<BranchStockRequestWithRelations | null>(null)
 
   function handleStatusChange(requestId: string, status: BranchRequestStatus) {
     startTransition(async () => {
@@ -79,6 +83,21 @@ export function BranchRequestsClient({
         router.refresh()
       } catch (err) {
         toast.error("Failed to update status", {
+          description:
+            err instanceof Error ? err.message : "Unknown error",
+        })
+      }
+    })
+  }
+
+  function handleMarkReceived(transferId: string) {
+    startTransition(async () => {
+      try {
+        await updateTransferStatus({ transferId, status: "completed" })
+        router.refresh()
+        toast.success("Stock received — inventory updated")
+      } catch (err) {
+        toast.error("Failed to mark as received", {
           description:
             err instanceof Error ? err.message : "Unknown error",
         })
@@ -163,6 +182,11 @@ export function BranchRequestsClient({
                             <MoreHorizontal className="h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => setViewTarget(req)}
+                            >
+                              View Details
+                            </DropdownMenuItem>
                             {isMainBranch &&
                               req.status === "pending" &&
                               mainBranchId && (
@@ -170,6 +194,17 @@ export function BranchRequestsClient({
                                   onClick={() => setFulfillTarget(req)}
                                 >
                                   Fulfill (Create Transfer)
+                                </DropdownMenuItem>
+                              )}
+                            {!isMainBranch &&
+                              req.status === "in_progress" &&
+                              req.fulfillment_transfer_id && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleMarkReceived(req.fulfillment_transfer_id!)
+                                  }
+                                >
+                                  Mark as Received
                                 </DropdownMenuItem>
                               )}
                             {req.status === "pending" && (
@@ -198,6 +233,12 @@ export function BranchRequestsClient({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         products={products}
+      />
+
+      <ViewRequestDialog
+        request={viewTarget}
+        isMainBranch={isMainBranch}
+        onClose={() => setViewTarget(null)}
       />
 
       {fulfillTarget && mainBranchId && (
