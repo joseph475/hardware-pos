@@ -156,14 +156,10 @@ export function BranchRequestsClient({
                       </TableCell>
                       <TableCell className="pr-4">
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                          <DropdownMenuTrigger
+                            render={<Button variant="ghost" size="icon-sm" aria-label="Actions" />}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             {isMainBranch &&

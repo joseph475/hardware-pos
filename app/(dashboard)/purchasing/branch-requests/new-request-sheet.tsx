@@ -34,7 +34,7 @@ const schema = z.object({
     .array(
       z.object({
         productId: z.string().min(1, "Select a product"),
-        quantity: z.coerce.number().min(0.001, "Quantity required"),
+        quantity: z.number().min(0.001, "Quantity required"),
       })
     )
     .min(1, "Add at least one item"),
@@ -126,7 +126,7 @@ export function NewRequestSheet({ open, onOpenChange, products }: Props) {
                   <Select
                     value={watch(`items.${index}.productId`)}
                     onValueChange={(val) =>
-                      setValue(`items.${index}.productId`, val)
+                      setValue(`items.${index}.productId`, val ?? "")
                     }
                   >
                     <SelectTrigger>
@@ -153,7 +153,7 @@ export function NewRequestSheet({ open, onOpenChange, products }: Props) {
                   min={0.001}
                   step="0.001"
                   className="w-24"
-                  {...register(`items.${index}.quantity`)}
+                  {...register(`items.${index}.quantity`, { valueAsNumber: true })}
                   placeholder="Qty"
                 />
                 <Button
