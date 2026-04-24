@@ -33,6 +33,7 @@ import { RecentSalesSheet } from "@/components/pos/recent-sales-sheet"
 import { CustomerSelectDialog } from "@/components/pos/customer-select-dialog"
 import type { POSProduct } from "@/lib/actions/inventory"
 import type { Customer } from "@/types/database"
+import type { QuotationWithRelations } from "@/lib/actions/quotations"
 import { cn } from "@/lib/utils"
 
 type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check"
@@ -69,6 +70,7 @@ export function POSClient({
   receiptHeader,
   receiptFooter,
   hasPinConfigured,
+  initialQuotation,
 }: {
   initialProducts: POSProduct[]
   customers: Customer[]
@@ -79,6 +81,7 @@ export function POSClient({
   receiptHeader?: string | null
   receiptFooter?: string | null
   hasPinConfigured?: boolean
+  initialQuotation?: QuotationWithRelations | null
 }) {
   const { formatCurrency } = useCurrency()
   const { branch } = useUserProfile()
@@ -97,6 +100,7 @@ export function POSClient({
     setDiscount,
     setTaxRate,
     clearCart,
+    loadQuotationOrder,
     subtotal,
     totalDiscount,
     totalAddTax,
@@ -156,6 +160,39 @@ export function POSClient({
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [search])
+
+  // Load quotation items and customer on mount if navigated from quotation
+  React.useEffect(() => {
+    if (!initialQuotation) return
+    const mappedItems = initialQuotation.quotation_items.map((qi) => {
+      const found = initialProducts.find((p) => p.id === qi.product_id)
+      const product = found
+        ? found
+        : {
+            id: qi.product_id,
+            name: qi.product_name,
+            sku: '',
+            barcode: null,
+            selling_price: qi.unit_price,
+            serial_required: false,
+            stock: 0,
+            image_url: null,
+          }
+      return {
+        product: product as any,
+        quantity: qi.quantity,
+        unit_price: qi.unit_price,
+        discount_amount: qi.discount_amount,
+        add_tax_pct: qi.add_tax_pct ?? 0,
+      }
+    })
+    loadQuotationOrder(mappedItems)
+    if (initialQuotation.customer_id && initialQuotation.customers) {
+      setSelectedCustomerId(initialQuotation.customer_id)
+      setSelectedCustomerName(initialQuotation.customers.name)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Filtered products for the dropdown (max 8)
   const filteredProducts = React.useMemo(() => {
