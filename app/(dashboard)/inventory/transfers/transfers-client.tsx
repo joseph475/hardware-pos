@@ -33,6 +33,7 @@ export interface TransferRow {
   id: string;
   from_branch: string;
   to_branch: string;
+  to_branch_id: string;
   status: TransferStatus;
   items: number;
   created_by: string;
@@ -45,6 +46,7 @@ interface TransfersClientProps {
   branches: Branch[];
   products: Product[];
   isCashier: boolean;
+  userBranchId: string | null;
 }
 
 const STATUS_CONFIG: Record<TransferStatus, { label: string; className: string }> = {
@@ -64,10 +66,12 @@ function TransfersTable({
   transfers,
   onStatusChange,
   isCashier,
+  userBranchId,
 }: {
   transfers: TransferRow[];
   onStatusChange: (id: string, status: "approved" | "in_transit" | "completed" | "cancelled") => void;
   isCashier: boolean;
+  userBranchId: string | null;
 }) {
   if (transfers.length === 0) {
     return (
@@ -137,9 +141,14 @@ function TransfersTable({
                       Mark In Transit
                     </DropdownMenuItem>
                   )}
-                  {!isCashier && t.status === "in_transit" && (
+                  {!isCashier && t.status === "in_transit" && t.to_branch_id !== userBranchId && (
                     <DropdownMenuItem onClick={() => onStatusChange(t.id, "completed")}>
                       Mark Completed
+                    </DropdownMenuItem>
+                  )}
+                  {!isCashier && t.status === "in_transit" && t.to_branch_id === userBranchId && (
+                    <DropdownMenuItem onClick={() => onStatusChange(t.id, "completed")}>
+                      Mark Received
                     </DropdownMenuItem>
                   )}
                   {!isCashier && (t.status === "pending" || t.status === "approved") && (
@@ -163,7 +172,7 @@ function TransfersTable({
   );
 }
 
-export function TransfersClient({ initialTransfers, branches, products, isCashier }: TransfersClientProps) {
+export function TransfersClient({ initialTransfers, branches, products, isCashier, userBranchId }: TransfersClientProps) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [isPending, startTransition] = useTransition();
@@ -233,16 +242,16 @@ export function TransfersClient({ initialTransfers, branches, products, isCashie
         <Card className="mt-3">
           <CardContent className="p-0">
             <TabsContent value="all">
-              <TransfersTable transfers={initialTransfers} onStatusChange={handleStatusChange} isCashier={isCashier} />
+              <TransfersTable transfers={initialTransfers} onStatusChange={handleStatusChange} isCashier={isCashier} userBranchId={userBranchId} />
             </TabsContent>
             <TabsContent value="pending">
-              <TransfersTable transfers={byStatus(["pending"])} onStatusChange={handleStatusChange} isCashier={isCashier} />
+              <TransfersTable transfers={byStatus(["pending"])} onStatusChange={handleStatusChange} isCashier={isCashier} userBranchId={userBranchId} />
             </TabsContent>
             <TabsContent value="in_transit">
-              <TransfersTable transfers={byStatus(["approved", "in_transit"])} onStatusChange={handleStatusChange} isCashier={isCashier} />
+              <TransfersTable transfers={byStatus(["approved", "in_transit"])} onStatusChange={handleStatusChange} isCashier={isCashier} userBranchId={userBranchId} />
             </TabsContent>
             <TabsContent value="completed">
-              <TransfersTable transfers={byStatus(["completed"])} onStatusChange={handleStatusChange} isCashier={isCashier} />
+              <TransfersTable transfers={byStatus(["completed"])} onStatusChange={handleStatusChange} isCashier={isCashier} userBranchId={userBranchId} />
             </TabsContent>
           </CardContent>
         </Card>

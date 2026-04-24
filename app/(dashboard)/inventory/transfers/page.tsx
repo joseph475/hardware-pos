@@ -30,13 +30,14 @@ export default async function TransfersPage() {
       .order("created_at", { ascending: false }),
     supabase.from("branches").select("*").eq("is_active", true).order("name"),
     supabase.from("products").select("*").eq("is_active", true).order("name"),
-    supabase.from("profiles").select("role").eq("clerk_user_id", userId ?? "").single(),
+    supabase.from("profiles").select("role, branch_id").eq("clerk_user_id", userId ?? "").single(),
   ]);
 
   const transfers: TransferRow[] = (transferData ?? []).map((t: any) => ({
     id: t.id,
     from_branch: t.from_branch?.name ?? "Unknown",
     to_branch: t.to_branch?.name ?? "Unknown",
+    to_branch_id: t.to_branch_id,
     status: t.status,
     items: Array.isArray(t.stock_transfer_items) ? t.stock_transfer_items.length : 0,
     created_by: t.creator?.full_name ?? "Unknown",
@@ -54,6 +55,7 @@ export default async function TransfersPage() {
       branches={(branches ?? []) as Branch[]}
       products={(products ?? []) as Product[]}
       isCashier={isCashier}
+      userBranchId={profileData?.branch_id ?? null}
     />
   );
 }
