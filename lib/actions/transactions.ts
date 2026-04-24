@@ -60,9 +60,14 @@ export async function createTransaction(params: {
   discount_amount: number
   tax_amount: number
   total: number
-  payment_method: 'cash' | 'card' | 'split' | 'gcash' | 'maya'
+  payment_method: 'cash' | 'card' | 'split' | 'gcash' | 'maya' | 'check'
   customer_id?: string | null
   notes?: string
+  check_bank_name?: string | null
+  check_date?: string | null
+  check_number?: string | null
+  check_name?: string | null
+  check_amount?: number | null
 }): Promise<{ id: string }> {
   const profile = await getProfile()
   const supabase = getAdminClient()
@@ -99,6 +104,11 @@ export async function createTransaction(params: {
       payment_method: params.payment_method,
       status: 'completed',
       notes: params.notes ?? null,
+      check_bank_name: params.check_bank_name ?? null,
+      check_date: params.check_date ?? null,
+      check_number: params.check_number ?? null,
+      check_name: params.check_name ?? null,
+      check_amount: params.check_amount ?? null,
     })
     .select('id')
     .single()
