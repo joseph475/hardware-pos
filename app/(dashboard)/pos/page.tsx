@@ -5,6 +5,7 @@ import type { Database } from "@/types/database"
 import { getPOSProducts } from "@/lib/actions/inventory"
 import { getOrgSettings } from "@/lib/actions/organization"
 import { getCustomers } from "@/lib/actions/customers"
+import { getQuotationById } from "@/lib/actions/quotations"
 import { POSClient } from "./pos-client"
 
 function getAdminClient() {
@@ -14,7 +15,11 @@ function getAdminClient() {
   )
 }
 
-export default async function POSPage() {
+export default async function POSPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ quotation_id?: string }>
+}) {
   const { userId } = await auth()
   if (!userId) redirect("/sign-in")
 
@@ -25,10 +30,14 @@ export default async function POSPage() {
     .eq("clerk_user_id", userId)
     .single()
 
-  const [products, orgSettings, customers] = await Promise.all([
+  const params = await searchParams
+  const quotationId = params?.quotation_id ?? null
+
+  const [products, orgSettings, customers, initialQuotation] = await Promise.all([
     getPOSProducts(profile?.branch_id ?? null),
     getOrgSettings(),
     getCustomers(),
+    quotationId ? getQuotationById(quotationId) : Promise.resolve(null),
   ])
 
   return (
@@ -42,6 +51,7 @@ export default async function POSPage() {
       receiptHeader={orgSettings.receipt_header ?? null}
       receiptFooter={orgSettings.receipt_footer ?? null}
       hasPinConfigured={orgSettings.has_manager_pin}
+      initialQuotation={initialQuotation}
     />
   )
 }
