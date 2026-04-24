@@ -19,6 +19,7 @@ import { useCartStore } from "@/lib/store/cart"
 import { useCurrency } from "@/lib/context/currency"
 import { useUserProfile } from "@/lib/context/user-profile"
 import { createTransaction } from "@/lib/actions/transactions"
+import { sendQuotationToPos } from "@/lib/actions/quotations"
 import { ReceiptDialog, type ReceiptData } from "@/components/pos/receipt-dialog"
 
 type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check"
@@ -33,6 +34,7 @@ interface PaymentDialogProps {
   mayaQrUrl?: string | null
   receiptHeader?: string | null
   receiptFooter?: string | null
+  quotationId?: string | null
 }
 
 function paymentMethodLabel(method: PaymentMethod): string {
@@ -53,6 +55,7 @@ export function PaymentDialog({
   mayaQrUrl,
   receiptHeader,
   receiptFooter,
+  quotationId,
 }: PaymentDialogProps) {
   const { items, clearCart, subtotal, totalDiscount, tax, total } = useCartStore()
   const { formatCurrency, taxRate, currencySymbol } = useCurrency()
@@ -195,6 +198,9 @@ export function PaymentDialog({
       })
       setReceiptOpen(true)
 
+      if (quotationId) {
+        sendQuotationToPos(quotationId).catch(() => {})
+      }
       clearCart()
       onOpenChange(false)
       setCashTendered("")

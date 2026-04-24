@@ -351,7 +351,7 @@ export async function sendQuotationToPos(id: string): Promise<void> {
     .eq('id', id)
     .single()
   if (!existing) throw new Error('Quotation not found')
-  if (existing.status !== 'sent') throw new Error('Only sent quotations can be sent to POS')
+  if (existing.status === 'converted') return
 
   const { error } = await supabase
     .from('quotations')

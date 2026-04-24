@@ -838,6 +838,7 @@ export function POSClient({
         mayaQrUrl={mayaQrUrl}
         receiptHeader={receiptHeader}
         receiptFooter={receiptFooter}
+        quotationId={initialQuotation?.id ?? null}
       />
       <HoldOrderDialog
         open={holdDialogOpen}

@@ -29,7 +29,6 @@ import { useCurrency } from '@/lib/context/currency'
 import {
   deleteQuotation,
   updateQuotationStatus,
-  sendQuotationToPos,
 } from '@/lib/actions/quotations'
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
 import type { QuotationStatus } from '@/types/database'
@@ -102,13 +101,8 @@ export function QuotationsClient({
     }
   }
 
-  async function handleSendToPos(id: string) {
-    try {
-      await sendQuotationToPos(id)
-      router.push(`/pos?quotation_id=${id}`)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to send quotation to POS')
-    }
+  function handleSendToPos(id: string) {
+    router.push(`/pos?quotation_id=${id}`)
   }
 
   async function handleReject(id: string) {
