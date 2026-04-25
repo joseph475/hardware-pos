@@ -17,8 +17,11 @@ import {
   Smartphone,
   CheckSquare,
   Wallet,
+  RefreshCw,
+  Layers,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -31,7 +34,7 @@ import { HoldOrderDialog } from "@/components/pos/hold-order-dialog"
 import { HeldOrdersSheet } from "@/components/pos/held-orders-sheet"
 import { RecentSalesSheet } from "@/components/pos/recent-sales-sheet"
 import { CustomerSelectDialog } from "@/components/pos/customer-select-dialog"
-import type { POSProduct } from "@/lib/actions/inventory"
+import type { POSProduct, POSBundle } from "@/lib/actions/inventory"
 import type { Customer } from "@/types/database"
 import type { QuotationWithRelations } from "@/lib/actions/quotations"
 import { cn } from "@/lib/utils"
@@ -62,6 +65,7 @@ function StockBadge({ stock }: { stock: number }) {
 
 export function POSClient({
   initialProducts,
+  initialBundles,
   customers,
   userRole,
   gcashQrUrl,
@@ -73,6 +77,7 @@ export function POSClient({
   initialQuotation,
 }: {
   initialProducts: POSProduct[]
+  initialBundles: POSBundle[]
   customers: Customer[]
   userRole: string
   gcashQrUrl?: string | null
@@ -85,9 +90,11 @@ export function POSClient({
 }) {
   const { formatCurrency } = useCurrency()
   const { branch } = useUserProfile()
+  const router = useRouter()
 
   const {
     items,
+    bundleItems,
     discount,
     taxRate,
     addItem,
@@ -96,6 +103,11 @@ export function POSClient({
     updateItemDiscount,
     updateItemAddTax,
     updateItemSerials,
+    addBundle,
+    removeBundle,
+    updateBundleQuantity,
+    updateBundleItemDiscount,
+    updateBundleItemAddTax,
     isReadyToCharge,
     setDiscount,
     setTaxRate,
@@ -194,19 +206,36 @@ export function POSClient({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Filtered products for the dropdown (max 8)
-  const filteredProducts = React.useMemo(() => {
+  type SearchResult =
+    | { kind: "product"; data: POSProduct }
+    | { kind: "bundle"; data: POSBundle }
+
+  // Combined product + bundle search results (max 8)
+  const filteredResults = React.useMemo((): SearchResult[] => {
     if (!search.trim()) return []
     const q = search.toLowerCase()
-    return initialProducts
+    const products: SearchResult[] = initialProducts
       .filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.sku.toLowerCase().includes(q) ||
           (p.barcode ?? "").includes(q)
       )
-      .slice(0, 8)
-  }, [search, initialProducts])
+      .map((p) => ({ kind: "product" as const, data: p }))
+    const bundles: SearchResult[] = initialBundles
+      .filter((b) => b.name.toLowerCase().includes(q))
+      .map((b) => ({ kind: "bundle" as const, data: b }))
+    return [...products, ...bundles].slice(0, 8)
+  }, [search, initialProducts, initialBundles])
+
+  // Backward-compat: product-only list for barcode Enter handler
+  const filteredProducts = React.useMemo(
+    () =>
+      filteredResults
+        .filter((r): r is { kind: "product"; data: POSProduct } => r.kind === "product")
+        .map((r) => r.data),
+    [filteredResults]
+  )
 
   const isCashier = userRole === "cashier"
   const readyToCharge = isReadyToCharge()
@@ -283,6 +312,13 @@ export function POSClient({
         }
       }, 50)
     }
+  }
+
+  function handleSelectBundle(bundle: POSBundle) {
+    addBundle(bundle)
+    setSearch("")
+    setDropdownOpen(false)
+    toast.success(`Added bundle: ${bundle.name}`)
   }
 
   function openItemDiscount(productId: string, currentPct: number) {
@@ -366,89 +402,130 @@ export function POSClient({
 
         {/* ── SEARCH BAR + DROPDOWN ──────────────────────────────────────────── */}
         <div className="relative shrink-0 border-b border-border p-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={searchRef}
-              placeholder="Search product, SKU, or scan barcode… (F2)"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setDropdownOpen(e.target.value.length > 0)
-              }}
-              onFocus={() => search.length > 0 && setDropdownOpen(true)}
-              onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
-              onKeyDown={handleSearchKeyDown}
-              className="pl-9 pr-10"
-              autoComplete="off"
-            />
-            {search && (
-              <button
-                className="absolute inset-y-0 right-3 my-auto text-muted-foreground hover:text-foreground"
-                onMouseDown={() => { setSearch(""); setDropdownOpen(false) }}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={searchRef}
+                placeholder="Search product, SKU, or scan barcode… (F2)"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setDropdownOpen(e.target.value.length > 0)
+                }}
+                onFocus={() => search.length > 0 && setDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
+                onKeyDown={handleSearchKeyDown}
+                className="pl-9 pr-10"
+                autoComplete="off"
+              />
+              {search && (
+                <button
+                  className="absolute inset-y-0 right-3 my-auto text-muted-foreground hover:text-foreground"
+                  onMouseDown={() => { setSearch(""); setDropdownOpen(false) }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => router.refresh()}
+              title="Refresh products"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Dropdown results */}
-          {dropdownOpen && filteredProducts.length > 0 && (
+          {dropdownOpen && filteredResults.length > 0 && (
             <div className="absolute left-3 right-3 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
-              {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  onMouseDown={() => handleSelectProduct(product)}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-accent",
-                    product.stock === 0 && "cursor-not-allowed opacity-50"
-                  )}
-                >
-                  {/* Thumbnail */}
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                    {product.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {product.name}
+              {filteredResults.map((result) => {
+                if (result.kind === "bundle") {
+                  const bundle = result.data
+                  return (
+                    <div
+                      key={`bundle-${bundle.id}`}
+                      onMouseDown={() => handleSelectBundle(bundle)}
+                      className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-accent"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-blue-500/10">
+                        <Layers className="h-4 w-4 text-blue-500" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-medium text-foreground">
+                            {bundle.name}
+                          </span>
+                          <Badge className="border-transparent bg-blue-500/15 text-[9px] text-blue-600 dark:bg-blue-400/15 dark:text-blue-400">
+                            Bundle
+                          </Badge>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">
+                          {bundle.items.length} item{bundle.items.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-foreground shrink-0">
+                        {formatCurrency(bundle.price)}
                       </span>
-                      {product.serial_required && (
-                        <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
-                          Serial req.
-                        </Badge>
+                    </div>
+                  )
+                }
+                const product = result.data
+                return (
+                  <div
+                    key={`product-${product.id}`}
+                    onMouseDown={() => handleSelectProduct(product)}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-accent",
+                      product.stock === 0 && "cursor-not-allowed opacity-50"
+                    )}
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                      {product.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Package className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {product.sku}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium text-foreground">
+                          {product.name}
+                        </span>
+                        {product.serial_required && (
+                          <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
+                            Serial req.
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {product.sku}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatCurrency(product.selling_price)}
+                      </span>
+                      <StockBadge stock={product.stock} />
+                    </div>
                   </div>
-                  {/* Price + stock */}
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="text-sm font-semibold text-foreground">
-                      {formatCurrency(product.selling_price)}
-                    </span>
-                    <StockBadge stock={product.stock} />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
 
         {/* ── ORDER LIST ─────────────────────────────────────────────────────── */}
         <div className="flex-1 min-h-0 overflow-auto">
-          {items.length === 0 ? (
+          {items.length === 0 && bundleItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
               <Package className="h-12 w-12 text-muted-foreground/30" />
               <div>
@@ -668,6 +745,181 @@ export function POSClient({
                     </div>
                   )
                 })}
+
+                {/* Bundle items */}
+                {bundleItems.map((bundleItem) => {
+                  const addTaxAmt = bundleItem.unit_price * (bundleItem.add_tax_pct / 100)
+                  const amount = bundleItem.unit_price + addTaxAmt
+                  const itemTotal = amount * bundleItem.quantity - bundleItem.discount_amount
+                  const bundleKey = `bundle-${bundleItem.bundle_id}`
+                  const isDiscountOpen = itemDiscountTarget === bundleKey
+
+                  return (
+                    <div key={bundleKey}>
+                      <div className="grid grid-cols-[minmax(80px,1fr)_68px_60px_72px_88px_76px_52px] items-center gap-x-2 px-3 py-2">
+                        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-blue-500/10">
+                            <Layers className="h-3 w-3 text-blue-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block truncate text-xs font-medium text-foreground">
+                              {bundleItem.bundle_name}
+                            </span>
+                            <Badge className="border-transparent bg-blue-500/15 text-[9px] text-blue-600 dark:bg-blue-400/15 dark:text-blue-400">
+                              Bundle
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <span className="text-right text-xs tabular-nums text-muted-foreground">
+                          {formatCurrency(bundleItem.unit_price)}
+                        </span>
+
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            value={bundleItem.add_tax_pct}
+                            onChange={(e) =>
+                              updateBundleItemAddTax(
+                                bundleItem.bundle_id,
+                                Math.min(100, Math.max(0, Number(e.target.value) || 0))
+                              )
+                            }
+                            className="h-6 w-full pr-4 text-right text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <Percent className="pointer-events-none absolute inset-y-0 right-1 my-auto h-2.5 w-2.5 text-muted-foreground" />
+                        </div>
+
+                        <span className={cn(
+                          "text-right text-xs tabular-nums",
+                          bundleItem.add_tax_pct > 0 ? "text-blue-600 dark:text-blue-400" : "text-foreground"
+                        )}>
+                          {formatCurrency(amount)}
+                        </span>
+
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => updateBundleQuantity(bundleItem.bundle_id, bundleItem.quantity - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={bundleItem.quantity}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10)
+                              if (!isNaN(val)) updateBundleQuantity(bundleItem.bundle_id, val)
+                            }}
+                            className="h-6 w-10 px-1 text-center text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => updateBundleQuantity(bundleItem.bundle_id, bundleItem.quantity + 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        <span className={cn(
+                          "text-right text-xs font-semibold tabular-nums",
+                          bundleItem.discount_pct > 0 ? "text-orange-500 dark:text-orange-400" : "text-foreground"
+                        )}>
+                          {formatCurrency(itemTotal)}
+                        </span>
+
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => {
+                              if (itemDiscountTarget === bundleKey) {
+                                setItemDiscountTarget(null)
+                                setItemDiscountInput("")
+                              } else {
+                                setItemDiscountTarget(bundleKey)
+                                setItemDiscountInput(bundleItem.discount_pct > 0 ? String(bundleItem.discount_pct) : "")
+                              }
+                            }}
+                            className={cn(
+                              "text-muted-foreground",
+                              bundleItem.discount_pct > 0 && "text-orange-500 dark:text-orange-400"
+                            )}
+                          >
+                            <Percent className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => removeBundle(bundleItem.bundle_id)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {isDiscountOpen && (
+                        <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg bg-muted/50 px-2 py-1.5">
+                          <div className="relative flex-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              placeholder="0"
+                              value={itemDiscountInput}
+                              onChange={(e) => setItemDiscountInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const num = parseFloat(itemDiscountInput)
+                                  const pct = isNaN(num) ? 0 : Math.min(100, Math.max(0, num))
+                                  updateBundleItemDiscount(bundleItem.bundle_id, pct)
+                                  setItemDiscountTarget(null)
+                                  setItemDiscountInput("")
+                                }
+                                if (e.key === "Escape") {
+                                  setItemDiscountTarget(null)
+                                  setItemDiscountInput("")
+                                }
+                              }}
+                              className="h-6 pr-6 text-right text-sm"
+                              autoFocus
+                            />
+                            <Percent className="pointer-events-none absolute inset-y-0 right-1.5 my-auto h-3 w-3 text-muted-foreground" />
+                          </div>
+                          <Button
+                            size="xs"
+                            onClick={() => {
+                              const num = parseFloat(itemDiscountInput)
+                              const pct = isNaN(num) ? 0 : Math.min(100, Math.max(0, num))
+                              updateBundleItemDiscount(bundleItem.bundle_id, pct)
+                              setItemDiscountTarget(null)
+                              setItemDiscountInput("")
+                            }}
+                            className="h-6 px-2 text-xs"
+                          >
+                            Apply
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => { setItemDiscountTarget(null); setItemDiscountInput("") }}
+                            className="h-6 px-2 text-xs"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -675,7 +927,7 @@ export function POSClient({
 
         {/* ── SUMMARY + ACTIONS ──────────────────────────────────────────────── */}
         <div className="shrink-0 border-t border-border bg-card">
-          {items.length > 0 && (
+          {(items.length > 0 || bundleItems.length > 0) && (
             <>
               {/* Totals */}
               <div className="space-y-1.5 px-4 pt-3 pb-2">
@@ -772,12 +1024,12 @@ export function POSClient({
             <Button
               variant="outline"
               className="flex-1 text-sm"
-              disabled={items.length === 0}
+              disabled={items.length === 0 && bundleItems.length === 0}
               onClick={() => setHoldDialogOpen(true)}
             >
               Hold
             </Button>
-            {items.length > 0 && (
+            {(items.length > 0 || bundleItems.length > 0) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -790,7 +1042,7 @@ export function POSClient({
             )}
             <Button
               className="flex-1 text-sm font-semibold"
-              disabled={items.length === 0 || !readyToCharge}
+              disabled={(items.length === 0 && bundleItems.length === 0) || !readyToCharge}
               onClick={() => {
                 if (selectedCustomerId) {
                   setPaymentDialogOpen(true)
@@ -827,7 +1079,7 @@ export function POSClient({
         open={paymentDialogOpen}
         onOpenChange={(val) => {
           setPaymentDialogOpen(val)
-          if (!val && items.length === 0) {
+          if (!val && items.length === 0 && bundleItems.length === 0) {
             setSelectedCustomerId(null)
             setSelectedCustomerName(null)
           }

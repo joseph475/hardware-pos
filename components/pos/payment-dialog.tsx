@@ -74,7 +74,7 @@ export function PaymentDialog({
   receiptFooter,
   quotationId,
 }: PaymentDialogProps) {
-  const { items, clearCart, subtotal, totalDiscount, tax, total } = useCartStore()
+  const { items, bundleItems, clearCart, subtotal, totalDiscount, tax, total } = useCartStore()
   const { formatCurrency, taxRate, currencySymbol } = useCurrency()
   const { profile, branch } = useUserProfile()
 
@@ -143,7 +143,7 @@ export function PaymentDialog({
   const orderSubtotal = subtotal()
   const orderDiscount = totalDiscount()
   const orderTax = tax()
-  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0)
+  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0) + bundleItems.reduce((sum, b) => sum + b.quantity, 0)
 
   const cashTenderedNum = parseFloat(cashTendered) || 0
   const change = cashTenderedNum - orderTotal
@@ -199,6 +199,14 @@ export function PaymentDialog({
           discount_amount: i.discount_amount,
           serials: i.serials,
         })),
+        bundleItems: bundleItems.map((b) => ({
+          bundle_id: b.bundle_id,
+          bundle_name: b.bundle_name,
+          quantity: b.quantity,
+          unit_price: b.unit_price,
+          discount_amount: b.discount_amount,
+          components: b.components,
+        })),
         subtotal: orderSubtotal,
         discount_amount: orderDiscount,
         tax_amount: orderTax,
@@ -221,13 +229,22 @@ export function PaymentDialog({
         branchAddress: branch?.address ?? null,
         branchPhone: branch?.phone ?? null,
         cashierName: profile?.full_name ?? "Cashier",
-        items: items.map((i) => ({
-          name: i.product.name,
-          qty: i.quantity,
-          unitPrice: i.unit_price,
-          discountAmount: i.discount_amount,
-          lineTotal: i.unit_price * i.quantity - i.discount_amount,
-        })),
+        items: [
+          ...items.map((i) => ({
+            name: i.product.name,
+            qty: i.quantity,
+            unitPrice: i.unit_price,
+            discountAmount: i.discount_amount,
+            lineTotal: i.unit_price * i.quantity - i.discount_amount,
+          })),
+          ...bundleItems.map((b) => ({
+            name: `${b.bundle_name} (Bundle)`,
+            qty: b.quantity,
+            unitPrice: b.unit_price,
+            discountAmount: b.discount_amount,
+            lineTotal: b.unit_price * b.quantity - b.discount_amount,
+          })),
+        ],
         subtotal: orderSubtotal,
         discountAmount: orderDiscount,
         taxAmount: orderTax,

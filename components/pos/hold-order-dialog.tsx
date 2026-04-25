@@ -24,7 +24,7 @@ interface HoldOrderDialogProps {
 }
 
 export function HoldOrderDialog({ open, onOpenChange }: HoldOrderDialogProps) {
-  const { items, subtotal, totalDiscount, tax, total, clearCart } = useCartStore()
+  const { items, bundleItems, subtotal, totalDiscount, tax, total, clearCart } = useCartStore()
   const { formatCurrency } = useCurrency()
   const [note, setNote] = React.useState("")
   const [isSaving, setIsSaving] = React.useState(false)
@@ -33,7 +33,11 @@ export function HoldOrderDialog({ open, onOpenChange }: HoldOrderDialogProps) {
   const orderTotal = total()
 
   async function handleSave() {
-    if (items.length === 0) return
+    if (items.length === 0 && bundleItems.length === 0) return
+    if (bundleItems.length > 0) {
+      toast.error("Cannot hold orders with bundle items. Remove bundles before holding.")
+      return
+    }
     setIsSaving(true)
     try {
       await createHeldTransaction({
@@ -121,7 +125,7 @@ export function HoldOrderDialog({ open, onOpenChange }: HoldOrderDialogProps) {
           </Button>
           <Button
             onClick={handleSave}
-            disabled={items.length === 0 || isSaving}
+            disabled={(items.length === 0 && bundleItems.length === 0) || isSaving}
             className="min-w-[110px]"
           >
             {isSaving ? "Saving…" : "Hold Order"}
