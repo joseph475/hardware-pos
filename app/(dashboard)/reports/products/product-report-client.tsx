@@ -62,7 +62,7 @@ export function ProductReportClient({
   const hasData = data.topByRevenue.length > 0
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
