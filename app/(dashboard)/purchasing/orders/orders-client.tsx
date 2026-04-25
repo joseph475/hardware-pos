@@ -57,6 +57,7 @@ interface Props {
   suppliers: Array<{ id: string; name: string }>
   branches: Array<{ id: string; name: string }>
   products: Array<{ id: string; name: string; sku: string; cost_price: number }>
+  productSupplierCosts?: Array<{ product_id: string; supplier_id: string; cost_price: number }>
   userBranchId: string | null
   userRole: "owner" | "manager" | "cashier"
   isMainBranch: boolean
@@ -80,6 +81,7 @@ export function OrdersClient({
   suppliers,
   branches,
   products,
+  productSupplierCosts = [],
   userBranchId,
   userRole,
   isMainBranch,
@@ -132,6 +134,7 @@ export function OrdersClient({
           suppliers={suppliers}
           branches={branches}
           products={products}
+          productSupplierCosts={productSupplierCosts}
           userBranchId={userBranchId}
           userRole={userRole}
           onSuccess={() => {

@@ -28,6 +28,8 @@ export async function upsertProduct(params: {
   is_active: boolean
   image_url?: string | null
   serial_required?: boolean
+  suppliers?: Array<{ supplier_id: string; cost_price: number; stock_qty?: number }>
+  opening_stock_branch_id?: string
 }): Promise<{ id: string }> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
@@ -36,16 +38,31 @@ export async function upsertProduct(params: {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('id, role')
     .eq('clerk_user_id', userId)
     .single()
+  if (!profile) throw new Error('Profile not found')
+
+  const supplierRows = params.suppliers ?? []
+
+  // Derive cost_price as min across suppliers (or use provided value if no suppliers)
+  const effectiveCostPrice = supplierRows.length > 0
+    ? Math.min(...supplierRows.map((s) => s.cost_price))
+    : params.cost_price
+
+  // Keep supplier_id on products for backward compat (cheapest supplier)
+  const defaultSupplierId = supplierRows.length > 0
+    ? supplierRows.reduce((min, s) => s.cost_price < min.cost_price ? s : min).supplier_id
+    : null
+
   const payload = {
     name: params.name,
     sku: params.sku,
     barcode: params.barcode || null,
     category_id: params.category_id || null,
+    supplier_id: defaultSupplierId,
     unit: params.unit,
-    cost_price: params.cost_price,
+    cost_price: effectiveCostPrice,
     selling_price: params.selling_price,
     description: params.description || null,
     is_active: params.is_active,
@@ -72,6 +89,88 @@ export async function upsertProduct(params: {
     productId = data.id
   }
 
+  // Replace product_suppliers rows
+  await supabase.from('product_suppliers').delete().eq('product_id', productId)
+
+  if (supplierRows.length > 0) {
+    const cheapestCost = effectiveCostPrice
+    const { error: psErr } = await supabase.from('product_suppliers').insert(
+      supplierRows.map((s) => ({
+        product_id: productId,
+        supplier_id: s.supplier_id,
+        cost_price: s.cost_price,
+        is_default: s.cost_price === cheapestCost,
+      }))
+    )
+    if (psErr) throw new Error(psErr.message)
+
+    // Add mode only: set opening stock per supplier at shared branch
+    if (!params.id && params.opening_stock_branch_id) {
+      const branchId = params.opening_stock_branch_id
+      for (const s of supplierRows) {
+        const qty = s.stock_qty ?? 0
+        if (qty <= 0) continue
+
+        // Upsert product_supplier_stock
+        const { data: existingPss } = await supabase
+          .from('product_supplier_stock')
+          .select('quantity')
+          .eq('product_id', productId)
+          .eq('supplier_id', s.supplier_id)
+          .eq('branch_id', branchId)
+          .single()
+
+        if (existingPss) {
+          await supabase
+            .from('product_supplier_stock')
+            .update({ quantity: existingPss.quantity + qty, updated_at: new Date().toISOString() })
+            .eq('product_id', productId)
+            .eq('supplier_id', s.supplier_id)
+            .eq('branch_id', branchId)
+        } else {
+          await supabase.from('product_supplier_stock').insert({
+            product_id: productId,
+            supplier_id: s.supplier_id,
+            branch_id: branchId,
+            quantity: qty,
+          })
+        }
+
+        // Update total inventory
+        const { data: inv } = await supabase
+          .from('inventory')
+          .select('id, quantity')
+          .eq('product_id', productId)
+          .eq('branch_id', branchId)
+          .single()
+
+        if (inv) {
+          await supabase
+            .from('inventory')
+            .update({ quantity: inv.quantity + qty, updated_at: new Date().toISOString() })
+            .eq('id', inv.id)
+        } else {
+          await supabase.from('inventory').insert({
+            product_id: productId,
+            branch_id: branchId,
+            quantity: qty,
+            low_stock_threshold: 10,
+          })
+        }
+
+        // Log inventory movement
+        await supabase.from('inventory_movements').insert({
+          product_id: productId,
+          branch_id: branchId,
+          type: 'purchase' as const,
+          quantity: qty,
+          notes: 'Opening stock',
+          created_by: profile.id,
+        })
+      }
+    }
+  }
+
   revalidateTag(CACHE_TAGS.PRODUCTS, {})
   revalidatePath('/inventory/products')
   return { id: productId }
@@ -83,11 +182,6 @@ export async function deleteProduct(id: string): Promise<void> {
 
   const supabase = getAdminClient()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('clerk_user_id', userId)
-    .single()
   const { error } = await supabase
     .from('products')
     .delete()
@@ -104,11 +198,6 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
 
   const supabase = getAdminClient()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('clerk_user_id', userId)
-    .single()
   const { error } = await supabase
     .from('products')
     .update({ is_active: isActive })

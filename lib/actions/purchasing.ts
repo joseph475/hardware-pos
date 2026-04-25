@@ -188,6 +188,23 @@ export async function getBranches() {
   return getBranchesCached()
 }
 
+// Get per-supplier costs for all products (for PO unit cost auto-fill)
+const getProductSupplierCostsCached = unstable_cache(
+  async (): Promise<Array<{ product_id: string; supplier_id: string; cost_price: number }>> => {
+    const supabase = getAdminClient()
+    const { data } = await supabase
+      .from('product_suppliers')
+      .select('product_id, supplier_id, cost_price')
+    return (data ?? []) as Array<{ product_id: string; supplier_id: string; cost_price: number }>
+  },
+  ['product-supplier-costs'],
+  { tags: [CACHE_TAGS.PRODUCTS] }
+)
+
+export async function getProductSupplierCosts() {
+  return getProductSupplierCostsCached()
+}
+
 // Receive goods against a purchase order
 export async function receivePurchaseOrder(params: {
   poId: string
@@ -209,11 +226,11 @@ export async function receivePurchaseOrder(params: {
 
   const { data: poRaw } = await supabase
     .from('purchase_orders')
-    .select('id, branch_id, status')
+    .select('id, branch_id, supplier_id, status')
     .eq('id', params.poId)
     .single()
   if (!poRaw) throw new Error('Purchase order not found')
-  const po = poRaw as unknown as { id: string; branch_id: string; status: string }
+  const po = poRaw as unknown as { id: string; branch_id: string; supplier_id: string; status: string }
 
   if (po.status !== 'ordered' && po.status !== 'partial') {
     throw new Error('Can only receive goods for orders with status "ordered" or "partial"')
@@ -268,12 +285,42 @@ export async function receivePurchaseOrder(params: {
       created_by: profile.id,
     })
 
-    // Optionally update product cost price
+    // Update product_supplier_stock for the PO's supplier
+    const { data: pss } = await supabase
+      .from('product_supplier_stock')
+      .select('quantity')
+      .eq('product_id', item.productId)
+      .eq('supplier_id', po.supplier_id)
+      .eq('branch_id', po.branch_id)
+      .single()
+    if (pss) {
+      await supabase
+        .from('product_supplier_stock')
+        .update({ quantity: pss.quantity + item.quantityReceived, updated_at: new Date().toISOString() })
+        .eq('product_id', item.productId)
+        .eq('supplier_id', po.supplier_id)
+        .eq('branch_id', po.branch_id)
+    } else {
+      await supabase.from('product_supplier_stock').insert({
+        product_id: item.productId,
+        supplier_id: po.supplier_id,
+        branch_id: po.branch_id,
+        quantity: item.quantityReceived,
+      })
+    }
+
+    // Optionally update product cost price and product_suppliers cost
     if (params.updateCostPrice) {
       await supabase
         .from('products')
         .update({ cost_price: item.unitCost, updated_at: new Date().toISOString() })
         .eq('id', item.productId)
+      // Also update the per-supplier cost record
+      await supabase
+        .from('product_suppliers')
+        .update({ cost_price: item.unitCost })
+        .eq('product_id', item.productId)
+        .eq('supplier_id', po.supplier_id)
     }
   }
 

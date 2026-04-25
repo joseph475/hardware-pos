@@ -115,7 +115,7 @@ export async function createTransaction(params: {
 
   if (txError || !transaction) throw new Error(txError?.message ?? 'Failed to create transaction')
 
-  const { error: itemsError } = await supabase.from('transaction_items').insert(
+  const { data: insertedItems, error: itemsError } = await supabase.from('transaction_items').insert(
     params.items.map((item) => ({
       transaction_id: transaction.id,
       product_id: item.product_id,
@@ -126,10 +126,10 @@ export async function createTransaction(params: {
       total: item.unit_price * item.quantity - item.discount_amount,
       serials: item.serials ?? [],
     }))
-  )
+  ).select('id, product_id')
   if (itemsError) throw new Error(itemsError.message)
 
-  // Deduct inventory for each item
+  // Deduct inventory and allocate supplier stock for each item
   for (const item of params.items) {
     const { data: inv } = await supabase
       .from('inventory')
@@ -155,6 +155,44 @@ export async function createTransaction(params: {
       notes: `Sale #${transaction.id.slice(0, 8)}`,
       created_by: profile.id,
     })
+
+    // Allocate supplier stock cheapest-first for COGS tracking
+    const { data: supplierStocks } = await supabase
+      .from('product_supplier_stock')
+      .select('id, supplier_id, quantity, product_suppliers!inner(cost_price)')
+      .eq('product_id', item.product_id)
+      .eq('branch_id', profile.branch_id)
+      .gt('quantity', 0)
+      .order('product_suppliers.cost_price', { ascending: true })
+
+    if (supplierStocks && supplierStocks.length > 0) {
+      let remaining = item.quantity
+      const allocations: Array<{ supplier_id: string; quantity: number; unit_cost: number }> = []
+
+      for (const row of supplierStocks as any[]) {
+        if (remaining <= 0) break
+        const take = Math.min(remaining, row.quantity)
+        allocations.push({
+          supplier_id: row.supplier_id,
+          quantity: take,
+          unit_cost: row.product_suppliers.cost_price,
+        })
+        remaining -= take
+        await supabase
+          .from('product_supplier_stock')
+          .update({ quantity: row.quantity - take, updated_at: new Date().toISOString() })
+          .eq('id', row.id)
+      }
+
+      if (allocations.length > 0) {
+        const txItem = (insertedItems ?? []).find((ti: any) => ti.product_id === item.product_id)
+        if (txItem) {
+          await supabase.from('transaction_item_supplier_costs').insert(
+            allocations.map((a) => ({ transaction_item_id: txItem.id, ...a }))
+          )
+        }
+      }
+    }
   }
 
   revalidateTag(CACHE_TAGS.INVENTORY, {})

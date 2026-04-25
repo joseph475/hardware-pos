@@ -63,6 +63,7 @@ interface Props {
   suppliers: Array<{ id: string; name: string }>
   branches: Array<{ id: string; name: string }>
   products: Array<{ id: string; name: string; sku: string; cost_price: number }>
+  productSupplierCosts?: Array<{ product_id: string; supplier_id: string; cost_price: number }>
   userBranchId: string | null
   userRole: "owner" | "manager" | "cashier"
   onSuccess: () => void
@@ -71,7 +72,7 @@ interface Props {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function NewPOSheet({ suppliers, branches, products, userBranchId, userRole, onSuccess }: Props) {
+export function NewPOSheet({ suppliers, branches, products, productSupplierCosts = [], userBranchId, userRole, onSuccess }: Props) {
   const { formatCurrency, currencyCode, locale } = useCurrency()
   const currencySymbol = React.useMemo(
     () =>
@@ -110,6 +111,22 @@ export function NewPOSheet({ suppliers, branches, products, userBranchId, userRo
 
   const selectedSupplier = suppliers.find((s) => s.id === watchedSupplierId)
   const selectedBranch = branches.find((b) => b.id === watchedBranchId)
+
+  // When supplier changes, re-compute unit_cost for all existing line items
+  const prevSupplierRef = React.useRef<string>("")
+  React.useEffect(() => {
+    if (!watchedSupplierId || watchedSupplierId === prevSupplierRef.current) return
+    prevSupplierRef.current = watchedSupplierId
+    const items = watchedItems ?? []
+    items.forEach((item, index) => {
+      const sc = productSupplierCosts.find(
+        (c) => c.product_id === item.product_id && c.supplier_id === watchedSupplierId
+      )
+      if (sc !== undefined) {
+        setValue(`items.${index}.unit_cost`, sc.cost_price, { shouldValidate: false })
+      }
+    })
+  }, [watchedSupplierId])
 
   const orderTotal = (watchedItems ?? []).reduce((sum, item) => {
     const qty = Number(item.quantity_ordered) || 0
@@ -260,6 +277,10 @@ export function NewPOSheet({ suppliers, branches, products, userBranchId, userRo
               onSelect={(prod) => {
                 const product = products.find((p) => p.id === prod.id)
                 if (!product) return
+                // Use supplier-specific cost if available, else fall back to product cost_price
+                const supplierCost = productSupplierCosts.find(
+                  (c) => c.product_id === product.id && c.supplier_id === watchedSupplierId
+                )?.cost_price ?? product.cost_price
                 const existingIndex = fields.findIndex((f) => f.product_id === prod.id)
                 if (existingIndex >= 0) {
                   setValue(
@@ -268,7 +289,7 @@ export function NewPOSheet({ suppliers, branches, products, userBranchId, userRo
                     { shouldValidate: true }
                   )
                 } else {
-                  append({ product_id: product.id, quantity_ordered: 1, unit_cost: product.cost_price })
+                  append({ product_id: product.id, quantity_ordered: 1, unit_cost: supplierCost })
                 }
               }}
               placeholder="Search by name or SKU to add items…"

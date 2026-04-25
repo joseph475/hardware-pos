@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
 import {
@@ -21,11 +21,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Product, Category, Branch } from "@/types/database";
+import type { Product, Category, Branch, Supplier } from "@/types/database";
 import { useCurrency } from "@/lib/context/currency";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadProductImage } from "@/lib/actions/upload";
+
+const supplierRowSchema = z.object({
+  supplier_id: z.string().min(1, "Select a supplier"),
+  cost_price: z.string().refine(
+    (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
+    "Must be 0 or greater"
+  ),
+  stock_qty: z.string().optional(),
+});
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -33,12 +42,14 @@ const productSchema = z.object({
   barcode: z.string().optional(),
   category_id: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
-  cost_price: z.string().refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, "Must be 0 or greater"),
-  selling_price: z.string().refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, "Must be 0 or greater"),
+  selling_price: z.string().refine(
+    (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
+    "Must be 0 or greater"
+  ),
   description: z.string().optional(),
   is_active: z.boolean(),
   serial_required: z.boolean(),
-  opening_stock_qty: z.string().optional(),
+  suppliers: z.array(supplierRowSchema).optional(),
   opening_stock_branch_id: z.string().optional(),
 });
 
@@ -55,24 +66,36 @@ export interface ProductSaveValues {
   description?: string;
   is_active: boolean;
   serial_required: boolean;
-  opening_stock_qty?: number;
-  opening_stock_branch_id?: string;
   image_url?: string | null;
+  suppliers: Array<{ supplier_id: string; cost_price: number; stock_qty?: number }>;
+  opening_stock_branch_id?: string;
 }
 
 const UNITS = ["each", "kg", "g", "liter", "ml", "dozen", "pack", "box", "bottle", "can"];
 
 interface ProductDialogProps {
   product?: Product;
+  productSuppliers?: Array<{ supplier_id: string; cost_price: number }>;
   trigger?: React.ReactNode;
   categories: Category[];
   branches?: Branch[];
+  suppliers?: Pick<Supplier, "id" | "name">[];
   onSave?: (values: ProductSaveValues) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export function ProductDialog({ product, trigger, categories, branches = [], onSave, open: controlledOpen, onOpenChange }: ProductDialogProps) {
+export function ProductDialog({
+  product,
+  productSuppliers = [],
+  trigger,
+  categories,
+  branches = [],
+  suppliers = [],
+  onSave,
+  open: controlledOpen,
+  onOpenChange,
+}: ProductDialogProps) {
   const isEdit = !!product;
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -86,12 +109,24 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
   const open = controlledOpen !== undefined ? controlledOpen : uncontrolledOpen;
   const setOpen = onOpenChange ?? setUncontrolledOpen;
 
+  function buildDefaultSuppliers() {
+    if (productSuppliers.length > 0) {
+      return productSuppliers.map((ps) => ({
+        supplier_id: ps.supplier_id,
+        cost_price: String(ps.cost_price),
+        stock_qty: "",
+      }));
+    }
+    return [];
+  }
+
   const {
     register,
     handleSubmit,
     setValue,
     watch,
     reset,
+    control,
     formState: { errors },
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -101,15 +136,17 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
       barcode: product?.barcode ?? "",
       category_id: product?.category_id ?? "",
       unit: product?.unit ?? "each",
-      cost_price: String(product?.cost_price ?? "0"),
       selling_price: String(product?.selling_price ?? "0"),
       description: product?.description ?? "",
       is_active: product?.is_active ?? true,
       serial_required: product?.serial_required ?? false,
-      opening_stock_qty: "",
+      suppliers: buildDefaultSuppliers(),
       opening_stock_branch_id: "",
     },
   });
+
+  const { fields, append, remove } = useFieldArray({ control, name: "suppliers" });
+  const watchedSuppliers = watch("suppliers") ?? [];
 
   React.useEffect(() => {
     if (open) {
@@ -119,21 +156,28 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
         barcode: product?.barcode ?? "",
         category_id: product?.category_id ?? "",
         unit: product?.unit ?? "each",
-        cost_price: String(product?.cost_price ?? "0"),
         selling_price: String(product?.selling_price ?? "0"),
         description: product?.description ?? "",
         is_active: product?.is_active ?? true,
         serial_required: product?.serial_required ?? false,
-        opening_stock_qty: "",
+        suppliers: buildDefaultSuppliers(),
         opening_stock_branch_id: "",
       });
       setImageUrl(product?.image_url ?? null);
     }
-  }, [open, product, reset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const isActive = watch("is_active");
-
   const openingBranchId = watch("opening_stock_branch_id");
+  const hasAnyStock = !isEdit && watchedSuppliers.some((s) => parseFloat(s.stock_qty ?? "") > 0);
+
+  function getUsedSupplierIds(excludeIndex: number) {
+    return watchedSuppliers
+      .filter((_, i) => i !== excludeIndex)
+      .map((s) => s.supplier_id)
+      .filter(Boolean);
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -154,15 +198,34 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
   }
 
   function onSubmit(values: ProductFormValues) {
-    const qty = parseFloat(values.opening_stock_qty ?? "") || 0;
+    const supplierRows = (values.suppliers ?? [])
+      .filter((s) => s.supplier_id)
+      .map((s) => ({
+        supplier_id: s.supplier_id,
+        cost_price: parseFloat(s.cost_price) || 0,
+        stock_qty: parseFloat(s.stock_qty ?? "") > 0
+          ? parseFloat(s.stock_qty ?? "")
+          : undefined,
+      }));
+
+    const minCost = supplierRows.length > 0
+      ? Math.min(...supplierRows.map((s) => s.cost_price))
+      : 0;
+
     onSave?.({
-      ...values,
-      cost_price: parseFloat(values.cost_price),
+      name: values.name,
+      sku: values.sku,
+      barcode: values.barcode || undefined,
+      category_id: values.category_id || undefined,
+      unit: values.unit,
+      cost_price: minCost,
       selling_price: parseFloat(values.selling_price),
+      description: values.description || undefined,
+      is_active: values.is_active,
       serial_required: values.serial_required,
-      opening_stock_qty: qty > 0 ? qty : undefined,
-      opening_stock_branch_id: qty > 0 ? values.opening_stock_branch_id : undefined,
       image_url: imageUrl ?? undefined,
+      suppliers: supplierRows,
+      opening_stock_branch_id: values.opening_stock_branch_id || undefined,
     });
     setOpen(false);
   }
@@ -187,6 +250,7 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1">
             <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto">
+
               {/* Name */}
               <div className="space-y-1.5">
                 <Label htmlFor="name">
@@ -221,11 +285,7 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="barcode">Barcode</Label>
-                  <Input
-                    id="barcode"
-                    placeholder="Optional"
-                    {...register("barcode")}
-                  />
+                  <Input id="barcode" placeholder="Optional" {...register("barcode")} />
                 </div>
               </div>
 
@@ -282,51 +342,166 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
                 </div>
               </div>
 
-              {/* Cost Price + Selling Price */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cost_price">
-                    Cost Price <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{currencySymbol}</span>
-                    <Input
-                      id="cost_price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="pl-6"
-                      aria-invalid={!!errors.cost_price}
-                      {...register("cost_price")}
-                    />
-                  </div>
-                  {errors.cost_price && (
-                    <p className="text-xs text-destructive">{errors.cost_price.message}</p>
-                  )}
+              {/* Selling Price */}
+              <div className="space-y-1.5">
+                <Label htmlFor="selling_price">
+                  Selling Price <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                    {currencySymbol}
+                  </span>
+                  <Input
+                    id="selling_price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className="pl-6"
+                    aria-invalid={!!errors.selling_price}
+                    {...register("selling_price")}
+                  />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="selling_price">
-                    Selling Price <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{currencySymbol}</span>
-                    <Input
-                      id="selling_price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="pl-6"
-                      aria-invalid={!!errors.selling_price}
-                      {...register("selling_price")}
-                    />
-                  </div>
-                  {errors.selling_price && (
-                    <p className="text-xs text-destructive">{errors.selling_price.message}</p>
-                  )}
-                </div>
+                {errors.selling_price && (
+                  <p className="text-xs text-destructive">{errors.selling_price.message}</p>
+                )}
               </div>
+
+              {/* Suppliers section */}
+              {suppliers.length > 0 && (
+                <div className="space-y-3 rounded-lg border border-border px-3 py-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Suppliers</p>
+                      <p className="text-xs text-muted-foreground">
+                        Each supplier can have a different cost price
+                        {!isEdit && " and opening stock"}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => append({ supplier_id: "", cost_price: "0", stock_qty: "" })}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+
+                  {/* Column headers */}
+                  {fields.length > 0 && (
+                    <div className={`grid gap-2 text-xs font-medium text-muted-foreground ${!isEdit ? "grid-cols-[1fr_90px_60px_20px]" : "grid-cols-[1fr_90px_20px]"}`}>
+                      <span>Supplier</span>
+                      <span>Cost ({currencySymbol})</span>
+                      {!isEdit && <span>Qty</span>}
+                      <span />
+                    </div>
+                  )}
+
+                  {/* Supplier rows */}
+                  <div className="space-y-2">
+                    {fields.map((field, index) => {
+                      const usedIds = getUsedSupplierIds(index);
+                      const currentVal = watchedSuppliers[index];
+                      return (
+                        <div
+                          key={field.id}
+                          className={`grid gap-2 items-center ${!isEdit ? "grid-cols-[1fr_90px_60px_20px]" : "grid-cols-[1fr_90px_20px]"}`}
+                        >
+                          {/* Supplier select */}
+                          <Select
+                            value={currentVal?.supplier_id ?? ""}
+                            onValueChange={(val) => {
+                              if (val !== null) setValue(`suppliers.${index}.supplier_id`, val);
+                            }}
+                          >
+                            <SelectTrigger className="w-full h-8 text-xs" aria-invalid={!!errors.suppliers?.[index]?.supplier_id}>
+                              <SelectValue placeholder="Select…">
+                                {suppliers.find((s) => s.id === currentVal?.supplier_id)?.name ?? "Select…"}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {suppliers
+                                .filter((s) => !usedIds.includes(s.id))
+                                .map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+
+                          {/* Cost price */}
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            className="h-8 text-xs"
+                            aria-invalid={!!errors.suppliers?.[index]?.cost_price}
+                            {...register(`suppliers.${index}.cost_price`)}
+                          />
+
+                          {/* Stock qty (add mode only) */}
+                          {!isEdit && (
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="0"
+                              className="h-8 text-xs"
+                              {...register(`suppliers.${index}.stock_qty`)}
+                            />
+                          )}
+
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            className="flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                            aria-label="Remove supplier"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {fields.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-1">
+                      No suppliers added — click Add to link a supplier
+                    </p>
+                  )}
+
+                  {/* Shared branch selector for opening stock (add mode only) */}
+                  {!isEdit && hasAnyStock && branches.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-border">
+                      <Label className="text-xs font-medium">Opening stock branch</Label>
+                      <Select
+                        value={openingBranchId ?? ""}
+                        onValueChange={(val) => {
+                          if (val !== null) setValue("opening_stock_branch_id", val);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select branch">
+                            {branches.find((b) => b.id === openingBranchId)?.name ?? "Select branch"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {branches.map((b) => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Description */}
               <div className="space-y-1.5">
@@ -384,51 +559,6 @@ export function ProductDialog({ product, trigger, categories, branches = [], onS
                 </div>
                 <p className="text-xs text-muted-foreground">Optional. Max 5 MB.</p>
               </div>
-
-              {/* Opening Stock (add mode only) */}
-              {!isEdit && branches.length > 0 && (
-                <div className="space-y-3 rounded-lg border border-dashed border-border px-3 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Opening Stock</p>
-                    <p className="text-xs text-muted-foreground">Optional — set initial quantity for a branch</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="opening_stock_qty">Quantity</Label>
-                      <Input
-                        id="opening_stock_qty"
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0"
-                        {...register("opening_stock_qty")}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="opening_stock_branch">Branch</Label>
-                      <Select
-                        value={openingBranchId ?? ""}
-                        onValueChange={(val) => {
-                          if (val !== null) setValue("opening_stock_branch_id", val);
-                        }}
-                      >
-                        <SelectTrigger className="w-full" id="opening_stock_branch">
-                          <SelectValue placeholder="Select branch">
-                            {branches.find((b) => b.id === openingBranchId)?.name ?? "Select branch"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {branches.map((b) => (
-                            <SelectItem key={b.id} value={b.id}>
-                              {b.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Active Toggle */}
               <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">

@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
-import { getPurchaseOrders, getSuppliers, getBranches } from "@/lib/actions/purchasing"
+import { getPurchaseOrders, getSuppliers, getBranches, getProductSupplierCosts } from "@/lib/actions/purchasing"
 import { getProductsForBranch } from "@/lib/actions/inventory"
 import { OrdersClient } from "./orders-client"
 
@@ -45,11 +45,12 @@ export default async function PurchaseOrdersPage() {
   if (!isMainBranch && userRole !== "owner") redirect("/purchasing/branch-requests")
 
   // Fetch all data in parallel
-  const [orders, suppliers, branches, products] = await Promise.all([
+  const [orders, suppliers, branches, products, productSupplierCosts] = await Promise.all([
     getPurchaseOrders(),
     getSuppliers(),
     getBranches(),
     getProductsForBranch(),
+    getProductSupplierCosts(),
   ])
 
   // Map PO rows
@@ -81,6 +82,7 @@ export default async function PurchaseOrdersPage() {
       suppliers={suppliers}
       branches={branches}
       products={productList}
+      productSupplierCosts={productSupplierCosts}
       userBranchId={userBranchId}
       userRole={userRole}
       isMainBranch={isMainBranch}

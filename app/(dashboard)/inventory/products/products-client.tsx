@@ -44,9 +44,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ProductDialog } from "./components/product-dialog";
 import { useCurrency } from "@/lib/context/currency";
 import { upsertProduct, deleteProduct, toggleProductActive } from "@/lib/actions/products";
-import { createStockAdjustment } from "@/lib/actions/inventory";
 import type { ProductSaveValues } from "./components/product-dialog";
-import type { Product, Category, Branch } from "@/types/database";
+import type { Product, Category, Branch, Supplier } from "@/types/database";
 
 export type ProductWithCategory = Product & { category_name: string | null };
 
@@ -54,6 +53,8 @@ interface ProductsClientProps {
   initialProducts: ProductWithCategory[];
   categories: Category[];
   branches: Branch[];
+  suppliers?: Pick<Supplier, "id" | "name">[];
+  productSuppliersMap?: Record<string, Array<{ supplier_id: string; cost_price: number }>>;
 }
 
 const PAGE_SIZE = 6;
@@ -74,7 +75,7 @@ function ProductAvatar({ name }: { name: string }) {
   );
 }
 
-export function ProductsClient({ initialProducts, categories, branches }: ProductsClientProps) {
+export function ProductsClient({ initialProducts, categories, branches, suppliers = [], productSuppliersMap = {} }: ProductsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { formatCurrency } = useCurrency();
@@ -86,17 +87,7 @@ export function ProductsClient({ initialProducts, categories, branches }: Produc
 
   function handleSave(product: Product | undefined, values: ProductSaveValues) {
     startTransition(async () => {
-      const { id: productId } = await upsertProduct({ id: product?.id, ...values });
-      if (!product && values.opening_stock_qty && values.opening_stock_qty > 0 && values.opening_stock_branch_id) {
-        await createStockAdjustment({
-          product_id: productId,
-          branch_id: values.opening_stock_branch_id,
-          type: "adjustment",
-          quantity: values.opening_stock_qty,
-          adjustment_direction: "add",
-          notes: "Opening stock",
-        });
-      }
+      await upsertProduct({ id: product?.id, ...values });
       router.refresh();
     });
   }
@@ -151,6 +142,7 @@ export function ProductsClient({ initialProducts, categories, branches }: Produc
         <ProductDialog
           categories={categories}
           branches={branches}
+          suppliers={suppliers}
           onSave={(values) => handleSave(undefined, values)}
           trigger={
             <Button>
@@ -302,7 +294,10 @@ export function ProductsClient({ initialProducts, categories, branches }: Produc
       {/* Edit product dialog (controlled, outside dropdown) */}
       <ProductDialog
         product={editingProduct ?? undefined}
+        productSuppliers={editingProduct ? productSuppliersMap[editingProduct.id] : undefined}
         categories={categories}
+        branches={branches}
+        suppliers={suppliers}
         open={!!editingProduct}
         onOpenChange={(v) => { if (!v) setEditingProduct(null); }}
         onSave={(values) => {

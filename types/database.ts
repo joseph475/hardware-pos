@@ -742,6 +742,87 @@ export type Database = {
         };
         Relationships: [];
       };
+      product_suppliers: {
+        Row: {
+          id: string;
+          product_id: string;
+          supplier_id: string;
+          cost_price: number;
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          supplier_id: string;
+          cost_price: number;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          supplier_id?: string;
+          cost_price?: number;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      product_supplier_stock: {
+        Row: {
+          id: string;
+          product_id: string;
+          supplier_id: string;
+          branch_id: string;
+          quantity: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          supplier_id: string;
+          branch_id: string;
+          quantity?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          supplier_id?: string;
+          branch_id?: string;
+          quantity?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      transaction_item_supplier_costs: {
+        Row: {
+          id: string;
+          transaction_item_id: string;
+          supplier_id: string | null;
+          quantity: number;
+          unit_cost: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          transaction_item_id: string;
+          supplier_id?: string | null;
+          quantity: number;
+          unit_cost: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          transaction_item_id?: string;
+          supplier_id?: string | null;
+          quantity?: number;
+          unit_cost?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
   };
 };
@@ -777,6 +858,10 @@ export type BranchStockRequest =
 export type BranchStockRequestItem =
   Database["public"]["Tables"]["branch_stock_request_items"]["Row"];
 export type BranchRequestStatus = BranchStockRequest["status"];
+
+export type ProductSupplier = Database["public"]["Tables"]["product_suppliers"]["Row"];
+export type ProductSupplierStock = Database["public"]["Tables"]["product_supplier_stock"]["Row"];
+export type TransactionItemSupplierCost = Database["public"]["Tables"]["transaction_item_supplier_costs"]["Row"];
 
 export type BranchStockRequestWithRelations = BranchStockRequest & {
   requesting_branch: { name: string } | null;

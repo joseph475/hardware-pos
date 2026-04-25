@@ -644,3 +644,93 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
     paymentMethods,
   }
 }
+
+export type SupplierProductRow = {
+  supplier_id: string
+  supplier_name: string
+  product_id: string
+  product_name: string
+  sku: string
+  units_sold: number
+  total_cogs: number
+}
+
+export async function getSupplierFastMovingReport(params?: {
+  date_from?: string
+  date_to?: string
+  supplier_id?: string
+}): Promise<SupplierProductRow[]> {
+  const supabase = getAdminClient()
+
+  // Fetch raw allocation rows joined through transaction_items → transactions
+  let query = supabase
+    .from('transaction_item_supplier_costs')
+    .select(`
+      supplier_id,
+      quantity,
+      unit_cost,
+      transaction_items!inner(
+        product_id,
+        transactions!inner(status, created_at)
+      )
+    `)
+    .eq('transaction_items.transactions.status', 'completed')
+
+  if (params?.date_from) {
+    query = query.gte('transaction_items.transactions.created_at', params.date_from)
+  }
+  if (params?.date_to) {
+    query = query.lte('transaction_items.transactions.created_at', params.date_to + 'T23:59:59')
+  }
+  if (params?.supplier_id) {
+    query = query.eq('supplier_id', params.supplier_id)
+  }
+
+  const { data: allocations } = await query
+
+  if (!allocations || allocations.length === 0) return []
+
+  // Collect unique product_ids and supplier_ids
+  const allRows = allocations as any[]
+  const productIds = [...new Set(allRows.map((r) => r.transaction_items?.product_id).filter(Boolean))]
+  const supplierIds = [...new Set(allRows.map((r) => r.supplier_id).filter(Boolean))]
+
+  const [{ data: products }, { data: suppliers }] = await Promise.all([
+    supabase.from('products').select('id, name, sku').in('id', productIds),
+    supabase.from('suppliers').select('id, name').in('id', supplierIds),
+  ])
+
+  const productMap = Object.fromEntries((products ?? []).map((p) => [p.id, p]))
+  const supplierMap = Object.fromEntries((suppliers ?? []).map((s) => [s.id, s]))
+
+  // Aggregate by supplier + product
+  const aggMap = new Map<string, SupplierProductRow>()
+
+  for (const row of allRows) {
+    const supplierId: string = row.supplier_id
+    const productId: string = row.transaction_items?.product_id
+    if (!supplierId || !productId) continue
+
+    const key = `${supplierId}::${productId}`
+    const existing = aggMap.get(key)
+    if (existing) {
+      existing.units_sold += row.quantity
+      existing.total_cogs += row.quantity * row.unit_cost
+    } else {
+      aggMap.set(key, {
+        supplier_id: supplierId,
+        supplier_name: supplierMap[supplierId]?.name ?? 'Unknown',
+        product_id: productId,
+        product_name: productMap[productId]?.name ?? 'Unknown',
+        sku: productMap[productId]?.sku ?? '',
+        units_sold: row.quantity,
+        total_cogs: row.quantity * row.unit_cost,
+      })
+    }
+  }
+
+  return Array.from(aggMap.values()).sort((a, b) => {
+    if (a.supplier_name !== b.supplier_name) return a.supplier_name.localeCompare(b.supplier_name)
+    return b.units_sold - a.units_sold
+  })
+}
