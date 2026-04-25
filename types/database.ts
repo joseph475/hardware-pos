@@ -422,7 +422,8 @@ export type Database = {
         Row: {
           id: string;
           quotation_id: string;
-          product_id: string;
+          product_id: string | null;
+          bundle_id: string | null;
           product_name: string;
           quantity: number;
           unit_price: number;
@@ -433,7 +434,8 @@ export type Database = {
         Insert: {
           id?: string;
           quotation_id: string;
-          product_id: string;
+          product_id?: string | null;
+          bundle_id?: string | null;
           product_name: string;
           quantity: number;
           unit_price: number;
@@ -444,7 +446,8 @@ export type Database = {
         Update: {
           id?: string;
           quotation_id?: string;
-          product_id?: string;
+          product_id?: string | null;
+          bundle_id?: string | null;
           product_name?: string;
           quantity?: number;
           unit_price?: number;
@@ -593,7 +596,8 @@ export type Database = {
         Row: {
           id: string;
           transaction_id: string;
-          product_id: string;
+          product_id: string | null;
+          bundle_id: string | null;
           product_name: string;
           quantity: number;
           unit_price: number;
@@ -604,7 +608,8 @@ export type Database = {
         Insert: {
           id?: string;
           transaction_id: string;
-          product_id: string;
+          product_id?: string | null;
+          bundle_id?: string | null;
           product_name: string;
           quantity: number;
           unit_price: number;
@@ -615,7 +620,8 @@ export type Database = {
         Update: {
           id?: string;
           transaction_id?: string;
-          product_id?: string;
+          product_id?: string | null;
+          bundle_id?: string | null;
           product_name?: string;
           quantity?: number;
           unit_price?: number;
@@ -832,6 +838,62 @@ export type Database = {
         };
         Relationships: [];
       };
+      bundles: {
+        Row: {
+          id: string;
+          org_id: string;
+          name: string;
+          description: string | null;
+          price: number;
+          image_url: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          name: string;
+          description?: string | null;
+          price: number;
+          image_url?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          name?: string;
+          description?: string | null;
+          price?: number;
+          image_url?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      bundle_items: {
+        Row: {
+          id: string;
+          bundle_id: string;
+          product_id: string;
+          quantity: number;
+        };
+        Insert: {
+          id?: string;
+          bundle_id: string;
+          product_id: string;
+          quantity: number;
+        };
+        Update: {
+          id?: string;
+          bundle_id?: string;
+          product_id?: string;
+          quantity?: number;
+        };
+        Relationships: [];
+      };
     };
   };
 };
@@ -871,6 +933,8 @@ export type BranchRequestStatus = BranchStockRequest["status"];
 export type ProductSupplier = Database["public"]["Tables"]["product_suppliers"]["Row"];
 export type ProductSupplierStock = Database["public"]["Tables"]["product_supplier_stock"]["Row"];
 export type TransactionItemSupplierCost = Database["public"]["Tables"]["transaction_item_supplier_costs"]["Row"];
+export type Bundle = Database["public"]["Tables"]["bundles"]["Row"];
+export type BundleItem = Database["public"]["Tables"]["bundle_items"]["Row"];
 
 export type BranchStockRequestWithRelations = BranchStockRequest & {
   requesting_branch: { name: string } | null;

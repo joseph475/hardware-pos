@@ -10,4 +10,5 @@ export const CACHE_TAGS = {
   ORG_SETTINGS: 'org-settings',
   CUSTOMERS: 'customers',
   QUOTATIONS: 'quotations',
+  BUNDLES: 'bundles',
 } as const
