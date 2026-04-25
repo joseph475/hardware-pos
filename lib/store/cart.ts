@@ -1,26 +1,47 @@
 import { create } from "zustand";
 import type { Product } from "@/types/database";
+import type { POSBundle } from "@/lib/actions/inventory";
 
 interface CartItem {
   product: Product;
   quantity: number;
   unit_price: number;
-  discount_amount: number; // flat amount (computed)
-  discount_pct: number;    // percentage 0-100 (source of truth)
-  add_tax_pct: number;     // additional % tax per item, default 0
-  serials: string[];       // one slot per unit, empty string = unfilled
+  discount_amount: number;
+  discount_pct: number;
+  add_tax_pct: number;
+  serials: string[];
+}
+
+export interface BundleCartItem {
+  bundle_id: string;
+  bundle_name: string;
+  quantity: number;
+  unit_price: number;
+  discount_amount: number;
+  discount_pct: number;
+  add_tax_pct: number;
+  components: Array<{ product_id: string; product_name: string; quantity: number }>;
 }
 
 interface CartStore {
   items: CartItem[];
-  discount: number; // overall discount percentage
-  taxRate: number;  // e.g. 0.12 = 12%, synced from org settings
+  bundleItems: BundleCartItem[];
+  discount: number;
+  taxRate: number;
+  // Product item operations
   addItem: (product: Product) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   updateItemDiscount: (productId: string, pct: number) => void;
   updateItemAddTax: (productId: string, pct: number) => void;
   updateItemSerials: (productId: string, serials: string[]) => void;
+  // Bundle item operations
+  addBundle: (bundle: POSBundle) => void;
+  removeBundle: (bundleId: string) => void;
+  updateBundleQuantity: (bundleId: string, quantity: number) => void;
+  updateBundleItemDiscount: (bundleId: string, pct: number) => void;
+  updateBundleItemAddTax: (bundleId: string, pct: number) => void;
+  // Cart-wide
   setDiscount: (discount: number) => void;
   setTaxRate: (rate: number) => void;
   clearCart: () => void;
@@ -43,6 +64,7 @@ interface CartStore {
 
 export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
+  bundleItems: [],
   discount: 0,
   taxRate: 0.12,
 
@@ -128,15 +150,80 @@ export const useCartStore = create<CartStore>((set, get) => ({
       ),
     }),
 
+  addBundle: (bundle) => {
+    const bundleItems = get().bundleItems;
+    const existing = bundleItems.find((b) => b.bundle_id === bundle.id);
+    if (existing) {
+      set({
+        bundleItems: bundleItems.map((b) => {
+          if (b.bundle_id !== bundle.id) return b;
+          const quantity = b.quantity + 1;
+          const discount_amount = b.unit_price * quantity * (b.discount_pct / 100);
+          return { ...b, quantity, discount_amount };
+        }),
+      });
+    } else {
+      set({
+        bundleItems: [
+          ...bundleItems,
+          {
+            bundle_id: bundle.id,
+            bundle_name: bundle.name,
+            quantity: 1,
+            unit_price: bundle.price,
+            discount_amount: 0,
+            discount_pct: 0,
+            add_tax_pct: 0,
+            components: bundle.items,
+          },
+        ],
+      });
+    }
+  },
+
+  removeBundle: (bundleId) =>
+    set({ bundleItems: get().bundleItems.filter((b) => b.bundle_id !== bundleId) }),
+
+  updateBundleQuantity: (bundleId, quantity) => {
+    if (quantity <= 0) {
+      get().removeBundle(bundleId);
+      return;
+    }
+    set({
+      bundleItems: get().bundleItems.map((b) => {
+        if (b.bundle_id !== bundleId) return b;
+        const discount_amount = b.unit_price * quantity * (b.discount_pct / 100);
+        return { ...b, quantity, discount_amount };
+      }),
+    });
+  },
+
+  updateBundleItemDiscount: (bundleId, pct) =>
+    set({
+      bundleItems: get().bundleItems.map((b) => {
+        if (b.bundle_id !== bundleId) return b;
+        const discount_amount = b.unit_price * b.quantity * (pct / 100);
+        return { ...b, discount_pct: pct, discount_amount };
+      }),
+    }),
+
+  updateBundleItemAddTax: (bundleId, pct) =>
+    set({
+      bundleItems: get().bundleItems.map((b) =>
+        b.bundle_id === bundleId ? { ...b, add_tax_pct: pct } : b
+      ),
+    }),
+
   setDiscount: (discount) => set({ discount }),
 
   setTaxRate: (rate) => set({ taxRate: rate }),
 
-  clearCart: () => set({ items: [], discount: 0 }),
+  clearCart: () => set({ items: [], bundleItems: [], discount: 0 }),
 
   loadHeldOrder: (heldItems) =>
     set({
       discount: 0,
+      bundleItems: [],
       items: heldItems.map((item) => ({
         product: { id: item.product_id, name: item.product_name, serial_required: false } as Product,
         quantity: item.quantity,
@@ -151,6 +238,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
   loadQuotationOrder: (items) =>
     set({
       discount: 0,
+      bundleItems: [],
       items: items.map((item) => {
         const baseTotal = item.unit_price * item.quantity
         const discount_pct = baseTotal > 0
@@ -170,23 +258,30 @@ export const useCartStore = create<CartStore>((set, get) => ({
       }),
     }),
 
-  subtotal: () =>
-    get().items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0),
-
-  totalDiscount: () => {
-    const itemDiscounts = get().items.reduce(
-      (sum, i) => sum + i.discount_amount,
-      0
-    );
-    const overallDiscount = get().subtotal() * (get().discount / 100);
-    return itemDiscounts + overallDiscount;
+  subtotal: () => {
+    const productSubtotal = get().items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+    const bundleSubtotal = get().bundleItems.reduce((sum, b) => sum + b.unit_price * b.quantity, 0);
+    return productSubtotal + bundleSubtotal;
   },
 
-  totalAddTax: () =>
-    get().items.reduce(
+  totalDiscount: () => {
+    const itemDiscounts = get().items.reduce((sum, i) => sum + i.discount_amount, 0);
+    const bundleDiscounts = get().bundleItems.reduce((sum, b) => sum + b.discount_amount, 0);
+    const overallDiscount = get().subtotal() * (get().discount / 100);
+    return itemDiscounts + bundleDiscounts + overallDiscount;
+  },
+
+  totalAddTax: () => {
+    const itemAddTax = get().items.reduce(
       (sum, i) => sum + i.unit_price * i.quantity * (i.add_tax_pct / 100),
       0
-    ),
+    );
+    const bundleAddTax = get().bundleItems.reduce(
+      (sum, b) => sum + b.unit_price * b.quantity * (b.add_tax_pct / 100),
+      0
+    );
+    return itemAddTax + bundleAddTax;
+  },
 
   tax: () => (get().subtotal() - get().totalDiscount()) * get().taxRate,
 
