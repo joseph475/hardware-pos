@@ -321,6 +321,125 @@ export async function getZReport(date: string, branchId?: string | null): Promis
   }
 }
 
+// ─── Unified X/Z Sales Reading ────────────────────────────────────────────────
+
+export type SalesReadingData = {
+  salesCount: number
+  totalRevenue: number
+  totalDiscounts: number
+  avgTransactionValue: number
+  voidCount: number
+  voidedTotal: number
+  byPaymentMethod: { method: string; count: number; total: number }[]
+  hourlyBreakdown: { hour: number; revenue: number; count: number }[]
+  dailyBreakdown: { date: string; revenue: number; count: number }[]
+}
+
+export async function getSalesReading(params: {
+  mode: 'x-reading' | 'z-reading'
+  date?: string
+  date_from?: string
+  date_to?: string
+  branch_id?: string | null
+}): Promise<SalesReadingData> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+
+  let timezone = 'UTC'
+  if (params.branch_id) {
+    const { data: branch } = await supabase.from('branches').select('timezone').eq('id', params.branch_id).single()
+    if (branch?.timezone) timezone = branch.timezone
+  } else {
+    const { data: anyBranch } = await supabase.from('branches').select('timezone').eq('org_id', ORG_ID).limit(1).single()
+    if (anyBranch?.timezone) timezone = anyBranch.timezone
+  }
+
+  let query = supabase
+    .from('transactions')
+    .select('id, total, discount_amount, payment_method, status, created_at')
+
+  if (params.branch_id) query = query.eq('branch_id', params.branch_id)
+
+  if (params.mode === 'z-reading' && params.date) {
+    const { dayStart, dayEnd } = getDateBoundsInTZ(params.date, timezone)
+    query = query.gte('created_at', dayStart).lte('created_at', dayEnd)
+  } else if (params.mode === 'x-reading' && params.date_from && params.date_to) {
+    const { dayStart } = getDateBoundsInTZ(params.date_from, timezone)
+    const { dayEnd } = getDateBoundsInTZ(params.date_to, timezone)
+    query = query.gte('created_at', dayStart).lte('created_at', dayEnd)
+  }
+
+  const { data: txns, error } = await query
+  if (error) throw new Error(error.message)
+
+  const all = (txns ?? []) as any[]
+  const completed = all.filter((t) => t.status === 'completed')
+  const voided = all.filter((t) => t.status === 'voided')
+
+  const totalRevenue = completed.reduce((s: number, t: any) => s + (t.total ?? 0), 0)
+  const totalDiscounts = completed.reduce((s: number, t: any) => s + (t.discount_amount ?? 0), 0)
+  const salesCount = completed.length
+  const avgTransactionValue = salesCount > 0 ? totalRevenue / salesCount : 0
+  const voidCount = voided.length
+  const voidedTotal = voided.reduce((s: number, t: any) => s + (t.total ?? 0), 0)
+
+  const methodMap = new Map<string, { count: number; total: number }>()
+  for (const t of completed) {
+    const entry = methodMap.get(t.payment_method) ?? { count: 0, total: 0 }
+    entry.count += 1
+    entry.total += t.total ?? 0
+    methodMap.set(t.payment_method, entry)
+  }
+  const byPaymentMethod = Array.from(methodMap.entries())
+    .map(([method, vals]) => ({ method, count: vals.count, total: vals.total }))
+    .sort((a, b) => b.total - a.total)
+
+  // Hourly breakdown for Z-reading
+  const hourMap = new Map<number, { revenue: number; count: number }>()
+  if (params.mode === 'z-reading') {
+    for (const t of completed) {
+      const localHour = new Date(t.created_at).toLocaleString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false })
+      const hour = parseInt(localHour, 10) % 24
+      const entry = hourMap.get(hour) ?? { revenue: 0, count: 0 }
+      entry.revenue += t.total ?? 0
+      entry.count += 1
+      hourMap.set(hour, entry)
+    }
+  }
+  const hourlyBreakdown = Array.from(hourMap.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([hour, vals]) => ({ hour, revenue: Math.round(vals.revenue * 100) / 100, count: vals.count }))
+
+  // Daily breakdown for X-reading
+  const dayMap = new Map<string, { revenue: number; count: number }>()
+  if (params.mode === 'x-reading') {
+    for (const t of completed) {
+      const localDate = new Date(t.created_at).toLocaleDateString('en-CA', { timeZone: timezone })
+      const entry = dayMap.get(localDate) ?? { revenue: 0, count: 0 }
+      entry.revenue += t.total ?? 0
+      entry.count += 1
+      dayMap.set(localDate, entry)
+    }
+  }
+  const dailyBreakdown = Array.from(dayMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, vals]) => ({ date, revenue: Math.round(vals.revenue * 100) / 100, count: vals.count }))
+
+  return {
+    salesCount,
+    totalRevenue,
+    totalDiscounts,
+    avgTransactionValue,
+    voidCount,
+    voidedTotal,
+    byPaymentMethod,
+    hourlyBreakdown,
+    dailyBreakdown,
+  }
+}
+
 // ─── Product Performance Report ────────────────────────────────────────────────
 
 export type ProductReportData = {

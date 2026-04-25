@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
-import { getZReport } from "@/lib/actions/reports"
+import { getSalesReading } from "@/lib/actions/reports"
 import { ZReportClient } from "./z-report-client"
 
 function getAdminClient() {
@@ -27,7 +27,6 @@ export default async function ZReportPage() {
 
   const branchId = profile?.role !== "owner" ? (profile?.branch_id ?? null) : null
 
-  // Resolve branch timezone so the initial date is today in local time, not UTC
   let timezone = "UTC"
   if (branchId) {
     const { data: branch } = await supabase.from("branches").select("timezone").eq("id", branchId).single()
@@ -38,7 +37,7 @@ export default async function ZReportPage() {
   }
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: timezone })
-  const initialData = await getZReport(today, branchId)
+  const initialData = await getSalesReading({ mode: "z-reading", date: today, branch_id: branchId })
 
   return <ZReportClient initialData={initialData} initialDate={today} userBranchId={branchId} />
 }

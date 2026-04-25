@@ -145,7 +145,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { label: "Products", href: "/reports/products", icon: PackageSearch },
       { label: "Suppliers", href: "/reports/suppliers", icon: Truck },
       { label: "Transaction History", href: "/reports/transactions", icon: History },
-      { label: "Z-Report", href: "/reports/z-report", icon: FileBarChart2 },
+      { label: "Sales Reading", href: "/reports/z-report", icon: FileBarChart2 },
     ],
   },
   {
