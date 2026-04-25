@@ -161,40 +161,58 @@ export async function createTransaction(params: {
     })
 
     // Allocate supplier stock cheapest-first for COGS tracking
-    const { data: supplierStocks } = await supabase
-      .from('product_supplier_stock')
-      .select('id, supplier_id, quantity, product_suppliers!inner(cost_price)')
-      .eq('product_id', item.product_id)
-      .eq('branch_id', profile.branch_id)
-      .gt('quantity', 0)
-      .order('product_suppliers.cost_price', { ascending: true })
+    const [{ data: productSuppliers }, { data: supplierStocks }] = await Promise.all([
+      supabase
+        .from('product_suppliers')
+        .select('supplier_id, cost_price')
+        .eq('product_id', item.product_id)
+        .order('cost_price', { ascending: true }),
+      supabase
+        .from('product_supplier_stock')
+        .select('supplier_id, quantity')
+        .eq('product_id', item.product_id)
+        .eq('branch_id', profile.branch_id)
+        .gt('quantity', 0),
+    ])
 
-    if (supplierStocks && supplierStocks.length > 0) {
-      let remaining = item.quantity
-      const allocations: Array<{ supplier_id: string; quantity: number; unit_cost: number }> = []
+    const stockMap = new Map<string, number>(
+      (supplierStocks ?? []).map((s: any) => [s.supplier_id, s.quantity])
+    )
 
-      for (const row of supplierStocks as any[]) {
-        if (remaining <= 0) break
-        const take = Math.min(remaining, row.quantity)
-        allocations.push({
-          supplier_id: row.supplier_id,
-          quantity: take,
-          unit_cost: row.product_suppliers.cost_price,
-        })
-        remaining -= take
-        await supabase
-          .from('product_supplier_stock')
-          .update({ quantity: row.quantity - take, updated_at: new Date().toISOString() })
-          .eq('id', row.id)
-      }
+    let remaining = item.quantity
+    const allocations: Array<{ supplier_id: string; quantity: number; unit_cost: number }> = []
 
-      if (allocations.length > 0) {
-        const txItem = (insertedItems ?? []).find((ti: any) => ti.product_id === item.product_id)
-        if (txItem) {
-          await supabase.from('transaction_item_supplier_costs').insert(
-            allocations.map((a) => ({ transaction_item_id: txItem.id, ...a }))
-          )
-        }
+    for (const ps of (productSuppliers ?? []) as any[]) {
+      if (remaining <= 0) break
+      const available = stockMap.get(ps.supplier_id) ?? 0
+      if (available <= 0) continue
+      const take = Math.min(remaining, available)
+      allocations.push({ supplier_id: ps.supplier_id, quantity: take, unit_cost: ps.cost_price })
+      remaining -= take
+      await supabase
+        .from('product_supplier_stock')
+        .update({ quantity: available - take, updated_at: new Date().toISOString() })
+        .eq('product_id', item.product_id)
+        .eq('supplier_id', ps.supplier_id)
+        .eq('branch_id', profile.branch_id)
+    }
+
+    // Fallback: no per-supplier stock tracked — attribute full qty to cheapest supplier
+    if (allocations.length === 0 && (productSuppliers ?? []).length > 0) {
+      const cheapest = (productSuppliers as any[])[0]
+      allocations.push({
+        supplier_id: cheapest.supplier_id,
+        quantity: item.quantity,
+        unit_cost: cheapest.cost_price,
+      })
+    }
+
+    if (allocations.length > 0) {
+      const txItem = (insertedItems ?? []).find((ti: any) => ti.product_id === item.product_id)
+      if (txItem) {
+        await supabase.from('transaction_item_supplier_costs').insert(
+          allocations.map((a) => ({ transaction_item_id: txItem.id, ...a }))
+        )
       }
     }
   }

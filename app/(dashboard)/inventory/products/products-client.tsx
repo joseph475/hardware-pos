@@ -55,6 +55,7 @@ interface ProductsClientProps {
   branches: Branch[];
   suppliers?: Pick<Supplier, "id" | "name">[];
   productSuppliersMap?: Record<string, Array<{ supplier_id: string; cost_price: number }>>;
+  userBranchId?: string | null;
 }
 
 const PAGE_SIZE = 6;
@@ -75,7 +76,7 @@ function ProductAvatar({ name }: { name: string }) {
   );
 }
 
-export function ProductsClient({ initialProducts, categories, branches, suppliers = [], productSuppliersMap = {} }: ProductsClientProps) {
+export function ProductsClient({ initialProducts, categories, branches, suppliers = [], productSuppliersMap = {}, userBranchId }: ProductsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { formatCurrency } = useCurrency();
@@ -143,6 +144,7 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
           categories={categories}
           branches={branches}
           suppliers={suppliers}
+          defaultBranchId={userBranchId ?? undefined}
           onSave={(values) => handleSave(undefined, values)}
           trigger={
             <Button>

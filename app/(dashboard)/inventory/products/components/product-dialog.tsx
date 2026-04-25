@@ -5,10 +5,12 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
 import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +83,7 @@ interface ProductDialogProps {
   categories: Category[];
   branches?: Branch[];
   suppliers?: Pick<Supplier, "id" | "name">[];
+  defaultBranchId?: string;
   onSave?: (values: ProductSaveValues) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -93,6 +96,7 @@ export function ProductDialog({
   categories,
   branches = [],
   suppliers = [],
+  defaultBranchId,
   onSave,
   open: controlledOpen,
   onOpenChange,
@@ -143,7 +147,7 @@ export function ProductDialog({
       is_active: product?.is_active ?? true,
       serial_required: product?.serial_required ?? false,
       suppliers: buildDefaultSuppliers(),
-      opening_stock_branch_id: "",
+      opening_stock_branch_id: defaultBranchId ?? "",
     },
   });
 
@@ -164,7 +168,7 @@ export function ProductDialog({
         is_active: product?.is_active ?? true,
         serial_required: product?.serial_required ?? false,
         suppliers: buildDefaultSuppliers(),
-        opening_stock_branch_id: "",
+        opening_stock_branch_id: defaultBranchId ?? "",
       });
       setImageUrl(product?.image_url ?? null);
     }
@@ -234,25 +238,22 @@ export function ProductDialog({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       {trigger && (
-        <SheetTrigger render={trigger as React.ReactElement} />
+        <DialogTrigger render={trigger as React.ReactElement} />
       )}
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-0">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="px-6 pt-6 pb-4 border-b border-border">
-            <h2 className="text-base font-semibold text-foreground">
-              {isEdit ? "Edit Product" : "Add Product"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {isEdit ? "Update product details" : "Add a new product to your inventory"}
-            </p>
-          </div>
+      <DialogContent className="sm:max-w-2xl p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-border pr-14">
+          <DialogTitle>{isEdit ? "Edit Product" : "Add Product"}</DialogTitle>
+          <DialogDescription className="mt-0.5">
+            {isEdit ? "Update product details" : "Add a new product to your inventory"}
+          </DialogDescription>
+        </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1">
-            <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto">
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto">
 
               {/* Name */}
               <div className="space-y-1.5">
@@ -591,14 +592,13 @@ export function ProductDialog({
             </div>
 
             {/* Footer */}
-            <div className="border-t border-border bg-muted/40 px-6 py-4 flex items-center justify-end gap-2">
-              <Button type="submit">
-                {isEdit ? "Save Changes" : "Add Product"}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </SheetContent>
-    </Sheet>
+          <div className="border-t border-border bg-muted/40 px-6 py-4 flex items-center justify-end gap-2">
+            <Button type="submit">
+              {isEdit ? "Save Changes" : "Add Product"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import type { Database, Category, Branch, Supplier } from "@/types/database";
 import { ProductsClient, type ProductWithCategory } from "./products-client";
 
@@ -10,21 +12,26 @@ function getAdminClient() {
 }
 
 export default async function ProductsPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
   const supabase = getAdminClient();
 
-  const [productsResult, categoriesResult, branchesResult, suppliersResult, productSuppliersResult] =
+  const [productsResult, categoriesResult, branchesResult, suppliersResult, productSuppliersResult, profileResult] =
     await Promise.all([
       supabase.from("products").select("*, categories(name)").order("name"),
       supabase.from("categories").select("*").order("name"),
       supabase.from("branches").select("*").eq("is_active", true).order("name"),
       supabase.from("suppliers").select("id, name").order("name"),
       supabase.from("product_suppliers").select("product_id, supplier_id, cost_price"),
+      supabase.from("profiles").select("branch_id").eq("clerk_user_id", userId).single(),
     ]);
 
   const rawProducts = productsResult.data ?? [];
   const categories: Category[] = (categoriesResult.data ?? []) as Category[];
   const branches: Branch[] = (branchesResult.data ?? []) as Branch[];
   const suppliers = (suppliersResult.data ?? []) as Pick<Supplier, "id" | "name">[];
+  const userBranchId = profileResult.data?.branch_id ?? null;
 
   const products: ProductWithCategory[] = rawProducts.map((p: any) => ({
     ...p,
@@ -46,6 +53,7 @@ export default async function ProductsPage() {
       branches={branches}
       suppliers={suppliers}
       productSuppliersMap={productSuppliersMap}
+      userBranchId={userBranchId}
     />
   );
 }

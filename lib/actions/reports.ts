@@ -664,34 +664,45 @@ export async function getSupplierFastMovingReport(params?: {
 }): Promise<SupplierProductRow[]> {
   const supabase = getAdminClient()
 
-  let query = supabase
+  // Step 1: get transaction_item IDs for completed transactions (avoids unreliable nested filters)
+  let txQuery = supabase
+    .from('transactions')
+    .select('id')
+    .eq('status', 'completed')
+
+  if (params?.date_from) txQuery = txQuery.gte('created_at', params.date_from)
+  if (params?.date_to) txQuery = txQuery.lte('created_at', params.date_to + 'T23:59:59')
+
+  const { data: txRows } = await txQuery
+  const txIds = (txRows ?? []).map((t: any) => t.id)
+  if (txIds.length === 0) return []
+
+  const { data: txItemRows } = await supabase
+    .from('transaction_items')
+    .select('id, product_id')
+    .in('transaction_id', txIds)
+
+  const txItemIds = (txItemRows ?? []).map((ti: any) => ti.id)
+  if (txItemIds.length === 0) return []
+
+  // Step 2: get COGS allocations for those items
+  let allocQuery = supabase
     .from('transaction_item_supplier_costs')
-    .select(`
-      supplier_id,
-      quantity,
-      unit_cost,
-      transaction_items!inner(
-        product_id,
-        transactions!inner(status, created_at)
-      )
-    `)
-    .eq('transaction_items.transactions.status', 'completed')
+    .select('supplier_id, quantity, unit_cost, transaction_item_id')
+    .in('transaction_item_id', txItemIds)
 
-  if (params?.date_from) {
-    query = query.gte('transaction_items.transactions.created_at', params.date_from)
-  }
-  if (params?.date_to) {
-    query = query.lte('transaction_items.transactions.created_at', params.date_to + 'T23:59:59')
-  }
   if (params?.supplier_id) {
-    query = query.eq('supplier_id', params.supplier_id)
+    allocQuery = allocQuery.eq('supplier_id', params.supplier_id)
   }
 
-  const { data: allocations } = await query
+  const { data: allocations } = await allocQuery
   if (!allocations || allocations.length === 0) return []
 
+  // Build product_id lookup from txItemRows
+  const itemProductMap = Object.fromEntries((txItemRows ?? []).map((ti: any) => [ti.id, ti.product_id]))
+
   const allRows = allocations as any[]
-  const productIds = [...new Set(allRows.map((r) => r.transaction_items?.product_id).filter(Boolean))]
+  const productIds = [...new Set(allRows.map((r) => itemProductMap[r.transaction_item_id]).filter(Boolean))]
   const supplierIds = [...new Set(allRows.map((r) => r.supplier_id).filter(Boolean))]
 
   const [{ data: products }, { data: suppliers }] = await Promise.all([
@@ -706,7 +717,7 @@ export async function getSupplierFastMovingReport(params?: {
 
   for (const row of allRows) {
     const supplierId: string = row.supplier_id
-    const productId: string = row.transaction_items?.product_id
+    const productId: string = itemProductMap[row.transaction_item_id]
     if (!supplierId || !productId) continue
 
     const key = `${supplierId}::${productId}`
@@ -851,5 +862,4 @@ export async function getSupplierReport(
     totalUnits: suppliers.reduce((sum, s) => sum + s.units_received, 0),
     totalPOs: new Set(pos.map((po: any) => po.id)).size,
   }
-}
 }

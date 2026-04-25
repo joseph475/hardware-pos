@@ -39,7 +39,7 @@ export async function upsertProduct(params: {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role')
+    .select('id, role, branch_id')
     .eq('clerk_user_id', userId)
     .single()
   if (!profile) throw new Error('Profile not found')
@@ -106,8 +106,9 @@ export async function upsertProduct(params: {
     if (psErr) throw new Error(psErr.message)
 
     // Add mode only: set opening stock per supplier at shared branch
-    if (!params.id && params.opening_stock_branch_id) {
-      const branchId = params.opening_stock_branch_id
+    const effectiveBranchId = params.opening_stock_branch_id || (profile as any).branch_id
+    if (!params.id && effectiveBranchId) {
+      const branchId = effectiveBranchId
       for (const s of supplierRows) {
         const qty = s.stock_qty ?? 0
         if (qty <= 0) continue
