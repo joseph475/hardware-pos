@@ -23,6 +23,7 @@ import {
   FileBarChart2,
   Users2,
   PackageSearch,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -90,6 +91,7 @@ const NAV_ENTRIES: NavEntry[] = [
     roles: ["owner", "manager", "cashier"],
     items: [
       { label: "Products", href: "/inventory/products", icon: Package },
+      { label: "Bundles", href: "/inventory/bundles", icon: Layers, roles: ["owner", "manager"] },
       { label: "Stock Levels", href: "/inventory/stock", icon: BarChart3 },
       {
         label: "Adjustments",
