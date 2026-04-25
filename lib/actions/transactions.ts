@@ -22,6 +22,15 @@ export interface TxItem {
   serials?: string[]
 }
 
+export interface TxBundleItem {
+  bundle_id: string
+  bundle_name: string
+  quantity: number
+  unit_price: number
+  discount_amount: number
+  components: Array<{ product_id: string; product_name: string; quantity: number }>
+}
+
 async function getProfile() {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
@@ -56,6 +65,7 @@ async function getProfile() {
 
 export async function createTransaction(params: {
   items: TxItem[]
+  bundleItems?: TxBundleItem[]
   subtotal: number
   discount_amount: number
   tax_amount: number
@@ -91,6 +101,34 @@ export async function createTransaction(params: {
   }
   if (insufficientItems.length > 0) {
     throw new Error(`Insufficient stock for: ${insufficientItems.join(', ')}`)
+  }
+
+  // Validate bundle component stock
+  const bundleItemsParam = params.bundleItems ?? []
+  if (bundleItemsParam.length > 0) {
+    const allComponentIds = bundleItemsParam.flatMap((bi) => bi.components.map((c) => c.product_id))
+    const { data: bundleInvRows } = await supabase
+      .from('inventory')
+      .select('product_id, quantity')
+      .in('product_id', allComponentIds)
+      .eq('branch_id', profile.branch_id)
+
+    const bundleStockMap = new Map<string, number>()
+    for (const row of (bundleInvRows ?? []) as any[]) {
+      bundleStockMap.set(row.product_id, row.quantity)
+    }
+
+    for (const bundleItem of bundleItemsParam) {
+      for (const component of bundleItem.components) {
+        const required = component.quantity * bundleItem.quantity
+        const available = bundleStockMap.get(component.product_id) ?? 0
+        if (available < required) {
+          throw new Error(
+            `Bundle '${bundleItem.bundle_name}' requires ${required}× ${component.product_name} but only ${available} in stock`
+          )
+        }
+      }
+    }
   }
 
   const { data: transaction, error: txError } = await supabase
@@ -217,6 +255,50 @@ export async function createTransaction(params: {
     }
   }
 
+  // Process bundle items — insert one transaction_item per bundle, deduct each component
+  for (const bundleItem of bundleItemsParam) {
+    await supabase.from('transaction_items').insert({
+      transaction_id: transaction.id,
+      product_id: null,
+      bundle_id: bundleItem.bundle_id,
+      product_name: bundleItem.bundle_name,
+      quantity: bundleItem.quantity,
+      unit_price: bundleItem.unit_price,
+      discount_amount: bundleItem.discount_amount,
+      total: bundleItem.unit_price * bundleItem.quantity - bundleItem.discount_amount,
+      serials: [],
+    })
+
+    for (const component of bundleItem.components) {
+      const deductQty = component.quantity * bundleItem.quantity
+
+      const { data: inv } = await supabase
+        .from('inventory')
+        .select('quantity')
+        .eq('product_id', component.product_id)
+        .eq('branch_id', profile.branch_id)
+        .single()
+
+      if (inv) {
+        await supabase
+          .from('inventory')
+          .update({ quantity: Math.max(0, inv.quantity - deductQty) })
+          .eq('product_id', component.product_id)
+          .eq('branch_id', profile.branch_id)
+      }
+
+      await supabase.from('inventory_movements').insert({
+        product_id: component.product_id,
+        branch_id: profile.branch_id,
+        type: 'sale',
+        quantity: -deductQty,
+        reference_id: transaction.id,
+        notes: `Bundle '${bundleItem.bundle_name}' sale #${transaction.id.slice(0, 8)}`,
+        created_by: profile.id,
+      })
+    }
+  }
+
   revalidateTag(CACHE_TAGS.INVENTORY, {})
   revalidateTag(CACHE_TAGS.INVENTORY_MOVEMENTS, {})
   revalidatePath('/inventory')
@@ -262,7 +344,7 @@ export async function voidTransaction(id: string, reason: string, managerPin?: s
   // Get items before voiding
   const { data: txItems } = await supabase
     .from('transaction_items')
-    .select('product_id, product_name, quantity')
+    .select('product_id, bundle_id, product_name, quantity')
     .eq('transaction_id', id)
 
   // Mark as voided
@@ -280,31 +362,69 @@ export async function voidTransaction(id: string, reason: string, managerPin?: s
   if (updateError) throw new Error(updateError.message)
 
   // Restore inventory
-  for (const item of txItems ?? []) {
-    const { data: inv } = await supabase
-      .from('inventory')
-      .select('quantity')
-      .eq('product_id', item.product_id)
-      .eq('branch_id', tx.branch_id)
-      .single()
-
-    if (inv) {
-      await supabase
+  for (const item of (txItems ?? []) as any[]) {
+    if (item.product_id) {
+      // Regular product item
+      const { data: inv } = await supabase
         .from('inventory')
-        .update({ quantity: inv.quantity + item.quantity })
+        .select('quantity')
         .eq('product_id', item.product_id)
         .eq('branch_id', tx.branch_id)
-    }
+        .single()
 
-    await supabase.from('inventory_movements').insert({
-      product_id: item.product_id,
-      branch_id: tx.branch_id,
-      type: 'adjustment',
-      quantity: item.quantity,
-      reference_id: id,
-      notes: `Void of transaction #${id.slice(0, 8)}: ${reason}`,
-      created_by: profile.id,
-    })
+      if (inv) {
+        await supabase
+          .from('inventory')
+          .update({ quantity: inv.quantity + item.quantity })
+          .eq('product_id', item.product_id)
+          .eq('branch_id', tx.branch_id)
+      }
+
+      await supabase.from('inventory_movements').insert({
+        product_id: item.product_id,
+        branch_id: tx.branch_id,
+        type: 'adjustment',
+        quantity: item.quantity,
+        reference_id: id,
+        notes: `Void of transaction #${id.slice(0, 8)}: ${reason}`,
+        created_by: profile.id,
+      })
+    } else if (item.bundle_id) {
+      // Bundle item — restore each component using current bundle definition
+      const { data: bundleItemRows } = await supabase
+        .from('bundle_items')
+        .select('product_id, quantity, products(name)')
+        .eq('bundle_id', item.bundle_id)
+
+      for (const comp of (bundleItemRows ?? []) as any[]) {
+        const restoreQty = comp.quantity * item.quantity
+
+        const { data: inv } = await supabase
+          .from('inventory')
+          .select('quantity')
+          .eq('product_id', comp.product_id)
+          .eq('branch_id', tx.branch_id)
+          .single()
+
+        if (inv) {
+          await supabase
+            .from('inventory')
+            .update({ quantity: inv.quantity + restoreQty })
+            .eq('product_id', comp.product_id)
+            .eq('branch_id', tx.branch_id)
+        }
+
+        await supabase.from('inventory_movements').insert({
+          product_id: comp.product_id,
+          branch_id: tx.branch_id,
+          type: 'adjustment',
+          quantity: restoreQty,
+          reference_id: id,
+          notes: `Void of bundle transaction #${id.slice(0, 8)}: ${reason}`,
+          created_by: profile.id,
+        })
+      }
+    }
   }
 
   revalidateTag(CACHE_TAGS.INVENTORY, {})
