@@ -29,7 +29,7 @@ import { Separator } from "@/components/ui/separator"
 import { getSalesReading, type SalesReadingData } from "@/lib/actions/reports"
 import { useCurrency } from "@/lib/context/currency"
 
-type Mode = "z-reading" | "x-reading"
+type Mode = "z-reading" | "x-reading" | "all-time"
 
 function StatCard({
   label,
@@ -97,11 +97,13 @@ function PrintContent({
   dateTo: string
   formatCurrency: (v: number) => string
 }) {
-  const header = mode === "z-reading" ? "Z-READING" : "X-READING"
+  const header = mode === "z-reading" ? "Z-READING" : mode === "x-reading" ? "X-READING" : "ALL-TIME READING"
   const subHeader =
     mode === "z-reading"
       ? `End-of-Day Summary — ${date}`
-      : `Date Range Summary — ${dateFrom} to ${dateTo}`
+      : mode === "x-reading"
+      ? `Date Range Summary — ${dateFrom} to ${dateTo}`
+      : "All Sales — Full History"
 
   return (
     <div id="z-report-print">
@@ -243,7 +245,7 @@ export function ZReportClient({
           date_from: m === "x-reading" ? from : undefined,
           date_to: m === "x-reading" ? to : undefined,
           branch_id: userBranchId,
-        })
+        } as Parameters<typeof getSalesReading>[0])
         setData(result)
       } catch (err) {
         toast.error("Failed to load report", {
@@ -272,6 +274,7 @@ export function ZReportClient({
   }))
 
   const chartData = mode === "z-reading" ? hourlyChartData : dailyChartData
+  const isDaily = mode !== "z-reading"
   const hasChart = chartData.some((d) => d.revenue > 0)
 
   return (
@@ -281,38 +284,35 @@ export function ZReportClient({
         <div>
           <h1 className="text-xl font-semibold text-foreground">Sales Reading</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {mode === "z-reading" ? "End-of-day summary for a single date" : "Aggregate summary over a date range"}
+            {mode === "z-reading"
+              ? "End-of-day summary for a single date"
+              : mode === "x-reading"
+              ? "Aggregate summary over a date range"
+              : "All sales from the beginning to today"}
           </p>
         </div>
 
         {/* Mode toggle */}
         <div className="flex rounded-lg border border-border overflow-hidden self-start">
-          <button
-            onClick={() => switchMode("z-reading")}
-            className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-              mode === "z-reading"
-                ? "bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Z-Reading
-          </button>
-          <button
-            onClick={() => switchMode("x-reading")}
-            className={`px-4 py-1.5 text-sm font-medium transition-colors border-l border-border ${
-              mode === "x-reading"
-                ? "bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            X-Reading
-          </button>
+          {(["z-reading", "x-reading", "all-time"] as const).map((m, i) => (
+            <button
+              key={m}
+              onClick={() => switchMode(m)}
+              className={`px-4 py-1.5 text-sm font-medium transition-colors ${i > 0 ? "border-l border-border" : ""} ${
+                mode === m
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {m === "z-reading" ? "Z-Reading" : m === "x-reading" ? "X-Reading" : "All Time"}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Date controls */}
       <div className="flex flex-wrap items-end gap-3">
-        {mode === "z-reading" ? (
+        {mode === "all-time" ? null : mode === "z-reading" ? (
           <div className="space-y-1">
             <Label htmlFor="report-date" className="text-xs">Date</Label>
             <Input
@@ -384,7 +384,9 @@ export function ZReportClient({
           <p className="text-xs text-muted-foreground">
             {mode === "z-reading"
               ? `No completed sales were found for ${date}.`
-              : "No completed sales were found for the selected date range."}
+              : mode === "x-reading"
+              ? "No completed sales were found for the selected date range."
+              : "No completed sales recorded yet."}
           </p>
         </div>
       ) : (
@@ -454,13 +456,13 @@ export function ZReportClient({
             <Card>
               <CardHeader className="border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  {mode === "z-reading" ? (
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  ) : (
+                  {isDaily ? (
                     <CalendarRange className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                   )}
                   <CardTitle className="text-sm font-semibold">
-                    {mode === "z-reading" ? "Hourly Breakdown" : "Daily Breakdown"}
+                    {isDaily ? "Daily Breakdown" : "Hourly Breakdown"}
                   </CardTitle>
                 </div>
               </CardHeader>
@@ -469,7 +471,7 @@ export function ZReportClient({
                   <BarChart
                     data={chartData}
                     margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
-                    barSize={mode === "z-reading" ? 14 : undefined}
+                    barSize={isDaily ? undefined : 14}
                   >
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
                     <XAxis
@@ -478,9 +480,9 @@ export function ZReportClient({
                       axisLine={false}
                       tickLine={false}
                       dy={6}
-                      interval={mode === "z-reading" ? 1 : 0}
-                      angle={mode === "x-reading" && chartData.length > 10 ? -45 : 0}
-                      textAnchor={mode === "x-reading" && chartData.length > 10 ? "end" : "middle"}
+                      interval={isDaily ? 0 : 1}
+                      angle={isDaily && chartData.length > 10 ? -45 : 0}
+                      textAnchor={isDaily && chartData.length > 10 ? "end" : "middle"}
                     />
                     <YAxis
                       tickFormatter={(v: number) =>

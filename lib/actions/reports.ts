@@ -336,7 +336,7 @@ export type SalesReadingData = {
 }
 
 export async function getSalesReading(params: {
-  mode: 'x-reading' | 'z-reading'
+  mode: 'x-reading' | 'z-reading' | 'all-time'
   date?: string
   date_from?: string
   date_to?: string
@@ -370,6 +370,7 @@ export async function getSalesReading(params: {
     const { dayEnd } = getDateBoundsInTZ(params.date_to, timezone)
     query = query.gte('created_at', dayStart).lte('created_at', dayEnd)
   }
+  // all-time: no date filter applied
 
   const { data: txns, error } = await query
   if (error) throw new Error(error.message)
@@ -412,9 +413,9 @@ export async function getSalesReading(params: {
     .sort(([a], [b]) => a - b)
     .map(([hour, vals]) => ({ hour, revenue: Math.round(vals.revenue * 100) / 100, count: vals.count }))
 
-  // Daily breakdown for X-reading
+  // Daily breakdown for X-reading and all-time
   const dayMap = new Map<string, { revenue: number; count: number }>()
-  if (params.mode === 'x-reading') {
+  if (params.mode === 'x-reading' || params.mode === 'all-time') {
     for (const t of completed) {
       const localDate = new Date(t.created_at).toLocaleDateString('en-CA', { timeZone: timezone })
       const entry = dayMap.get(localDate) ?? { revenue: 0, count: 0 }
