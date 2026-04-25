@@ -30,7 +30,6 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useUserProfile } from "@/lib/context/user-profile";
 
@@ -141,7 +140,6 @@ const NAV_ENTRIES: NavEntry[] = [
     defaultOpen: false,
     roles: ["owner", "manager"],
     items: [
-      { label: "Sales", href: "/reports/sales", icon: BarChart3 },
       { label: "Products", href: "/reports/products", icon: PackageSearch },
       { label: "Suppliers", href: "/reports/suppliers", icon: Truck },
       { label: "Transaction History", href: "/reports/transactions", icon: History },
@@ -320,7 +318,7 @@ export function SidebarNav({ className, onNavigate }: SidebarNavProps) {
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-2 py-3">
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3">
         <nav
           className="flex flex-col gap-0.5"
           onClick={onNavigate}
@@ -376,7 +374,7 @@ export function SidebarNav({ className, onNavigate }: SidebarNavProps) {
             );
           })}
         </nav>
-      </ScrollArea>
+      </div>
 
       {/* Footer */}
       <div className="mt-auto border-t border-sidebar-border px-3 py-3">

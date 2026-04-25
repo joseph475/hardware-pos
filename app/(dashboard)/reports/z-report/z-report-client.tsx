@@ -3,10 +3,12 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
-import { Printer, TrendingUp, ShoppingCart, Tag, Ban, Clock, CalendarRange } from "lucide-react"
+import { Printer, TrendingUp, ShoppingCart, Clock, CalendarRange, CreditCard, Package, Download } from "lucide-react"
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,7 +18,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -26,39 +30,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
-import { getSalesReading, type SalesReadingData } from "@/lib/actions/reports"
+import { getSalesReading, getSalesReport, type SalesReadingData, type SalesReportData } from "@/lib/actions/reports"
 import { useCurrency } from "@/lib/context/currency"
+import { formatNumber } from "@/lib/format"
 
 type Mode = "z-reading" | "x-reading" | "all-time"
-
-function StatCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  accent,
-}: {
-  label: string
-  value: string
-  sub?: string
-  icon: React.ElementType
-  accent?: boolean
-}) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-          <Icon className="h-4 w-4" />
-          {label}
-        </div>
-        <p className={`text-2xl font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>
-          {value}
-        </p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-      </CardContent>
-    </Card>
-  )
-}
 
 function paymentLabel(method: string): string {
   const map: Record<string, string> = {
@@ -214,7 +190,38 @@ function PrintContent({
   )
 }
 
+const METHOD_CONFIG: Record<string, string> = {
+  card: "bg-blue-500/15 text-blue-500 border-transparent",
+  cash: "bg-emerald-500/15 text-emerald-500 border-transparent",
+  split: "bg-violet-500/15 text-violet-500 border-transparent",
+}
+
+function downloadCSV(rows: Record<string, unknown>[], filename: string) {
+  if (rows.length === 0) return
+  const headers = Object.keys(rows[0])
+  const escape = (v: unknown) => JSON.stringify(v ?? "")
+  const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n")
+  const blob = new Blob([csv], { type: "text/csv" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ─── Main client component ────────────────────────────────────────────────────
+
+const EMPTY_ANALYTICS: SalesReportData = {
+  revenue: 0,
+  transactionCount: 0,
+  avgOrderValue: 0,
+  itemsSold: 0,
+  dailyRevenue: [],
+  topProducts: [],
+  recentTransactions: [],
+  branchComparison: [],
+}
 
 export function ZReportClient({
   initialData,
@@ -225,7 +232,7 @@ export function ZReportClient({
   initialDate: string
   userBranchId?: string | null
 }) {
-  const { formatCurrency, currencySymbol } = useCurrency()
+  const { formatCurrency, currencySymbol, currencyCode, locale } = useCurrency()
   const [mode, setMode] = React.useState<Mode>("z-reading")
   const [data, setData] = React.useState(initialData)
   const [date, setDate] = React.useState(initialDate)
@@ -234,19 +241,48 @@ export function ZReportClient({
   const [isPending, startTransition] = React.useTransition()
   const [mounted, setMounted] = React.useState(false)
 
-  React.useEffect(() => setMounted(true), [])
+  const [analyticsData, setAnalyticsData] = React.useState<SalesReportData>(EMPTY_ANALYTICS)
+  const [analyticsLoading, setAnalyticsLoading] = React.useState(true)
+
+  const formatAxis = React.useCallback(
+    (v: number) =>
+      new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currencyCode,
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(v),
+    [currencyCode, locale]
+  )
+
+  React.useEffect(() => {
+    setMounted(true)
+    // Initial analytics fetch on the client after hydration
+    const from = `${initialDate}T00:00:00.000Z`
+    const to = `${initialDate}T23:59:59.999Z`
+    getSalesReport("day", userBranchId, from, to)
+      .then(setAnalyticsData)
+      .catch(() => {})
+      .finally(() => setAnalyticsLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function fetchData(m: Mode, d: string, from: string, to: string) {
+    const analyticsFrom = m === "all-time" ? null : m === "z-reading" ? `${d}T00:00:00.000Z` : `${from}T00:00:00.000Z`
+    const analyticsTo = m === "all-time" ? null : m === "z-reading" ? `${d}T23:59:59.999Z` : `${to}T23:59:59.999Z`
     startTransition(async () => {
       try {
-        const result = await getSalesReading({
-          mode: m,
-          date: m === "z-reading" ? d : undefined,
-          date_from: m === "x-reading" ? from : undefined,
-          date_to: m === "x-reading" ? to : undefined,
-          branch_id: userBranchId,
-        } as Parameters<typeof getSalesReading>[0])
-        setData(result)
+        const [readingResult, analyticsResult] = await Promise.all([
+          getSalesReading({
+            mode: m,
+            date: m === "z-reading" ? d : undefined,
+            date_from: m === "x-reading" ? from : undefined,
+            date_to: m === "x-reading" ? to : undefined,
+            branch_id: userBranchId,
+          } as Parameters<typeof getSalesReading>[0]),
+          getSalesReport(m === "all-time" ? "all-time" : "custom", userBranchId, analyticsFrom, analyticsTo),
+        ])
+        setData(readingResult)
+        setAnalyticsData(analyticsResult)
       } catch (err) {
         toast.error("Failed to load report", {
           description: err instanceof Error ? err.message : "Something went wrong",
@@ -278,7 +314,7 @@ export function ZReportClient({
   const hasChart = chartData.some((d) => d.revenue > 0)
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
@@ -374,54 +410,193 @@ export function ZReportClient({
         {isPending && <span className="text-xs text-muted-foreground self-end pb-2">Loading…</span>}
       </div>
 
-      {/* Empty state */}
-      {!hasData ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-          <div className="rounded-full bg-muted p-4">
-            <ShoppingCart className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <p className="text-sm font-medium text-foreground">No transactions recorded</p>
-          <p className="text-xs text-muted-foreground">
-            {mode === "z-reading"
-              ? `No completed sales were found for ${date}.`
-              : mode === "x-reading"
-              ? "No completed sales were found for the selected date range."
-              : "No completed sales recorded yet."}
-          </p>
+      {/* ── Sales Analytics ── */}
+      <div className="space-y-5">
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {(isPending || analyticsLoading)
+            ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+            : [
+                { label: "Revenue", value: formatCurrency(analyticsData.revenue), icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                { label: "Transactions", value: formatNumber(analyticsData.transactionCount), icon: ShoppingCart, color: "text-blue-500", bg: "bg-blue-500/10" },
+                { label: "Avg. Order Value", value: formatCurrency(analyticsData.avgOrderValue), icon: CreditCard, color: "text-violet-500", bg: "bg-violet-500/10" },
+                { label: "Items Sold", value: formatNumber(analyticsData.itemsSold), icon: Package, color: "text-amber-500", bg: "bg-amber-500/10" },
+              ].map(({ label, value, icon: Icon, color, bg }) => (
+                <Card key={label}>
+                  <CardContent className="flex items-center gap-3 py-4">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${bg}`}>
+                      <Icon className={`h-5 w-5 ${color}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-lg font-semibold text-foreground truncate">{value}</p>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
         </div>
-      ) : (
-        <>
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard
-              label="Total Sales"
-              value={String(data.salesCount)}
-              sub={data.avgTransactionValue > 0 ? `avg ${formatCurrency(data.avgTransactionValue)}` : undefined}
-              icon={ShoppingCart}
-              accent
-            />
-            <StatCard
-              label="Total Revenue"
-              value={formatCurrency(data.totalRevenue)}
-              icon={TrendingUp}
-              accent
-            />
-            <StatCard
-              label="Total Discounts"
-              value={formatCurrency(data.totalDiscounts)}
-              icon={Tag}
-            />
-            <StatCard
-              label="Voided"
-              value={String(data.voidCount)}
-              sub={data.voidCount > 0 ? formatCurrency(data.voidedTotal) : undefined}
-              icon={Ban}
-            />
-          </div>
 
-          <Separator />
+        {/* Charts row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2">
+            <CardHeader className="border-b border-border pb-3">
+              <CardTitle className="text-sm font-medium">Daily Revenue</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {(isPending || analyticsLoading) ? (
+                <Skeleton className="h-56 w-full rounded-md" />
+              ) : analyticsData.dailyRevenue.length === 0 ? (
+                <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">No transactions in this period</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={analyticsData.dailyRevenue} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.4} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} tickFormatter={formatAxis} width={60} />
+                    <Tooltip content={({ active, payload, label: lbl }) => {
+                      if (!active || !payload?.length) return null
+                      return (
+                        <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-md text-xs">
+                          <p className="font-medium text-popover-foreground mb-1">{lbl}</p>
+                          <p className="text-muted-foreground">{formatCurrency(payload[0].value as number)}</p>
+                        </div>
+                      )
+                    }} />
+                    <Line type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Payment method breakdown */}
+          <Card>
+            <CardHeader className="border-b border-border pb-3">
+              <CardTitle className="text-sm font-medium">Top 5 Products</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {(isPending || analyticsLoading) ? (
+                <Skeleton className="h-56 w-full rounded-md" />
+              ) : analyticsData.topProducts.length === 0 ? (
+                <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">No sales in this period</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={analyticsData.topProducts} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.4} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} tickFormatter={formatAxis} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={110} />
+                    <Tooltip content={({ active, payload, label: lbl }) => {
+                      if (!active || !payload?.length) return null
+                      return (
+                        <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-md text-xs">
+                          <p className="font-medium text-popover-foreground mb-1">{lbl}</p>
+                          <p className="text-muted-foreground">{formatCurrency(payload[0].value as number)}</p>
+                        </div>
+                      )
+                    }} />
+                    <Bar dataKey="revenue" fill="var(--primary)" radius={[0, 4, 4, 0]} opacity={0.85} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent transactions + branch comparison */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2">
+            <CardHeader className="border-b border-border pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium">Recent Transactions</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={isPending || analyticsLoading || analyticsData.recentTransactions.length === 0}
+                onClick={() => downloadCSV(
+                  analyticsData.recentTransactions.map((t) => ({
+                    receipt_id: t.id, branch: t.branch, cashier: t.cashier, items: t.items, total: t.total, payment_method: t.method, time: t.time,
+                  })),
+                  "sales-report.csv"
+                )}
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                Export CSV
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isPending ? (
+                <div className="p-4 space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full rounded-md" />)}</div>
+              ) : analyticsData.recentTransactions.length === 0 ? (
+                <div className="py-12 flex items-center justify-center text-sm text-muted-foreground">No transactions in this period</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b border-border hover:bg-transparent">
+                      <TableHead className="pl-4">ID</TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead>Cashier</TableHead>
+                      <TableHead className="text-center">Items</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead className="pr-4">Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {analyticsData.recentTransactions.map((txn) => (
+                      <TableRow key={txn.id} className="border-b border-border/50">
+                        <TableCell className="pl-4 font-mono text-xs text-foreground">{txn.id}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{txn.branch}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{txn.cashier}</TableCell>
+                        <TableCell className="text-center text-sm tabular-nums text-muted-foreground">{txn.items}</TableCell>
+                        <TableCell className="text-right font-mono text-sm font-medium">{formatCurrency(txn.total)}</TableCell>
+                        <TableCell>
+                          <Badge className={METHOD_CONFIG[txn.method] ?? ""}>{txn.method.charAt(0).toUpperCase() + txn.method.slice(1)}</Badge>
+                        </TableCell>
+                        <TableCell className="pr-4 font-mono text-xs text-muted-foreground">{txn.time}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b border-border pb-3">
+              <CardTitle className="text-sm font-medium">Branch Comparison</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              {isPending ? (
+                Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-md" />)
+              ) : analyticsData.branchComparison.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No data for this period</p>
+              ) : (
+                (() => {
+                  const maxRevenue = Math.max(...analyticsData.branchComparison.map((x) => x.revenue))
+                  const BAR_COLORS = ["bg-primary", "bg-blue-500", "bg-violet-500", "bg-amber-500", "bg-rose-500"]
+                  return analyticsData.branchComparison.map((b, i) => {
+                    const pct = maxRevenue > 0 ? Math.round((b.revenue / maxRevenue) * 100) : 0
+                    return (
+                      <div key={b.branch} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-foreground">{b.branch}</span>
+                          <span className="font-mono text-muted-foreground">{formatCurrency(b.revenue)}</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full rounded-full ${BAR_COLORS[i % BAR_COLORS.length]}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{b.transactions} transactions</p>
+                      </div>
+                    )
+                  })
+                })()
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Payment method breakdown */}
+        {hasData && (
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-3">Payment Method Breakdown</h2>
             <div className="rounded-lg border border-border overflow-hidden">
@@ -450,80 +625,80 @@ export function ZReportClient({
               </Table>
             </div>
           </div>
+        )}
 
-          {/* Chart */}
-          {hasChart && (
-            <Card>
-              <CardHeader className="border-b border-border pb-3">
-                <div className="flex items-center gap-2">
-                  {isDaily ? (
-                    <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <CardTitle className="text-sm font-semibold">
-                    {isDaily ? "Daily Breakdown" : "Hourly Breakdown"}
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
-                    barSize={isDaily ? undefined : 14}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fill: "oklch(0.708 0 0)", fontSize: 10 }}
-                      axisLine={false}
-                      tickLine={false}
-                      dy={6}
-                      interval={isDaily ? 0 : 1}
-                      angle={isDaily && chartData.length > 10 ? -45 : 0}
-                      textAnchor={isDaily && chartData.length > 10 ? "end" : "middle"}
-                    />
-                    <YAxis
-                      tickFormatter={(v: number) =>
-                        v === 0 ? "0" : `${currencySymbol}${(v / 1000).toFixed(0)}k`
-                      }
-                      tick={{ fill: "oklch(0.708 0 0)", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      dx={-4}
-                      width={40}
-                    />
-                    <Tooltip
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          const entry = chartData.find((d) => d.label === label)
-                          return (
-                            <div className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 shadow-xl">
-                              <p className="text-xs font-medium text-zinc-400">{label}</p>
-                              <p className="text-sm font-semibold text-zinc-100">
-                                {formatCurrency(payload[0].value as number)}
+        {/* Hourly / Daily breakdown chart */}
+        {hasData && hasChart && (
+          <Card>
+            <CardHeader className="border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                {isDaily ? (
+                  <CalendarRange className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                )}
+                <CardTitle className="text-sm font-semibold">
+                  {isDaily ? "Daily Breakdown" : "Hourly Breakdown"}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                  barSize={isDaily ? undefined : 14}
+                >
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: "oklch(0.708 0 0)", fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    dy={6}
+                    interval={isDaily ? 0 : 1}
+                    angle={isDaily && chartData.length > 10 ? -45 : 0}
+                    textAnchor={isDaily && chartData.length > 10 ? "end" : "middle"}
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) =>
+                      v === 0 ? "0" : `${currencySymbol}${(v / 1000).toFixed(0)}k`
+                    }
+                    tick={{ fill: "oklch(0.708 0 0)", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    dx={-4}
+                    width={40}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const entry = chartData.find((d) => d.label === label)
+                        return (
+                          <div className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 shadow-xl">
+                            <p className="text-xs font-medium text-zinc-400">{label}</p>
+                            <p className="text-sm font-semibold text-zinc-100">
+                              {formatCurrency(payload[0].value as number)}
+                            </p>
+                            {entry && (
+                              <p className="text-xs text-zinc-400">
+                                {entry.count} sale{entry.count !== 1 ? "s" : ""}
                               </p>
-                              {entry && (
-                                <p className="text-xs text-zinc-400">
-                                  {entry.count} sale{entry.count !== 1 ? "s" : ""}
-                                </p>
-                              )}
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
-                      cursor={{ fill: "oklch(1 0 0 / 4%)" }}
-                    />
-                    <Bar dataKey="revenue" fill="oklch(0.488 0.243 264.376)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
+                            )}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                    cursor={{ fill: "oklch(1 0 0 / 4%)" }}
+                  />
+                  <Bar dataKey="revenue" fill="oklch(0.488 0.243 264.376)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {mounted &&
         createPortal(

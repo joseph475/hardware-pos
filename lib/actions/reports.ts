@@ -66,24 +66,35 @@ export type SalesReportData = {
   branchComparison: { branch: string; revenue: number; transactions: number }[]
 }
 
-export async function getSalesReport(range: string, branchId?: string | null): Promise<SalesReportData> {
+export async function getSalesReport(
+  range: string,
+  branchId?: string | null,
+  explicitFrom?: string | null,
+  explicitTo?: string | null
+): Promise<SalesReportData> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
   const supabase = getAdminClient()
-  const startDate = getRangeStart(range)
 
   // 1. Fetch all completed transactions in range
   let txnQuery = supabase
     .from('transactions')
     .select('id, total, payment_method, created_at, branch_id, cashier_id')
     .eq('status', 'completed')
-    .gte('created_at', startDate)
-    .order('created_at', { ascending: false })
+
+  if (range !== 'all-time') {
+    if (explicitFrom) {
+      txnQuery = txnQuery.gte('created_at', explicitFrom)
+      if (explicitTo) txnQuery = txnQuery.lte('created_at', explicitTo)
+    } else {
+      txnQuery = txnQuery.gte('created_at', getRangeStart(range))
+    }
+  }
 
   if (branchId) txnQuery = txnQuery.eq('branch_id', branchId)
 
-  const { data: txns, error: txnError } = await txnQuery
+  const { data: txns, error: txnError } = await txnQuery.order('created_at', { ascending: false })
 
   if (txnError) throw new Error(txnError.message)
 
