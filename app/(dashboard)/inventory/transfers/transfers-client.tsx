@@ -48,6 +48,8 @@ interface TransfersClientProps {
   products: Product[];
   isCashier: boolean;
   userBranchId: string | null;
+  isOwner: boolean;
+  inventoryMap: Record<string, Record<string, number>>;
 }
 
 const STATUS_CONFIG: Record<TransferStatus, { label: string; className: string }> = {
@@ -173,7 +175,7 @@ function TransfersTable({
   );
 }
 
-export function TransfersClient({ initialTransfers, branches, products, isCashier, userBranchId }: TransfersClientProps) {
+export function TransfersClient({ initialTransfers, branches, products, isCashier, userBranchId, isOwner, inventoryMap }: TransfersClientProps) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [isPending, startTransition] = useTransition();
@@ -263,6 +265,9 @@ export function TransfersClient({ initialTransfers, branches, products, isCashie
         onOpenChange={handleSheetOpenChange}
         branches={branches}
         products={products}
+        userBranchId={userBranchId}
+        isOwner={isOwner}
+        inventoryMap={inventoryMap}
       />
     </div>
   );

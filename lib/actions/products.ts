@@ -21,6 +21,7 @@ export async function upsertProduct(params: {
   sku: string
   barcode?: string
   category_id?: string
+  supplier_id?: string
   unit: string
   cost_price: number
   selling_price: number

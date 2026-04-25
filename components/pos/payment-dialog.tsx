@@ -15,6 +15,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useCartStore } from "@/lib/store/cart"
 import { useCurrency } from "@/lib/context/currency"
 import { useUserProfile } from "@/lib/context/user-profile"
@@ -22,7 +29,11 @@ import { createTransaction } from "@/lib/actions/transactions"
 import { sendQuotationToPos } from "@/lib/actions/quotations"
 import { ReceiptDialog, type ReceiptData } from "@/components/pos/receipt-dialog"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet"
+type SplitLegMethod = "cash" | "card" | "e_wallet"
+
+const EWALLET_PROVIDERS = ["GCash", "PayMaya", "Maribank"] as const
+type EwalletProvider = typeof EWALLET_PROVIDERS[number]
 
 interface PaymentDialogProps {
   open: boolean
@@ -42,6 +53,12 @@ function paymentMethodLabel(method: PaymentMethod): string {
   if (method === "maya") return "Maya"
   if (method === "split") return "Split"
   if (method === "check") return "Check"
+  if (method === "e_wallet") return "E-Wallet"
+  return method.charAt(0).toUpperCase() + method.slice(1)
+}
+
+function splitLegLabel(method: SplitLegMethod): string {
+  if (method === "e_wallet") return "E-Wallet"
   return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
@@ -62,8 +79,15 @@ export function PaymentDialog({
   const { profile, branch } = useUserProfile()
 
   const [cashTendered, setCashTendered] = React.useState("")
-  const [splitCash, setSplitCash] = React.useState("")
-  const [splitCard, setSplitCard] = React.useState("")
+  // Split state — two independent legs
+  const [splitMethod1, setSplitMethod1] = React.useState<SplitLegMethod>("cash")
+  const [splitAmount1, setSplitAmount1] = React.useState("")
+  const [splitMethod2, setSplitMethod2] = React.useState<SplitLegMethod>("card")
+  const [splitAmount2, setSplitAmount2] = React.useState("")
+  // E-wallet state (shared between standalone e_wallet and split legs)
+  const [ewalletProvider, setEwalletProvider] = React.useState<EwalletProvider>("GCash")
+  const [ewalletReference, setEwalletReference] = React.useState("")
+  // Check state
   const [checkBankName, setCheckBankName] = React.useState("")
   const [checkDate, setCheckDate] = React.useState("")
   const [checkNumber, setCheckNumber] = React.useState("")
@@ -90,7 +114,6 @@ export function PaymentDialog({
     return () => clearInterval(interval)
   }, [isQrPayment, open])
 
-  // Reset QR confirmation when payment method or dialog state changes
   React.useEffect(() => {
     if (!open) setQrConfirmed(false)
   }, [open])
@@ -98,6 +121,23 @@ export function PaymentDialog({
     setQrConfirmed(false)
     setQrElapsed(0)
   }, [paymentMethod])
+
+  // When split method 1 changes to match method 2, auto-change method 2
+  React.useEffect(() => {
+    if (splitMethod1 === splitMethod2) {
+      const options: SplitLegMethod[] = ["cash", "card", "e_wallet"]
+      const next = options.find((m) => m !== splitMethod1)
+      if (next) setSplitMethod2(next)
+    }
+  }, [splitMethod1, splitMethod2])
+
+  React.useEffect(() => {
+    if (splitMethod2 === splitMethod1) {
+      const options: SplitLegMethod[] = ["cash", "card", "e_wallet"]
+      const next = options.find((m) => m !== splitMethod2)
+      if (next) setSplitMethod1(next)
+    }
+  }, [splitMethod2, splitMethod1])
 
   const orderTotal = total()
   const orderSubtotal = subtotal()
@@ -108,18 +148,21 @@ export function PaymentDialog({
   const cashTenderedNum = parseFloat(cashTendered) || 0
   const change = cashTenderedNum - orderTotal
 
-  const splitCashNum = parseFloat(splitCash) || 0
-  const splitCardNum = parseFloat(splitCard) || 0
-  const splitTotal = Math.round((splitCashNum + splitCardNum) * 100) / 100
+  const splitAmount1Num = parseFloat(splitAmount1) || 0
+  const splitAmount2Num = parseFloat(splitAmount2) || 0
+  const splitTotal = Math.round((splitAmount1Num + splitAmount2Num) * 100) / 100
   const splitRemaining = orderTotal - splitTotal
+
+  const splitHasEwallet = paymentMethod === "split" && (splitMethod1 === "e_wallet" || splitMethod2 === "e_wallet")
 
   const checkAmountNum = parseFloat(checkAmountStr) || 0
 
-  const isCashValid =
-    paymentMethod === "cash" ? cashTenderedNum >= orderTotal : true
+  const isCashValid = paymentMethod === "cash" ? cashTenderedNum >= orderTotal : true
   const isSplitValid =
     paymentMethod === "split"
-      ? Math.abs(splitRemaining) < 0.005
+      ? Math.abs(splitRemaining) < 0.005 &&
+        splitMethod1 !== splitMethod2 &&
+        (!splitHasEwallet || ewalletReference.trim() !== "")
       : true
   const isCheckValid =
     paymentMethod === "check"
@@ -129,17 +172,24 @@ export function PaymentDialog({
         checkName.trim() !== "" &&
         checkAmountNum >= orderTotal
       : true
+  const isEwalletValid =
+    paymentMethod === "e_wallet"
+      ? ewalletReference.trim() !== ""
+      : true
+
   const canConfirm =
     paymentMethod === "card" ||
     (paymentMethod === "cash" && isCashValid) ||
     (paymentMethod === "split" && isSplitValid) ||
     (paymentMethod === "check" && isCheckValid) ||
+    (paymentMethod === "e_wallet" && isEwalletValid) ||
     (isQrPayment && qrConfirmed)
 
   async function handleConfirm() {
     if (!canConfirm) return
     setIsProcessing(true)
     try {
+      const hasEwallet = paymentMethod === "e_wallet" || splitHasEwallet
       const result = await createTransaction({
         items: items.map((i) => ({
           product_id: i.product.id,
@@ -160,9 +210,10 @@ export function PaymentDialog({
         check_number: paymentMethod === "check" ? checkNumber : null,
         check_name: paymentMethod === "check" ? checkName : null,
         check_amount: paymentMethod === "check" ? checkAmountNum : null,
+        ewallet_provider: hasEwallet ? ewalletProvider : null,
+        ewallet_reference: hasEwallet ? ewalletReference.trim() : null,
       })
 
-      // Capture receipt data before clearing cart
       setReceiptData({
         transactionId: result.id,
         timestamp: new Date(),
@@ -185,13 +236,17 @@ export function PaymentDialog({
         paymentMethod,
         cashTendered: paymentMethod === "cash" ? cashTenderedNum : undefined,
         change: paymentMethod === "cash" ? change : undefined,
-        splitCash: paymentMethod === "split" ? splitCashNum : undefined,
-        splitCard: paymentMethod === "split" ? splitCardNum : undefined,
+        splitMethod1: paymentMethod === "split" ? splitMethod1 : undefined,
+        splitAmount1: paymentMethod === "split" ? splitAmount1Num : undefined,
+        splitMethod2: paymentMethod === "split" ? splitMethod2 : undefined,
+        splitAmount2: paymentMethod === "split" ? splitAmount2Num : undefined,
         checkBankName: paymentMethod === "check" ? checkBankName : undefined,
         checkDate: paymentMethod === "check" ? checkDate : undefined,
         checkNumber: paymentMethod === "check" ? checkNumber : undefined,
         checkName: paymentMethod === "check" ? checkName : undefined,
         checkAmount: paymentMethod === "check" ? checkAmountNum : undefined,
+        ewalletProvider: hasEwallet ? ewalletProvider : undefined,
+        ewalletReference: hasEwallet ? ewalletReference.trim() : undefined,
         receiptHeader: receiptHeader ?? undefined,
         receiptFooter: receiptFooter ?? undefined,
         formatCurrency,
@@ -204,8 +259,9 @@ export function PaymentDialog({
       clearCart()
       onOpenChange(false)
       setCashTendered("")
-      setSplitCash("")
-      setSplitCard("")
+      setSplitAmount1("")
+      setSplitAmount2("")
+      setEwalletReference("")
       toast.success("Transaction completed", {
         description: `${itemCount} item${itemCount !== 1 ? "s" : ""} — ${formatCurrency(orderTotal)}`,
       })
@@ -216,7 +272,6 @@ export function PaymentDialog({
       } else {
         toast.error("Transaction failed", { description: message })
       }
-      // Dialog stays open so cashier can adjust cart
     } finally {
       setIsProcessing(false)
     }
@@ -226,8 +281,12 @@ export function PaymentDialog({
     if (!isProcessing) {
       if (!value) {
         setCashTendered("")
-        setSplitCash("")
-        setSplitCard("")
+        setSplitAmount1("")
+        setSplitAmount2("")
+        setSplitMethod1("cash")
+        setSplitMethod2("card")
+        setEwalletProvider("GCash")
+        setEwalletReference("")
         setCheckBankName("")
         setCheckDate("")
         setCheckNumber("")
@@ -243,6 +302,8 @@ export function PaymentDialog({
     const s = seconds % 60
     return m > 0 ? `${m}m ${s}s` : `${s}s`
   }
+
+  const splitLegOptions: SplitLegMethod[] = ["cash", "card", "e_wallet"]
 
   return (
     <>
@@ -381,48 +442,148 @@ export function PaymentDialog({
           </div>
         )}
 
+        {/* E-Wallet payment */}
+        {paymentMethod === "e_wallet" && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Provider</Label>
+              <Select
+                value={ewalletProvider}
+                onValueChange={(val) => setEwalletProvider(val as EwalletProvider)}
+              >
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue placeholder="Select provider">
+                    {ewalletProvider}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {EWALLET_PROVIDERS.map((p) => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ewallet-ref">Reference No. <span className="text-destructive">*</span></Label>
+              <Input
+                id="ewallet-ref"
+                placeholder="Enter reference number"
+                value={ewalletReference}
+                onChange={(e) => setEwalletReference(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
+
         {/* Split payment */}
         {paymentMethod === "split" && (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="split-cash">Cash Amount</Label>
-                <div className="relative">
+            {/* Leg 1 */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">First Payment</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={splitMethod1}
+                  onValueChange={(val) => setSplitMethod1(val as SplitLegMethod)}
+                >
+                  <SelectTrigger className="w-[130px] h-9 shrink-0">
+                    <SelectValue placeholder="Method">
+                      {splitLegLabel(splitMethod1)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {splitLegOptions.filter((m) => m !== splitMethod2).map((m) => (
+                      <SelectItem key={m} value={m}>{splitLegLabel(m)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1">
                   <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
                     {currencySymbol}
                   </span>
                   <Input
-                    id="split-cash"
                     type="number"
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={splitCash}
-                    onChange={(e) => setSplitCash(e.target.value)}
-                    className="pl-6"
+                    value={splitAmount1}
+                    onChange={(e) => setSplitAmount1(e.target.value)}
+                    className="pl-6 h-9"
                     autoFocus
                   />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="split-card">Card Amount</Label>
-                <div className="relative">
+            </div>
+
+            {/* Leg 2 */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Second Payment</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={splitMethod2}
+                  onValueChange={(val) => setSplitMethod2(val as SplitLegMethod)}
+                >
+                  <SelectTrigger className="w-[130px] h-9 shrink-0">
+                    <SelectValue placeholder="Method">
+                      {splitLegLabel(splitMethod2)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {splitLegOptions.filter((m) => m !== splitMethod1).map((m) => (
+                      <SelectItem key={m} value={m}>{splitLegLabel(m)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1">
                   <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
                     {currencySymbol}
                   </span>
                   <Input
-                    id="split-card"
                     type="number"
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={splitCard}
-                    onChange={(e) => setSplitCard(e.target.value)}
-                    className="pl-6"
+                    value={splitAmount2}
+                    onChange={(e) => setSplitAmount2(e.target.value)}
+                    className="pl-6 h-9"
                   />
                 </div>
               </div>
             </div>
+
+            {/* E-Wallet fields for split */}
+            {splitHasEwallet && (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <div className="space-y-1.5">
+                  <Label>E-Wallet Provider</Label>
+                  <Select
+                    value={ewalletProvider}
+                    onValueChange={(val) => setEwalletProvider(val as EwalletProvider)}
+                  >
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue placeholder="Select provider">
+                        {ewalletProvider}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EWALLET_PROVIDERS.map((p) => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="split-ewallet-ref">Reference No. <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="split-ewallet-ref"
+                    placeholder="Enter reference number"
+                    value={ewalletReference}
+                    onChange={(e) => setEwalletReference(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             <div
               className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium ${

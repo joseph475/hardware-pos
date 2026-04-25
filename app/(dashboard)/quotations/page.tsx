@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
 import { getQuotations } from '@/lib/actions/quotations'
 import { QuotationsClient } from './quotations-client'
 
@@ -27,10 +28,12 @@ export default async function QuotationsPage() {
     userBranchId = profile?.branch_id ?? null
   }
 
+  if (userRole === 'owner') redirect('/dashboard')
+
   const supabase = getAdminClient()
 
   const [quotations, customersResult, productsResult, orgResult] = await Promise.all([
-    getQuotations(userRole !== 'owner' && userBranchId ? { branchId: userBranchId } : undefined),
+    getQuotations(userBranchId ? { branchId: userBranchId } : undefined),
     supabase
       .from('customers')
       .select('id, name, company_name')

@@ -1,6 +1,14 @@
 'use server'
 
 import { clerkClient } from '@clerk/nextjs/server'
+import { createClient } from '@supabase/supabase-js'
+
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export type DemoRole = 'owner' | 'manager' | 'manager2' | 'manager3' | 'cashier' | 'cashier2' | 'cashier3'
 
@@ -33,4 +41,32 @@ export async function getDemoSignInUrl(role: DemoRole): Promise<string> {
   })
 
   return `/sign-in?__clerk_ticket=${token}`
+}
+
+export type DemoBranchNames = Record<DemoRole, string>
+
+export async function getDemoBranchNames(): Promise<DemoBranchNames> {
+  const supabase = getAdminClient()
+  const emails = Object.values(ROLE_EMAIL).filter(Boolean) as string[]
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('email, branch_id')
+    .in('email', emails)
+
+  const branchIds = [...new Set((profiles ?? []).map((p: any) => p.branch_id).filter(Boolean))]
+  const { data: branches } = branchIds.length
+    ? await supabase.from('branches').select('id, name').in('id', branchIds)
+    : { data: [] }
+
+  const branchMap = Object.fromEntries((branches ?? []).map((b: any) => [b.id, b.name]))
+  const emailToProfile = Object.fromEntries((profiles ?? []).map((p: any) => [p.email, p]))
+
+  const result = {} as DemoBranchNames
+  for (const [role, email] of Object.entries(ROLE_EMAIL) as [DemoRole, string | undefined][]) {
+    if (!email) { result[role] = 'Unknown'; continue }
+    const profile = emailToProfile[email.trim()]
+    result[role] = profile?.branch_id ? (branchMap[profile.branch_id] ?? 'Unknown') : 'All Branches'
+  }
+  return result
 }

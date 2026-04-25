@@ -1,5 +1,6 @@
 import { SignIn } from "@clerk/nextjs";
 import { DemoLoginButtons } from "@/components/auth/demo-login-buttons";
+import { getDemoBranchNames } from "@/lib/actions/demo";
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -22,6 +23,7 @@ export default async function SignInPage({ searchParams }: Props) {
 
   // In demo mode without a ticket, show the demo panel only
   if (isDemoMode) {
+    const branchNames = await getDemoBranchNames().catch(() => null)
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-sm px-4">
@@ -35,7 +37,7 @@ export default async function SignInPage({ searchParams }: Props) {
                 Each account has a different branch and permission level.
               </p>
             </div>
-            <DemoLoginButtons />
+            <DemoLoginButtons branchNames={branchNames} />
           </div>
         </div>
       </div>

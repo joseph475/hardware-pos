@@ -17,7 +17,13 @@ export default async function TransfersPage() {
   const { userId } = await auth();
   const supabase = getAdminClient();
 
-  const [{ data: transferData }, { data: branches }, { data: products }, { data: profileData }] = await Promise.all([
+  const [
+    { data: transferData },
+    { data: branches },
+    { data: products },
+    { data: profileData },
+    { data: inventoryData },
+  ] = await Promise.all([
     supabase
       .from("stock_transfers")
       .select(`
@@ -31,7 +37,17 @@ export default async function TransfersPage() {
     supabase.from("branches").select("*").eq("is_active", true).order("name"),
     supabase.from("products").select("*").eq("is_active", true).order("name"),
     supabase.from("profiles").select("role, branch_id").eq("clerk_user_id", userId ?? "").single(),
+    supabase.from("inventory").select("product_id, branch_id, quantity"),
   ]);
+
+  const role = profileData?.role ?? null;
+  const userBranchId = profileData?.branch_id ?? null;
+  const userBranch = (branches ?? []).find((b) => (b as any).id === userBranchId);
+  const isMainBranch = (userBranch as any)?.is_main === true;
+  const isOwner = role === "owner";
+
+  if (role === "cashier") redirect("/pos");
+  if (!isOwner && !isMainBranch) redirect("/dashboard");
 
   const transfers: TransferRow[] = (transferData ?? []).map((t: any) => ({
     id: t.id,
@@ -45,17 +61,22 @@ export default async function TransfersPage() {
     notes: t.notes,
   }));
 
-  if (profileData?.role === 'cashier') redirect("/pos");
-
-  const isCashier = false;
+  // Build inventory map: { [branchId]: { [productId]: quantity } }
+  const inventoryMap: Record<string, Record<string, number>> = {};
+  for (const row of inventoryData ?? []) {
+    if (!inventoryMap[row.branch_id]) inventoryMap[row.branch_id] = {};
+    inventoryMap[row.branch_id][row.product_id] = row.quantity;
+  }
 
   return (
     <TransfersClient
       initialTransfers={transfers}
       branches={(branches ?? []) as Branch[]}
       products={(products ?? []) as Product[]}
-      isCashier={isCashier}
-      userBranchId={profileData?.branch_id ?? null}
+      isCashier={false}
+      userBranchId={userBranchId}
+      isOwner={isOwner}
+      inventoryMap={inventoryMap}
     />
   );
 }

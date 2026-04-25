@@ -32,16 +32,22 @@ export interface ReceiptData {
   taxAmount: number
   taxRate: number
   total: number
-  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check"
+  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet"
   cashTendered?: number
   change?: number
   splitCash?: number
   splitCard?: number
+  splitMethod1?: "cash" | "card" | "e_wallet"
+  splitAmount1?: number
+  splitMethod2?: "cash" | "card" | "e_wallet"
+  splitAmount2?: number
   checkBankName?: string
   checkDate?: string
   checkNumber?: string
   checkName?: string
   checkAmount?: number
+  ewalletProvider?: string
+  ewalletReference?: string
   receiptHeader?: string
   receiptFooter?: string
   formatCurrency: (n: number) => string
@@ -64,6 +70,11 @@ function ReceiptLine({ children }: { children: React.ReactNode }) {
 
 function Divider({ char = "=" }: { char?: string }) {
   return <ReceiptLine>{char.repeat(42)}</ReceiptLine>
+}
+
+function splitMethodLabel(method: "cash" | "card" | "e_wallet"): string {
+  if (method === "e_wallet") return "E-Wallet"
+  return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
 function ReceiptContent({ data }: { data: ReceiptData }) {
@@ -157,17 +168,35 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
       <Divider />
 
       {/* Payment */}
-      <ReceiptLine>{`Payment: ${data.paymentMethod === "gcash" ? "GCash" : data.paymentMethod === "maya" ? "Maya" : data.paymentMethod === "check" ? "Check" : data.paymentMethod.charAt(0).toUpperCase() + data.paymentMethod.slice(1)}`}</ReceiptLine>
+      <ReceiptLine>{`Payment: ${
+        data.paymentMethod === "gcash" ? "GCash" :
+        data.paymentMethod === "maya" ? "Maya" :
+        data.paymentMethod === "check" ? "Check" :
+        data.paymentMethod === "e_wallet" ? `E-Wallet (${data.ewalletProvider ?? ""})` :
+        data.paymentMethod.charAt(0).toUpperCase() + data.paymentMethod.slice(1)
+      }`}</ReceiptLine>
       {data.paymentMethod === "cash" && data.cashTendered !== undefined && (
         <>
           {row("Tendered:", data.formatCurrency(data.cashTendered))}
           {row("Change:", data.formatCurrency(data.change ?? 0))}
         </>
       )}
-      {data.paymentMethod === "split" && (
+      {data.paymentMethod === "split" && data.splitMethod1 !== undefined && (
         <>
-          {data.splitCash !== undefined && row("  Cash:", data.formatCurrency(data.splitCash))}
-          {data.splitCard !== undefined && row("  Card:", data.formatCurrency(data.splitCard))}
+          {row(`  ${splitMethodLabel(data.splitMethod1)}:`, data.formatCurrency(data.splitAmount1 ?? 0))}
+          {row(`  ${splitMethodLabel(data.splitMethod2 ?? "card")}:`, data.formatCurrency(data.splitAmount2 ?? 0))}
+          {(data.splitMethod1 === "e_wallet" || data.splitMethod2 === "e_wallet") && data.ewalletProvider && (
+            row("  Provider:", data.ewalletProvider)
+          )}
+          {(data.splitMethod1 === "e_wallet" || data.splitMethod2 === "e_wallet") && data.ewalletReference && (
+            row("  Ref #:", data.ewalletReference)
+          )}
+        </>
+      )}
+      {data.paymentMethod === "e_wallet" && (
+        <>
+          {data.ewalletProvider && row("Provider:", data.ewalletProvider)}
+          {data.ewalletReference && row("Ref #:", data.ewalletReference)}
         </>
       )}
       {data.paymentMethod === "check" && data.checkAmount !== undefined && (

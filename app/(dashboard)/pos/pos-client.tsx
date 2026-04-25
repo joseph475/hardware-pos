@@ -16,12 +16,12 @@ import {
   Receipt,
   Smartphone,
   CheckSquare,
+  Wallet,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { useCartStore } from "@/lib/store/cart"
 import { useCurrency } from "@/lib/context/currency"
@@ -36,7 +36,7 @@ import type { Customer } from "@/types/database"
 import type { QuotationWithRelations } from "@/lib/actions/quotations"
 import { cn } from "@/lib/utils"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet"
 
 function StockBadge({ stock }: { stock: number }) {
   if (stock === 0) {
@@ -327,6 +327,7 @@ export function POSClient({
   const paymentMethods: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
     { value: "cash", label: "Cash", icon: <Banknote className="h-4 w-4" /> },
     { value: "card", label: "Card", icon: <CreditCard className="h-4 w-4" /> },
+    { value: "e_wallet", label: "E-Wallet", icon: <Wallet className="h-4 w-4" /> },
     { value: "check", label: "Check", icon: <CheckSquare className="h-4 w-4" /> },
     { value: "split", label: "Split", icon: <SplitSquareHorizontal className="h-4 w-4" /> },
     ...(gcashQrUrl ? [{ value: "gcash" as const, label: "GCash", icon: <Smartphone className="h-4 w-4" /> }] : []),
@@ -446,7 +447,7 @@ export function POSClient({
         </div>
 
         {/* ── ORDER LIST ─────────────────────────────────────────────────────── */}
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-auto">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
               <Package className="h-12 w-12 text-muted-foreground/30" />
@@ -458,9 +459,9 @@ export function POSClient({
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="min-w-[568px]">
               {/* Table header */}
-              <div className="grid grid-cols-[1fr_68px_60px_72px_88px_76px_52px] gap-x-2 border-b border-border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="sticky top-0 z-10 grid grid-cols-[minmax(80px,1fr)_68px_60px_72px_88px_76px_52px] gap-x-2 border-b border-border bg-card px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <span>Item</span>
                 <span className="text-right">Price</span>
                 <span className="text-center">Tax%</span>
@@ -483,9 +484,9 @@ export function POSClient({
                   return (
                     <div key={item.product.id}>
                       {/* Main row */}
-                      <div className="grid grid-cols-[1fr_68px_60px_72px_88px_76px_52px] items-center gap-x-2 px-3 py-2">
+                      <div className="grid grid-cols-[minmax(80px,1fr)_68px_60px_72px_88px_76px_52px] items-center gap-x-2 px-3 py-2">
                         {/* Item name + image */}
-                        <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted">
                             {(item.product as POSProduct).image_url ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -670,7 +671,7 @@ export function POSClient({
               </div>
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* ── SUMMARY + ACTIONS ──────────────────────────────────────────────── */}
         <div className="shrink-0 border-t border-border bg-card">

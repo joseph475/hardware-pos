@@ -60,6 +60,7 @@ export interface ProductSaveValues {
   sku: string;
   barcode?: string;
   category_id?: string;
+  supplier_id?: string;
   unit: string;
   cost_price: number;
   selling_price: number;
@@ -135,6 +136,7 @@ export function ProductDialog({
       sku: product?.sku ?? "",
       barcode: product?.barcode ?? "",
       category_id: product?.category_id ?? "",
+      supplier_id: product?.supplier_id ?? undefined,
       unit: product?.unit ?? "each",
       selling_price: String(product?.selling_price ?? "0"),
       description: product?.description ?? "",
@@ -155,6 +157,7 @@ export function ProductDialog({
         sku: product?.sku ?? "",
         barcode: product?.barcode ?? "",
         category_id: product?.category_id ?? "",
+        supplier_id: product?.supplier_id ?? undefined,
         unit: product?.unit ?? "each",
         selling_price: String(product?.selling_price ?? "0"),
         description: product?.description ?? "",

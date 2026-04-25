@@ -645,6 +645,8 @@ export async function getDashboardStats(branchId?: string | null): Promise<Dashb
   }
 }
 
+// --- Sales-based supplier report (fast-moving items, COGS tracking) ---
+
 export type SupplierProductRow = {
   supplier_id: string
   supplier_name: string
@@ -662,7 +664,6 @@ export async function getSupplierFastMovingReport(params?: {
 }): Promise<SupplierProductRow[]> {
   const supabase = getAdminClient()
 
-  // Fetch raw allocation rows joined through transaction_items → transactions
   let query = supabase
     .from('transaction_item_supplier_costs')
     .select(`
@@ -687,10 +688,8 @@ export async function getSupplierFastMovingReport(params?: {
   }
 
   const { data: allocations } = await query
-
   if (!allocations || allocations.length === 0) return []
 
-  // Collect unique product_ids and supplier_ids
   const allRows = allocations as any[]
   const productIds = [...new Set(allRows.map((r) => r.transaction_items?.product_id).filter(Boolean))]
   const supplierIds = [...new Set(allRows.map((r) => r.supplier_id).filter(Boolean))]
@@ -703,7 +702,6 @@ export async function getSupplierFastMovingReport(params?: {
   const productMap = Object.fromEntries((products ?? []).map((p) => [p.id, p]))
   const supplierMap = Object.fromEntries((suppliers ?? []).map((s) => [s.id, s]))
 
-  // Aggregate by supplier + product
   const aggMap = new Map<string, SupplierProductRow>()
 
   for (const row of allRows) {
@@ -733,4 +731,125 @@ export async function getSupplierFastMovingReport(params?: {
     if (a.supplier_name !== b.supplier_name) return a.supplier_name.localeCompare(b.supplier_name)
     return b.units_sold - a.units_sold
   })
+}
+
+// --- PO-based supplier report (received goods, purchase history) ---
+
+export type SupplierReportRow = {
+  supplier_id: string
+  supplier_name: string
+  po_count: number
+  units_received: number
+  total_value: number
+  top_products: { name: string; units: number }[]
+}
+
+export type SupplierReportData = {
+  suppliers: SupplierReportRow[]
+  totalValue: number
+  totalUnits: number
+  totalPOs: number
+}
+
+export async function getSupplierReport(
+  range: string,
+  branchId?: string | null
+): Promise<SupplierReportData> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+  const rangeStart = getRangeStart(range)
+
+  let query = supabase
+    .from('purchase_orders')
+    .select(`
+      id,
+      supplier_id,
+      branch_id,
+      status,
+      suppliers!supplier_id(name),
+      purchase_order_items(
+        quantity_received,
+        unit_cost,
+        product_id,
+        products!product_id(name)
+      )
+    `)
+    .in('status', ['received', 'partial'])
+    .gte('created_at', rangeStart)
+
+  if (branchId) {
+    query = query.eq('branch_id', branchId)
+  }
+
+  const { data: rawPOs, error } = await query
+  if (error) throw new Error(error.message)
+
+  const pos = (rawPOs ?? []) as any[]
+
+  const supplierMap: Record<string, {
+    supplier_id: string
+    supplier_name: string
+    po_ids: Set<string>
+    units_received: number
+    total_value: number
+    product_units: Record<string, { name: string; units: number }>
+  }> = {}
+
+  for (const po of pos) {
+    const supplierId = po.supplier_id as string
+    const supplierName = (po.suppliers as any)?.name ?? 'Unknown'
+
+    if (!supplierMap[supplierId]) {
+      supplierMap[supplierId] = {
+        supplier_id: supplierId,
+        supplier_name: supplierName,
+        po_ids: new Set(),
+        units_received: 0,
+        total_value: 0,
+        product_units: {},
+      }
+    }
+
+    const entry = supplierMap[supplierId]
+    entry.po_ids.add(po.id)
+
+    const items = (po.purchase_order_items ?? []) as any[]
+    for (const item of items) {
+      const qty = Number(item.quantity_received ?? 0)
+      const cost = Number(item.unit_cost ?? 0)
+      const productName = (item.products as any)?.name ?? 'Unknown'
+      const productId = item.product_id as string
+
+      entry.units_received += qty
+      entry.total_value += qty * cost
+
+      if (!entry.product_units[productId]) {
+        entry.product_units[productId] = { name: productName, units: 0 }
+      }
+      entry.product_units[productId].units += qty
+    }
+  }
+
+  const suppliers: SupplierReportRow[] = Object.values(supplierMap)
+    .map((s) => ({
+      supplier_id: s.supplier_id,
+      supplier_name: s.supplier_name,
+      po_count: s.po_ids.size,
+      units_received: s.units_received,
+      total_value: s.total_value,
+      top_products: Object.values(s.product_units)
+        .sort((a, b) => b.units - a.units)
+        .slice(0, 3),
+    }))
+    .sort((a, b) => b.total_value - a.total_value)
+
+  return {
+    suppliers,
+    totalValue: suppliers.reduce((sum, s) => sum + s.total_value, 0),
+    totalUnits: suppliers.reduce((sum, s) => sum + s.units_received, 0),
+    totalPOs: new Set(pos.map((po: any) => po.id)).size,
+  }
+}
 }

@@ -142,6 +142,7 @@ export type POSProduct = {
   name: string
   description: string | null
   category_id: string | null
+  supplier_id: string | null
   category_name: string | null
   unit: string
   cost_price: number
@@ -187,6 +188,7 @@ const getPOSProductsCached = unstable_cache(
         name: p.name,
         description: p.description,
         category_id: p.category_id,
+        supplier_id: p.supplier_id ?? null,
         category_name: p.categories?.name ?? null,
         unit: p.unit,
         cost_price: p.cost_price,

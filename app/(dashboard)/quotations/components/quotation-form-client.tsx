@@ -254,10 +254,10 @@ export function QuotationFormClient({
         )}
       </div>
 
-      {/* Two-column body */}
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 min-h-0">
+      {/* Body */}
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col-reverse md:flex-row flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
         {/* Left — Line Items */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 md:overflow-y-auto p-4 md:p-6 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Line Items
           </p>
@@ -339,8 +339,9 @@ export function QuotationFormClient({
             </div>
           ) : (
             <div className="rounded-lg border border-border overflow-hidden">
+              <div className="overflow-x-auto">
               {/* Table header */}
-              <div className="grid grid-cols-[1fr_80px_64px_80px_96px_80px_40px] gap-x-2 border-b border-border bg-muted/40 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="grid grid-cols-[minmax(120px,1fr)_80px_64px_80px_96px_80px_40px] gap-x-2 border-b border-border bg-muted/40 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <span>Item</span>
                 <span className="text-right">Price</span>
                 <span className="text-center">Tax%</span>
@@ -363,9 +364,9 @@ export function QuotationFormClient({
 
                   return (
                     <div key={field.id}>
-                      <div className="grid grid-cols-[1fr_80px_64px_80px_96px_80px_40px] items-center gap-x-2 px-4 py-2">
+                      <div className="grid grid-cols-[minmax(120px,1fr)_80px_64px_80px_96px_80px_40px] items-center gap-x-2 px-4 py-2">
                         {/* Item name */}
-                        <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
                             {product?.image_url ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -474,12 +475,13 @@ export function QuotationFormClient({
                   )
                 })}
               </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* Right — Details + Totals + Actions */}
-        <div className="w-72 shrink-0 border-l border-border flex flex-col overflow-y-auto">
+        <div className="w-full md:w-72 shrink-0 border-b md:border-b-0 md:border-l border-border flex flex-col">
           <div className="flex-1 p-6 space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Quote Details

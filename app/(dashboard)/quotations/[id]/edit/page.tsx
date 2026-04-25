@@ -50,13 +50,14 @@ export default async function EditQuotationPage({ params }: Props) {
   ])
 
   const userRole = (profileResult.data?.role ?? 'cashier') as 'owner' | 'manager' | 'cashier'
+  if (userRole === 'owner') redirect('/dashboard')
+
   const userBranchId = profileResult.data?.branch_id ?? null
 
   if (!quotation) notFound()
   if (quotation.status !== 'draft') redirect('/quotations')
 
-  // Non-owner roles can only edit quotations belonging to their branch
-  if (userRole !== 'owner' && userBranchId && quotation.branch_id !== userBranchId) {
+  if (userBranchId && quotation.branch_id !== userBranchId) {
     notFound()
   }
 

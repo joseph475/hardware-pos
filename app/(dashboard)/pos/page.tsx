@@ -30,6 +30,8 @@ export default async function POSPage({
     .eq("clerk_user_id", userId)
     .single()
 
+  if (profile?.role === "owner") redirect("/dashboard")
+
   const params = await searchParams
   const quotationId = params?.quotation_id ?? null
 

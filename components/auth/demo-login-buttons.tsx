@@ -3,12 +3,10 @@
 import * as React from 'react'
 import { Briefcase, ShoppingCart, Loader2, Crown } from 'lucide-react'
 import { toast } from 'sonner'
-import { getDemoSignInUrl, type DemoRole } from '@/lib/actions/demo'
+import { getDemoSignInUrl, type DemoRole, type DemoBranchNames } from '@/lib/actions/demo'
 
 type DemoAccount = {
   role: DemoRole
-  label: string
-  branch: string
 }
 
 const DEMO_GROUPS: {
@@ -27,9 +25,7 @@ const DEMO_GROUPS: {
     color: 'text-amber-400',
     bg: 'bg-amber-500/10 hover:bg-amber-500/20',
     border: 'border-amber-500/30',
-    accounts: [
-      { role: 'owner', label: 'Owner', branch: 'All Branches' },
-    ],
+    accounts: [{ role: 'owner' }],
   },
   {
     groupLabel: 'Manager',
@@ -39,9 +35,9 @@ const DEMO_GROUPS: {
     bg: 'bg-blue-500/10 hover:bg-blue-500/20',
     border: 'border-blue-500/30',
     accounts: [
-      { role: 'manager',  label: 'Manager', branch: 'Main Branch' },
-      { role: 'manager2', label: 'Manager', branch: 'East Branch' },
-      { role: 'manager3', label: 'Manager', branch: 'West Branch' },
+      { role: 'manager' },
+      { role: 'manager2' },
+      { role: 'manager3' },
     ],
   },
   {
@@ -52,14 +48,20 @@ const DEMO_GROUPS: {
     bg: 'bg-emerald-500/10 hover:bg-emerald-500/20',
     border: 'border-emerald-500/30',
     accounts: [
-      { role: 'cashier',  label: 'Cashier', branch: 'Main Branch' },
-      { role: 'cashier2', label: 'Cashier', branch: 'East Branch' },
-      { role: 'cashier3', label: 'Cashier', branch: 'West Branch' },
+      { role: 'cashier' },
+      { role: 'cashier2' },
+      { role: 'cashier3' },
     ],
   },
 ]
 
-export function DemoLoginButtons() {
+const FALLBACK_BRANCH: Record<DemoRole, string> = {
+  owner: 'All Branches',
+  manager: 'Branch 1', manager2: 'Branch 2', manager3: 'Branch 3',
+  cashier: 'Branch 1', cashier2: 'Branch 2', cashier3: 'Branch 3',
+}
+
+export function DemoLoginButtons({ branchNames }: { branchNames: DemoBranchNames | null }) {
   const [loading, setLoading] = React.useState<DemoRole | null>(null)
 
   async function handleDemoLogin(role: DemoRole) {
@@ -84,9 +86,10 @@ export function DemoLoginButtons() {
             <span className="text-xs text-muted-foreground">— {description}</span>
           </div>
           <div className={accounts.length === 1 ? 'flex' : 'grid grid-cols-3 gap-1.5'}>
-            {accounts.map(({ role, branch }) => {
+            {accounts.map(({ role }) => {
               const isThisLoading = loading === role
               const isAnyLoading = loading !== null
+              const branchLabel = branchNames?.[role] ?? FALLBACK_BRANCH[role]
               return (
                 <button
                   key={role}
@@ -103,7 +106,7 @@ export function DemoLoginButtons() {
                     ? <Loader2 className={`h-4 w-4 animate-spin ${color}`} />
                     : <Icon className={`h-4 w-4 ${color}`} />
                   }
-                  <span className="text-xs font-medium text-foreground leading-tight">{branch}</span>
+                  <span className="text-xs font-medium text-foreground leading-tight">{branchLabel}</span>
                 </button>
               )
             })}

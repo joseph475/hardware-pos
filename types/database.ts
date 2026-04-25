@@ -196,6 +196,7 @@ export type Database = {
           name: string;
           description: string | null;
           category_id: string | null;
+          supplier_id: string | null;
           unit: string;
           cost_price: number;
           selling_price: number;
@@ -213,6 +214,7 @@ export type Database = {
           name: string;
           description?: string | null;
           category_id?: string | null;
+          supplier_id?: string | null;
           unit?: string;
           cost_price: number;
           selling_price: number;
@@ -230,6 +232,7 @@ export type Database = {
           name?: string;
           description?: string | null;
           category_id?: string | null;
+          supplier_id?: string | null;
           unit?: string;
           cost_price?: number;
           selling_price?: number;
@@ -521,7 +524,7 @@ export type Database = {
           discount_amount: number;
           tax_amount: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet";
           status: "completed" | "voided" | "held";
           notes: string | null;
           void_reason: string | null;
@@ -532,6 +535,8 @@ export type Database = {
           check_number: string | null;
           check_name: string | null;
           check_amount: number | null;
+          ewallet_provider: string | null;
+          ewallet_reference: string | null;
           created_at: string;
         };
         Insert: {
@@ -543,7 +548,7 @@ export type Database = {
           discount_amount?: number;
           tax_amount?: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet";
           status?: "completed" | "voided" | "held";
           notes?: string | null;
           void_reason?: string | null;
@@ -554,6 +559,8 @@ export type Database = {
           check_number?: string | null;
           check_name?: string | null;
           check_amount?: number | null;
+          ewallet_provider?: string | null;
+          ewallet_reference?: string | null;
           created_at?: string;
         };
         Update: {
@@ -565,7 +572,7 @@ export type Database = {
           discount_amount?: number;
           tax_amount?: number;
           total?: number;
-          payment_method?: "cash" | "card" | "split" | "gcash" | "maya" | "check";
+          payment_method?: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet";
           status?: "completed" | "voided" | "held";
           notes?: string | null;
           void_reason?: string | null;
@@ -576,6 +583,8 @@ export type Database = {
           check_number?: string | null;
           check_name?: string | null;
           check_amount?: number | null;
+          ewallet_provider?: string | null;
+          ewallet_reference?: string | null;
           created_at?: string;
         };
         Relationships: [];

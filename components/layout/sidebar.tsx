@@ -67,7 +67,7 @@ const NAV_ENTRIES: NavEntry[] = [
     label: "POS",
     href: "/pos",
     icon: ShoppingCart,
-    roles: ["owner", "manager", "cashier"],
+    roles: ["manager", "cashier"],
   },
   {
     type: "link",
@@ -81,7 +81,7 @@ const NAV_ENTRIES: NavEntry[] = [
     label: "Quotations",
     href: "/quotations",
     icon: ClipboardList,
-    roles: ["owner", "manager", "cashier"],
+    roles: ["manager", "cashier"],
   },
   {
     type: "section",
@@ -102,6 +102,7 @@ const NAV_ENTRIES: NavEntry[] = [
         href: "/inventory/transfers",
         icon: ArrowLeftRight,
         roles: ["owner", "manager"],
+        mainBranchOrOwnerOnly: true,
       },
       {
         label: "Cross-Branch Stock",
@@ -142,6 +143,7 @@ const NAV_ENTRIES: NavEntry[] = [
     items: [
       { label: "Sales", href: "/reports/sales", icon: BarChart3 },
       { label: "Products", href: "/reports/products", icon: PackageSearch },
+      { label: "Suppliers", href: "/reports/suppliers", icon: Truck },
       { label: "Transaction History", href: "/reports/transactions", icon: History },
       { label: "Z-Report", href: "/reports/z-report", icon: FileBarChart2 },
       { label: "Suppliers", href: "/reports/suppliers", icon: Truck },
