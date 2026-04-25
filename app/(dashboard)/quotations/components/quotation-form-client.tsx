@@ -6,7 +6,7 @@ import { useTransition } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
-import { ArrowLeft, PackageOpen, Search, Package, X, Minus, Plus, Percent } from 'lucide-react'
+import { ArrowLeft, PackageOpen, Search, Package, X, Minus, Plus, Percent, RefreshCw, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -24,13 +24,15 @@ import {
 import { useCurrency } from '@/lib/context/currency'
 import { createQuotation, updateQuotation } from '@/lib/actions/quotations'
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
+import type { POSBundle } from '@/lib/actions/inventory'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 const lineItemSchema = z.object({
-  product_id: z.string().min(1, 'Product required'),
+  product_id: z.string().nullable().optional(),
+  bundle_id: z.string().nullable().optional(),
   product_name: z.string(),
   quantity: z.number({ message: 'Enter a valid qty' }).positive('Qty must be > 0'),
   unit_price: z.number({ message: 'Enter a valid price' }).min(0, 'Price must be ≥ 0'),
@@ -67,6 +69,7 @@ interface QuotationFormClientProps {
   customers: Array<{ id: string; name: string; company_name: string | null }>
   branches: Array<{ id: string; name: string }>
   products: ProductOption[]
+  bundles: POSBundle[]
   preselectedCustomerId?: string | null
   userRole: 'owner' | 'manager' | 'cashier'
   userBranchId: string | null
@@ -80,6 +83,7 @@ export function QuotationFormClient({
   customers,
   branches,
   products,
+  bundles,
   preselectedCustomerId,
   userRole,
   userBranchId,
@@ -99,13 +103,21 @@ export function QuotationFormClient({
   const [productDropdownOpen, setProductDropdownOpen] = React.useState(false)
   const productSearchRef = React.useRef<HTMLInputElement>(null)
 
-  const filteredProducts = React.useMemo(() => {
+  type QuotationSearchResult =
+    | { kind: 'product'; data: ProductOption }
+    | { kind: 'bundle'; data: POSBundle }
+
+  const filteredResults = React.useMemo((): QuotationSearchResult[] => {
     if (!productSearch.trim()) return []
     const q = productSearch.toLowerCase()
-    return products
+    const productResults: QuotationSearchResult[] = products
       .filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
-      .slice(0, 8)
-  }, [productSearch, products])
+      .map((p) => ({ kind: 'product' as const, data: p }))
+    const bundleResults: QuotationSearchResult[] = bundles
+      .filter((b) => b.name.toLowerCase().includes(q))
+      .map((b) => ({ kind: 'bundle' as const, data: b }))
+    return [...productResults, ...bundleResults].slice(0, 8)
+  }, [productSearch, products, bundles])
 
   const buildDefaults = React.useCallback((): QuotationFormValues => {
     if (quotation) {
@@ -117,7 +129,8 @@ export function QuotationFormClient({
         discount_amount: quotation.discount_amount,
         tax_rate_pct: Math.round(quotation.tax_rate * 10000) / 100,
         items: quotation.quotation_items.map((item) => ({
-          product_id: item.product_id,
+          product_id: item.product_id ?? null,
+          bundle_id: (item as any).bundle_id ?? null,
           product_name: item.product_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
@@ -194,6 +207,20 @@ export function QuotationFormClient({
     setProductDropdownOpen(false)
   }
 
+  function handleSelectBundle(bundle: POSBundle) {
+    append({
+      product_id: null,
+      bundle_id: bundle.id,
+      product_name: bundle.name,
+      quantity: 1,
+      unit_price: bundle.price,
+      discount_amount: 0,
+      add_tax_pct: 0,
+    })
+    setProductSearch('')
+    setProductDropdownOpen(false)
+  }
+
   function handleRemoveItem(index: number) {
     remove(index)
   }
@@ -209,7 +236,8 @@ export function QuotationFormClient({
           discount_amount: values.discount_amount,
           tax_rate: (Number(values.tax_rate_pct) || 0) / 100,
           items: values.items.map((item) => ({
-            product_id: item.product_id,
+            product_id: item.product_id ?? null,
+            bundle_id: item.bundle_id ?? null,
             product_name: item.product_name,
             quantity: item.quantity,
             unit_price: item.unit_price,
@@ -264,66 +292,109 @@ export function QuotationFormClient({
 
           {/* Product search */}
           <div className="relative">
-            <div className="relative">
-              <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-muted-foreground" />
-              <input
-                ref={productSearchRef}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-9 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                placeholder="Search by name or SKU to add items…"
-                value={productSearch}
-                onChange={(e) => {
-                  setProductSearch(e.target.value)
-                  setProductDropdownOpen(e.target.value.length > 0)
-                }}
-                onFocus={() => productSearch.length > 0 && setProductDropdownOpen(true)}
-                onBlur={() => setTimeout(() => setProductDropdownOpen(false), 150)}
-                autoComplete="off"
-              />
-              {productSearch && (
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-3 my-auto text-muted-foreground hover:text-foreground"
-                  onMouseDown={() => {
-                    setProductSearch('')
-                    setProductDropdownOpen(false)
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-muted-foreground" />
+                <input
+                  ref={productSearchRef}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-9 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="Search products or bundles to add…"
+                  value={productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value)
+                    setProductDropdownOpen(e.target.value.length > 0)
                   }}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            {productDropdownOpen && filteredProducts.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
-                {filteredProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    onMouseDown={() => handleSelectProduct(product)}
-                    className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-accent"
+                  onFocus={() => productSearch.length > 0 && setProductDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setProductDropdownOpen(false), 150)}
+                  autoComplete="off"
+                />
+                {productSearch && (
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-3 my-auto text-muted-foreground hover:text-foreground"
+                    onMouseDown={() => {
+                      setProductSearch('')
+                      setProductDropdownOpen(false)
+                    }}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                      {product.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-sm font-medium text-foreground">{product.name}</span>
-                        {product.serial_required && (
-                          <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
-                            Serial req.
-                          </Badge>
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() => router.refresh()}
+                title="Refresh products"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+            {productDropdownOpen && filteredResults.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                {filteredResults.map((result) => {
+                  if (result.kind === 'bundle') {
+                    const bundle = result.data
+                    return (
+                      <div
+                        key={`bundle-${bundle.id}`}
+                        onMouseDown={() => handleSelectBundle(bundle)}
+                        className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-accent"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-blue-500/10">
+                          <Layers className="h-3.5 w-3.5 text-blue-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-sm font-medium text-foreground">{bundle.name}</span>
+                            <Badge className="border-transparent bg-blue-500/15 text-[9px] text-blue-600 dark:bg-blue-400/15 dark:text-blue-400">
+                              Bundle
+                            </Badge>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground">
+                            {bundle.items.length} item{bundle.items.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold text-foreground">
+                          {formatCurrency(bundle.price)}
+                        </span>
+                      </div>
+                    )
+                  }
+                  const product = result.data
+                  return (
+                    <div
+                      key={`product-${product.id}`}
+                      onMouseDown={() => handleSelectProduct(product)}
+                      className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-accent"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                        {product.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <Package className="h-3.5 w-3.5 text-muted-foreground" />
                         )}
                       </div>
-                      <span className="font-mono text-[11px] text-muted-foreground">{product.sku}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-medium text-foreground">{product.name}</span>
+                          {product.serial_required && (
+                            <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
+                              Serial req.
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="font-mono text-[11px] text-muted-foreground">{product.sku}</span>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold text-foreground">
+                        {formatCurrency(product.selling_price)}
+                      </span>
                     </div>
-                    <span className="shrink-0 text-sm font-semibold text-foreground">
-                      {formatCurrency(product.selling_price)}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -359,7 +430,8 @@ export function QuotationFormClient({
                   const addTaxPct = Number(watchedItems?.[index]?.add_tax_pct) || 0
                   const amount = price * (1 + addTaxPct / 100)
                   const lineTotal = qty * amount - disc
-                  const product = products.find((p) => p.id === field.product_id)
+                  const isBundle = (field as any).bundle_id != null
+                  const product = !isBundle ? products.find((p) => p.id === field.product_id) : undefined
                   const sku = product?.sku ?? ''
 
                   return (
@@ -367,8 +439,13 @@ export function QuotationFormClient({
                       <div className="grid grid-cols-[minmax(120px,1fr)_80px_64px_80px_96px_80px_40px] items-center gap-x-2 px-4 py-2">
                         {/* Item name */}
                         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                            {product?.image_url ? (
+                          <div className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border",
+                            isBundle ? "bg-blue-500/10" : "bg-muted"
+                          )}>
+                            {isBundle ? (
+                              <Layers className="h-3.5 w-3.5 text-blue-500" />
+                            ) : product?.image_url ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={product.image_url} alt={field.product_name} className="h-full w-full object-cover" />
                             ) : (
@@ -379,11 +456,19 @@ export function QuotationFormClient({
                             <span className="block truncate text-xs font-medium text-foreground">
                               {watchedItems?.[index]?.product_name || '—'}
                             </span>
-                            {sku && <span className="block truncate font-mono text-[10px] text-muted-foreground">{sku}</span>}
-                            {product?.serial_required && (
-                              <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
-                                Serial req.
+                            {isBundle ? (
+                              <Badge className="border-transparent bg-blue-500/15 text-[9px] text-blue-600 dark:bg-blue-400/15 dark:text-blue-400">
+                                Bundle
                               </Badge>
+                            ) : (
+                              <>
+                                {sku && <span className="block truncate font-mono text-[10px] text-muted-foreground">{sku}</span>}
+                                {product?.serial_required && (
+                                  <Badge className="border-transparent bg-amber-500/15 text-[9px] text-amber-600 dark:bg-amber-400/15 dark:text-amber-400">
+                                    Serial req.
+                                  </Badge>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>

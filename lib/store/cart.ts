@@ -45,6 +45,7 @@ interface CartStore {
   setDiscount: (discount: number) => void;
   setTaxRate: (rate: number) => void;
   clearCart: () => void;
+  setBundleItemsDirect: (items: BundleCartItem[]) => void;
   loadHeldOrder: (heldItems: Array<{ product_id: string; product_name: string; quantity: number; unit_price: number; discount_amount: number }>) => void;
   loadQuotationOrder: (items: Array<{
     product: Product
@@ -219,6 +220,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
   setTaxRate: (rate) => set({ taxRate: rate }),
 
   clearCart: () => set({ items: [], bundleItems: [], discount: 0 }),
+
+  setBundleItemsDirect: (items) => set({ bundleItems: items }),
 
   loadHeldOrder: (heldItems) =>
     set({

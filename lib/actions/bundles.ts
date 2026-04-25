@@ -117,7 +117,7 @@ export async function createBundle(params: {
   )
   if (itemsError) throw new Error(itemsError.message)
 
-  revalidateTag(CACHE_TAGS.BUNDLES)
+  revalidateTag(CACHE_TAGS.BUNDLES, {})
   revalidatePath('/inventory/bundles')
 }
 
@@ -159,7 +159,7 @@ export async function updateBundle(
   )
   if (itemsError) throw new Error(itemsError.message)
 
-  revalidateTag(CACHE_TAGS.BUNDLES)
+  revalidateTag(CACHE_TAGS.BUNDLES, {})
   revalidatePath('/inventory/bundles')
 }
 
@@ -175,6 +175,6 @@ export async function toggleBundleActive(id: string, isActive: boolean): Promise
 
   if (error) throw new Error(error.message)
 
-  revalidateTag(CACHE_TAGS.BUNDLES)
+  revalidateTag(CACHE_TAGS.BUNDLES, {})
   revalidatePath('/inventory/bundles')
 }

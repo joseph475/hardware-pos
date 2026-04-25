@@ -113,6 +113,7 @@ export function POSClient({
     setTaxRate,
     clearCart,
     loadQuotationOrder,
+    setBundleItemsDirect,
     subtotal,
     totalDiscount,
     totalAddTax,
@@ -176,7 +177,10 @@ export function POSClient({
   // Load quotation items and customer on mount if navigated from quotation
   React.useEffect(() => {
     if (!initialQuotation) return
-    const mappedItems = initialQuotation.quotation_items.map((qi) => {
+
+    // Product items only
+    const productQItems = initialQuotation.quotation_items.filter((qi) => qi.product_id != null)
+    const mappedItems = productQItems.map((qi) => {
       const found = initialProducts.find((p) => p.id === qi.product_id)
       const product = found
         ? found
@@ -199,6 +203,31 @@ export function POSClient({
       }
     })
     loadQuotationOrder(mappedItems)
+
+    // Bundle items — match against initialBundles for components
+    const bundleQItems = initialQuotation.quotation_items.filter((qi) => qi.bundle_id != null)
+    const mappedBundleItems = bundleQItems
+      .map((qi) => {
+        const bundle = initialBundles.find((b) => b.id === qi.bundle_id)
+        if (!bundle) return null
+        const baseTotal = qi.unit_price * qi.quantity
+        const discount_pct = baseTotal > 0 ? (qi.discount_amount / baseTotal) * 100 : 0
+        return {
+          bundle_id: qi.bundle_id!,
+          bundle_name: qi.product_name,
+          quantity: qi.quantity,
+          unit_price: qi.unit_price,
+          discount_amount: qi.discount_amount,
+          discount_pct,
+          add_tax_pct: qi.add_tax_pct ?? 0,
+          components: bundle.items,
+        }
+      })
+      .filter((b): b is NonNullable<typeof b> => b !== null)
+    if (mappedBundleItems.length > 0) {
+      setBundleItemsDirect(mappedBundleItems)
+    }
+
     if (initialQuotation.customer_id && initialQuotation.customers) {
       setSelectedCustomerId(initialQuotation.customer_id)
       setSelectedCustomerName(initialQuotation.customers.name)

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { QuotationFormClient } from '../components/quotation-form-client'
+import { getPOSBundles } from '@/lib/actions/inventory'
 
 function getAdminClient() {
   return createClient(
@@ -25,7 +26,7 @@ export default async function NewQuotationPage({ searchParams }: Props) {
 
   const supabase = getAdminClient()
 
-  const [profileResult, branchesResult, productsResult, customerResult] = await Promise.all([
+  const [profileResult, branchesResult, productsResult, customerResult, bundles] = await Promise.all([
     supabase.from('profiles').select('role, branch_id').eq('clerk_user_id', userId).single(),
     supabase
       .from('branches')
@@ -46,6 +47,7 @@ export default async function NewQuotationPage({ searchParams }: Props) {
       .eq('org_id', '00000000-0000-0000-0000-000000000001')
       .eq('is_active', true)
       .single(),
+    getPOSBundles(null),
   ])
 
   const userRole = (profileResult.data?.role ?? 'cashier') as 'owner' | 'manager' | 'cashier'
@@ -71,6 +73,7 @@ export default async function NewQuotationPage({ searchParams }: Props) {
       customers={customers}
       branches={branches}
       products={products}
+      bundles={bundles}
       preselectedCustomerId={customer_id}
       userRole={userRole}
       userBranchId={userBranchId}

@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { notFound, redirect } from 'next/navigation'
 import { getQuotationById } from '@/lib/actions/quotations'
 import { QuotationFormClient } from '../../components/quotation-form-client'
+import { getPOSBundles } from '@/lib/actions/inventory'
 
 function getAdminClient() {
   return createClient(
@@ -22,7 +23,7 @@ export default async function EditQuotationPage({ params }: Props) {
   const { id } = await params
   const supabase = getAdminClient()
 
-  const [profileResult, quotation, branchesResult, productsResult, customersResult] = await Promise.all([
+  const [profileResult, quotation, branchesResult, productsResult, customersResult, bundles] = await Promise.all([
     supabase
       .from('profiles')
       .select('role, branch_id')
@@ -47,6 +48,7 @@ export default async function EditQuotationPage({ params }: Props) {
       .eq('org_id', '00000000-0000-0000-0000-000000000001')
       .eq('is_active', true)
       .order('name'),
+    getPOSBundles(null),
   ])
 
   const userRole = (profileResult.data?.role ?? 'cashier') as 'owner' | 'manager' | 'cashier'
@@ -84,6 +86,7 @@ export default async function EditQuotationPage({ params }: Props) {
       customers={customers}
       branches={branches}
       products={products}
+      bundles={bundles}
       userRole={userRole}
       userBranchId={userBranchId}
     />

@@ -492,8 +492,9 @@ export async function getProductReport(
     .select('product_id, product_name, quantity, total')
     .in('transaction_id', txnIds)
 
-  // 3. Fetch product → sku + category mapping
-  const productIds = [...new Set((items ?? []).map((i) => i.product_id))]
+  // 3. Fetch product → sku + category mapping (skip bundle items where product_id is null)
+  const productItems = (items ?? []).filter((i) => i.product_id != null)
+  const productIds = [...new Set(productItems.map((i) => i.product_id as string))]
   const productMeta = new Map<string, { sku: string; category: string }>()
   if (productIds.length > 0) {
     const { data: products } = await supabase
@@ -512,10 +513,11 @@ export async function getProductReport(
   const productMap = new Map<string, { name: string; sku: string; revenue: number; units: number }>()
   const categoryMap = new Map<string, { revenue: number; units: number }>()
 
-  for (const item of items ?? []) {
-    const meta = productMeta.get(item.product_id) ?? { sku: '', category: 'Uncategorized' }
+  for (const item of productItems) {
+    const pid = item.product_id as string
+    const meta = productMeta.get(pid) ?? { sku: '', category: 'Uncategorized' }
 
-    const existing = productMap.get(item.product_id) ?? {
+    const existing = productMap.get(pid) ?? {
       name: item.product_name,
       sku: meta.sku,
       revenue: 0,
@@ -523,7 +525,7 @@ export async function getProductReport(
     }
     existing.revenue += item.total ?? 0
     existing.units += item.quantity ?? 0
-    productMap.set(item.product_id, existing)
+    productMap.set(pid, existing)
 
     const cat = meta.category
     const catEntry = categoryMap.get(cat) ?? { revenue: 0, units: 0 }

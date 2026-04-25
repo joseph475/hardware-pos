@@ -114,7 +114,8 @@ export async function createQuotation(params: {
   discount_amount?: number
   tax_rate?: number
   items: Array<{
-    product_id: string
+    product_id: string | null
+    bundle_id?: string | null
     product_name: string
     quantity: number
     unit_price: number
@@ -175,7 +176,8 @@ export async function createQuotation(params: {
   const { error: itemsError } = await supabase.from('quotation_items').insert(
     itemsWithTotals.map((item) => ({
       quotation_id: quotation.id,
-      product_id: item.product_id,
+      product_id: item.product_id ?? null,
+      bundle_id: item.bundle_id ?? null,
       product_name: item.product_name,
       quantity: item.quantity,
       unit_price: item.unit_price,
@@ -203,7 +205,8 @@ export async function updateQuotation(
     discount_amount?: number
     tax_rate?: number
     items?: Array<{
-      product_id: string
+      product_id: string | null
+      bundle_id?: string | null
       product_name: string
       quantity: number
       unit_price: number
@@ -255,7 +258,8 @@ export async function updateQuotation(
     const { error: itemsError } = await supabase.from('quotation_items').insert(
       itemsWithTotals.map((item) => ({
         quotation_id: id,
-        product_id: item.product_id,
+        product_id: item.product_id ?? null,
+        bundle_id: item.bundle_id ?? null,
         product_name: item.product_name,
         quantity: item.quantity,
         unit_price: item.unit_price,
@@ -393,9 +397,9 @@ export async function approveQuotation(id: string): Promise<{ transaction_id: st
     throw new Error('Quotation already converted')
   }
 
-  // Stock validation
+  // Stock validation — only for product items (bundle items handled separately)
   const insufficientItems: string[] = []
-  for (const item of quotation.quotation_items as any[]) {
+  for (const item of (quotation.quotation_items as any[]).filter((i: any) => i.product_id != null)) {
     const { data: inv } = await supabase
       .from('inventory')
       .select('quantity')
@@ -440,8 +444,12 @@ export async function approveQuotation(id: string): Promise<{ transaction_id: st
   if (txError || !tx) throw new Error(txError?.message ?? 'Failed to create transaction')
   const transaction_id = tx.id
 
-  // Insert transaction_items
-  const txItems = (quotation.quotation_items as any[]).map((item: any) => ({
+  // Insert transaction_items (product items only — bundles handled separately)
+  const allQItems = quotation.quotation_items as any[]
+  const productQItems = allQItems.filter((i: any) => i.product_id != null)
+  const bundleQItems = allQItems.filter((i: any) => i.bundle_id != null)
+
+  const txItems = productQItems.map((item: any) => ({
     transaction_id,
     product_id: item.product_id,
     product_name: item.product_name,
@@ -450,11 +458,59 @@ export async function approveQuotation(id: string): Promise<{ transaction_id: st
     discount_amount: item.discount_amount,
     total: item.total,
   }))
-  const { error: txItemsError } = await supabase.from('transaction_items').insert(txItems)
-  if (txItemsError) throw new Error(txItemsError.message)
+  if (txItems.length > 0) {
+    const { error: txItemsError } = await supabase.from('transaction_items').insert(txItems)
+    if (txItemsError) throw new Error(txItemsError.message)
+  }
 
-  // Deduct inventory + log movements
-  for (const item of quotation.quotation_items as any[]) {
+  // Insert bundle transaction_items + deduct component stock
+  for (const bundleItem of bundleQItems) {
+    await supabase.from('transaction_items').insert({
+      transaction_id,
+      product_id: null,
+      bundle_id: bundleItem.bundle_id,
+      product_name: bundleItem.product_name,
+      quantity: bundleItem.quantity,
+      unit_price: bundleItem.unit_price,
+      discount_amount: bundleItem.discount_amount,
+      total: bundleItem.total,
+      serials: [],
+    })
+
+    const { data: bundleItemRows } = await supabase
+      .from('bundle_items')
+      .select('product_id, quantity, products(name)')
+      .eq('bundle_id', bundleItem.bundle_id)
+
+    for (const comp of (bundleItemRows ?? []) as any[]) {
+      const deductQty = comp.quantity * bundleItem.quantity
+      const { data: inv } = await supabase
+        .from('inventory')
+        .select('quantity')
+        .eq('product_id', comp.product_id)
+        .eq('branch_id', quotation.branch_id)
+        .single()
+      if (inv) {
+        await supabase
+          .from('inventory')
+          .update({ quantity: Math.max(0, inv.quantity - deductQty), updated_at: new Date().toISOString() })
+          .eq('product_id', comp.product_id)
+          .eq('branch_id', quotation.branch_id)
+      }
+      await supabase.from('inventory_movements').insert({
+        product_id: comp.product_id,
+        branch_id: quotation.branch_id,
+        type: 'sale',
+        quantity: -deductQty,
+        reference_id: transaction_id,
+        created_by: profile.id,
+        notes: `Bundle '${bundleItem.product_name}' in quotation approval: ${id.slice(0, 8).toUpperCase()}`,
+      })
+    }
+  }
+
+  // Deduct inventory + log movements (product items only)
+  for (const item of productQItems) {
     const { data: inv } = await supabase
       .from('inventory')
       .select('quantity')
