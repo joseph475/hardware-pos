@@ -82,6 +82,7 @@ export async function createStockAdjustment(params: {
 
   revalidateTag(CACHE_TAGS.INVENTORY, {})
   revalidateTag(CACHE_TAGS.INVENTORY_MOVEMENTS, {})
+  revalidateTag(CACHE_TAGS.BUNDLES, {})
   revalidatePath('/inventory/adjustments')
   revalidatePath('/inventory/stock')
 }
@@ -208,4 +209,101 @@ const getPOSProductsCached = unstable_cache(
 
 export async function getPOSProducts(branch_id: string | null): Promise<POSProduct[]> {
   return getPOSProductsCached(branch_id)
+}
+
+const ORG_ID_BUNDLES = '00000000-0000-0000-0000-000000000001'
+
+export type POSBundle = {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  image_url: string | null
+  is_active: boolean
+  items: Array<{ product_id: string; product_name: string; quantity: number }>
+}
+
+const getPOSBundlesCached = unstable_cache(
+  async (branch_id: string | null): Promise<POSBundle[]> => {
+    const supabase = getAdminClient()
+
+    const { data: bundles, error } = await supabase
+      .from('bundles')
+      .select('id, name, description, price, image_url, is_active')
+      .eq('org_id', ORG_ID_BUNDLES)
+      .eq('is_active', true)
+      .order('name')
+
+    if (error || !bundles || bundles.length === 0) return []
+
+    const bundleIds = (bundles as any[]).map((b) => b.id as string)
+
+    const { data: bundleItemRows } = await supabase
+      .from('bundle_items')
+      .select('bundle_id, product_id, quantity, products(name)')
+      .in('bundle_id', bundleIds)
+
+    // Collect all component product IDs to check stock + active status
+    const productIds = [...new Set((bundleItemRows ?? []).map((bi: any) => bi.product_id as string))]
+
+    const stockMap = new Map<string, number>()
+    if (productIds.length > 0 && branch_id) {
+      const { data: invRows } = await supabase
+        .from('inventory')
+        .select('product_id, quantity')
+        .in('product_id', productIds)
+        .eq('branch_id', branch_id)
+      for (const row of (invRows ?? []) as any[]) {
+        stockMap.set(row.product_id, row.quantity)
+      }
+    }
+
+    const activeProducts = new Set<string>()
+    if (productIds.length > 0) {
+      const { data: productRows } = await supabase
+        .from('products')
+        .select('id, is_active')
+        .in('id', productIds)
+      for (const p of (productRows ?? []) as any[]) {
+        if (p.is_active) activeProducts.add(p.id)
+      }
+    }
+
+    // Build items map
+    const itemsMap = new Map<string, POSBundle['items']>()
+    for (const bi of (bundleItemRows ?? []) as any[]) {
+      if (!itemsMap.has(bi.bundle_id)) itemsMap.set(bi.bundle_id, [])
+      itemsMap.get(bi.bundle_id)!.push({
+        product_id: bi.product_id,
+        product_name: bi.products?.name ?? 'Unknown',
+        quantity: bi.quantity,
+      })
+    }
+
+    return (bundles as any[])
+      .map((b) => ({
+        id: b.id,
+        name: b.name,
+        description: b.description,
+        price: b.price,
+        image_url: b.image_url,
+        is_active: b.is_active,
+        items: itemsMap.get(b.id) ?? [],
+      }))
+      .filter((bundle) =>
+        bundle.items.length > 0 &&
+        bundle.items.every((item) => {
+          if (!activeProducts.has(item.product_id)) return false
+          // If no branch_id, skip stock check (e.g. quotation form)
+          if (!branch_id) return true
+          return (stockMap.get(item.product_id) ?? 0) >= item.quantity
+        })
+      )
+  },
+  ['pos-bundles'],
+  { tags: [CACHE_TAGS.BUNDLES, CACHE_TAGS.PRODUCTS, CACHE_TAGS.INVENTORY] }
+)
+
+export async function getPOSBundles(branch_id: string | null): Promise<POSBundle[]> {
+  return getPOSBundlesCached(branch_id)
 }
