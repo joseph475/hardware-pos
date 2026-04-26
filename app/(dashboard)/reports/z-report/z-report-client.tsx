@@ -176,6 +176,7 @@ export function ZReportClient({
   const [dateTo, setDateTo] = React.useState(initialDate)
   const [isPending, startTransition] = React.useTransition()
   const [mounted, setMounted] = React.useState(false)
+  const [refSearch, setRefSearch] = React.useState("")
 
   const [analyticsData, setAnalyticsData] = React.useState<SalesReportData>(EMPTY_ANALYTICS)
   const [analyticsLoading, setAnalyticsLoading] = React.useState(true)
@@ -403,10 +404,22 @@ export function ZReportClient({
       {data.transactions.length > 0 && (
         <Card>
           <CardHeader className="border-b border-border pb-3">
-            <CardTitle className="text-sm font-medium">
-              Transactions
-              <span className="ml-2 text-xs font-normal text-muted-foreground">({data.transactions.length})</span>
-            </CardTitle>
+            <div className="flex items-center justify-between gap-4">
+              <CardTitle className="text-sm font-medium">
+                Transactions
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  ({refSearch.trim()
+                    ? `${data.transactions.filter((t) => t.ref.includes(refSearch.trim().toUpperCase())).length} of ${data.transactions.length}`
+                    : data.transactions.length})
+                </span>
+              </CardTitle>
+              <Input
+                placeholder="Search ref #…"
+                value={refSearch}
+                onChange={(e) => setRefSearch(e.target.value)}
+                className="h-8 w-44 text-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -425,7 +438,9 @@ export function ZReportClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.transactions.map((t) => (
+                  {data.transactions
+                    .filter((t) => !refSearch.trim() || t.ref.includes(refSearch.trim().toUpperCase()))
+                    .map((t) => (
                     <TableRow key={t.ref + t.datetime}>
                       <TableCell className="font-mono text-xs">{t.ref}</TableCell>
                       <TableCell className="text-sm">{formatDate(t.datetime)}</TableCell>

@@ -201,6 +201,7 @@ export function TransactionsClient({
   const [dateTo, setDateTo] = React.useState(initialDateTo)
   const [paymentFilter, setPaymentFilter] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState("")
+  const [refSearch, setRefSearch] = React.useState("")
   const [isPending, startTransition] = React.useTransition()
   const [expandedId, setExpandedId] = React.useState<string | null>(null)
   const [voidTarget, setVoidTarget] = React.useState<TransactionSummary | null>(null)
@@ -302,6 +303,10 @@ export function TransactionsClient({
     )
   }
 
+  const filteredData = refSearch.trim()
+    ? data.filter((tx) => tx.id.slice(0, 8).toUpperCase().includes(refSearch.trim().toUpperCase()))
+    : data
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -313,6 +318,16 @@ export function TransactionsClient({
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
+        <div className="space-y-1">
+          <Label htmlFor="ref-search" className="text-xs">Ref #</Label>
+          <Input
+            id="ref-search"
+            placeholder="Search ref…"
+            value={refSearch}
+            onChange={(e) => setRefSearch(e.target.value)}
+            className="h-9 w-36"
+          />
+        </div>
         <div className="space-y-1">
           <Label htmlFor="date-from" className="text-xs">From</Label>
           <Input
@@ -395,14 +410,14 @@ export function TransactionsClient({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.length === 0 ? (
+            {filteredData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
                   No transactions found for the selected filters.
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((tx) => {
+              filteredData.map((tx) => {
                 const isExpanded = expandedId === tx.id
                 const dt = new Date(tx.created_at)
                 return (
@@ -458,6 +473,9 @@ export function TransactionsClient({
                       <TableRow className="bg-muted/10 hover:bg-muted/10">
                         <TableCell colSpan={8} className="px-8 py-3">
                           <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">
+                              Ref: <span className="font-mono font-medium text-foreground">#{tx.id.slice(0, 8).toUpperCase()}</span>
+                            </p>
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Items</p>
                             <div className="space-y-1">
                               {tx.items.map((item) => (
@@ -491,7 +509,8 @@ export function TransactionsClient({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {data.length} transaction{data.length !== 1 ? "s" : ""} shown
+        {filteredData.length} transaction{filteredData.length !== 1 ? "s" : ""} shown
+        {refSearch.trim() && ` (filtered by ref "${refSearch.trim().toUpperCase()}")`}
       </p>
 
       <VoidDialog
