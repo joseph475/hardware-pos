@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
-import { getPOSProducts } from "@/lib/actions/inventory"
+import { getPOSProducts, getPOSBundles } from "@/lib/actions/inventory"
 import { getOrgSettings } from "@/lib/actions/organization"
 import { getCustomers } from "@/lib/actions/customers"
 import { getQuotationById } from "@/lib/actions/quotations"
@@ -35,8 +35,9 @@ export default async function POSPage({
   const params = await searchParams
   const quotationId = params?.quotation_id ?? null
 
-  const [products, orgSettings, customers, initialQuotation] = await Promise.all([
+  const [products, bundles, orgSettings, customers, initialQuotation] = await Promise.all([
     getPOSProducts(profile?.branch_id ?? null),
+    getPOSBundles(profile?.branch_id ?? null),
     getOrgSettings(),
     getCustomers(),
     quotationId ? getQuotationById(quotationId) : Promise.resolve(null),
@@ -45,6 +46,7 @@ export default async function POSPage({
   return (
     <POSClient
       initialProducts={products}
+      initialBundles={bundles}
       customers={customers}
       userRole={profile?.role ?? "cashier"}
       gcashQrUrl={orgSettings.gcash_qr_url ?? null}

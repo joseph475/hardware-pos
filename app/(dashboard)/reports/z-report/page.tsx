@@ -37,7 +37,7 @@ export default async function ZReportPage() {
   }
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: timezone })
-  const initialData = await getSalesReading({ mode: "z-reading", date: today, branch_id: branchId })
+  const initialData = await getSalesReading({ mode: "all-time", branch_id: branchId })
 
   return (
     <ZReportClient

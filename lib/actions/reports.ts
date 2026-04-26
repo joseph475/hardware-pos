@@ -334,6 +334,17 @@ export async function getZReport(date: string, branchId?: string | null): Promis
 
 // ─── Unified X/Z Sales Reading ────────────────────────────────────────────────
 
+export type SalesReadingTransaction = {
+  ref: string
+  datetime: string
+  customer: string
+  method: string
+  items: number
+  discount: number
+  total: number
+  status: string
+}
+
 export type SalesReadingData = {
   salesCount: number
   totalRevenue: number
@@ -344,6 +355,7 @@ export type SalesReadingData = {
   byPaymentMethod: { method: string; count: number; total: number }[]
   hourlyBreakdown: { hour: number; revenue: number; count: number }[]
   dailyBreakdown: { date: string; revenue: number; count: number }[]
+  transactions: SalesReadingTransaction[]
 }
 
 export async function getSalesReading(params: {
@@ -369,7 +381,8 @@ export async function getSalesReading(params: {
 
   let query = supabase
     .from('transactions')
-    .select('id, total, discount_amount, payment_method, status, created_at')
+    .select('id, total, discount_amount, payment_method, status, created_at, customer_id')
+    .order('created_at', { ascending: false })
 
   if (params.branch_id) query = query.eq('branch_id', params.branch_id)
 
@@ -389,6 +402,27 @@ export async function getSalesReading(params: {
   const all = (txns ?? []) as any[]
   const completed = all.filter((t) => t.status === 'completed')
   const voided = all.filter((t) => t.status === 'voided')
+
+  // Fetch customer names and item counts for transaction list
+  const allIds = all.map((t) => t.id)
+  const customerIds = [...new Set(all.map((t) => t.customer_id).filter(Boolean))]
+  const customerMap = new Map<string, string>()
+  const itemCountMap = new Map<string, number>()
+
+  await Promise.all([
+    customerIds.length > 0
+      ? supabase.from('customers').select('id, name').in('id', customerIds).then(({ data }) => {
+          for (const c of data ?? []) customerMap.set(c.id, c.name)
+        })
+      : Promise.resolve(),
+    allIds.length > 0
+      ? supabase.from('transaction_items').select('transaction_id, quantity').in('transaction_id', allIds).then(({ data }) => {
+          for (const item of data ?? []) {
+            itemCountMap.set(item.transaction_id, (itemCountMap.get(item.transaction_id) ?? 0) + (item.quantity ?? 0))
+          }
+        })
+      : Promise.resolve(),
+  ])
 
   const totalRevenue = completed.reduce((s: number, t: any) => s + (t.total ?? 0), 0)
   const totalDiscounts = completed.reduce((s: number, t: any) => s + (t.discount_amount ?? 0), 0)
@@ -439,6 +473,17 @@ export async function getSalesReading(params: {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, vals]) => ({ date, revenue: Math.round(vals.revenue * 100) / 100, count: vals.count }))
 
+  const transactions: SalesReadingTransaction[] = all.map((t) => ({
+    ref: (t.id as string).slice(0, 8).toUpperCase(),
+    datetime: t.created_at as string,
+    customer: customerMap.get(t.customer_id) ?? '—',
+    method: t.payment_method as string,
+    items: itemCountMap.get(t.id) ?? 0,
+    discount: t.discount_amount ?? 0,
+    total: t.total ?? 0,
+    status: t.status as string,
+  }))
+
   return {
     salesCount,
     totalRevenue,
@@ -449,6 +494,7 @@ export async function getSalesReading(params: {
     byPaymentMethod,
     hourlyBreakdown,
     dailyBreakdown,
+    transactions,
   }
 }
 

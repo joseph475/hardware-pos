@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Table,
   TableBody,
@@ -23,21 +22,18 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { useCurrency } from "@/lib/context/currency"
 import { createBundle, updateBundle, toggleBundleActive } from "@/lib/actions/bundles"
 import type { BundleWithItems } from "@/lib/actions/bundles"
 
 const bundleSchema = z.object({
   name: z.string().min(1, "Name required"),
-  description: z.string().optional(),
   price: z.number({ message: "Enter a valid price" }).positive("Price must be > 0"),
-  image_url: z.string().optional(),
   items: z
     .array(
       z.object({
@@ -83,14 +79,14 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
   const { register, control, handleSubmit, reset, setValue, watch, formState: { errors } } =
     useForm<BundleFormValues>({
       resolver: zodResolver(bundleSchema),
-      defaultValues: { name: "", description: "", price: 0, image_url: "", items: [] },
+      defaultValues: { name: "", price: 0, items: [] },
     })
   const { fields, append, remove } = useFieldArray({ control, name: "items" })
   const watchedItems = watch("items")
 
   function openCreate() {
     setEditingBundle(null)
-    reset({ name: "", description: "", price: 0, image_url: "", items: [] })
+    reset({ name: "", price: 0, items: [] })
     setSheetOpen(true)
   }
 
@@ -98,9 +94,7 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
     setEditingBundle(bundle)
     reset({
       name: bundle.name,
-      description: bundle.description ?? "",
       price: bundle.price,
-      image_url: bundle.image_url ?? "",
       items: bundle.items.map((i) => ({
         product_id: i.product_id,
         product_name: i.product_name,
@@ -127,18 +121,14 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
         if (editingBundle) {
           await updateBundle(editingBundle.id, {
             name: values.name,
-            description: values.description || null,
             price: values.price,
-            image_url: values.image_url || null,
             items: values.items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
           })
           toast.success("Bundle updated")
         } else {
           await createBundle({
             name: values.name,
-            description: values.description || null,
             price: values.price,
-            image_url: values.image_url || null,
             items: values.items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
           })
           toast.success("Bundle created")
@@ -274,150 +264,142 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
         </Table>
       </div>
 
-      {/* Create / Edit Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editingBundle ? "Edit Bundle" : "New Bundle"}</SheetTitle>
-          </SheetHeader>
+      {/* Create / Edit Dialog */}
+      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DialogContent className="sm:max-w-2xl p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="px-6 pt-6 pb-4 border-b border-border pr-14">
+            <DialogTitle>{editingBundle ? "Edit Bundle" : "New Bundle"}</DialogTitle>
+            <DialogDescription className="mt-0.5 text-sm text-muted-foreground">
+              {editingBundle
+                ? "Update bundle details and component products."
+                : "Create a new bundle with a fixed price and component products."}
+            </DialogDescription>
+          </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Name *</Label>
-              <Input id="name" {...register("name")} placeholder="e.g. Paint Starter Kit" />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
-            </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Name *</Label>
+                <Input id="name" {...register("name")} placeholder="e.g. Paint Starter Kit" />
+                {errors.name && (
+                  <p className="text-xs text-destructive">{errors.name.message}</p>
+                )}
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                {...register("description")}
-                placeholder="Optional description"
-                rows={2}
-              />
-            </div>
+              {/* Product picker */}
+              <div className="space-y-2">
+                <Label>Components *</Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search and add products…"
+                    value={productSearch}
+                    onChange={(e) => {
+                      setProductSearch(e.target.value)
+                      setProductDropdownOpen(e.target.value.length > 0)
+                    }}
+                    onFocus={() => productSearch.length > 0 && setProductDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setProductDropdownOpen(false), 150)}
+                    className="pl-9"
+                  />
+                  {productDropdownOpen && filteredProducts.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                      {filteredProducts.map((p) => (
+                        <div
+                          key={p.id}
+                          onMouseDown={() => handleAddProduct(p)}
+                          className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-accent"
+                        >
+                          <span className="flex-1 text-sm">{p.name}</span>
+                          <span className="font-mono text-xs text-muted-foreground">{p.sku}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {errors.items && (
+                  <p className="text-xs text-destructive">{errors.items.message as string}</p>
+                )}
 
-            <div className="space-y-1.5">
-              <Label htmlFor="price">Bundle Price *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                {...register("price", { valueAsNumber: true })}
-                placeholder="0.00"
-              />
-              {errors.price && (
-                <p className="text-xs text-destructive">{errors.price.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="image_url">Image URL</Label>
-              <Input id="image_url" {...register("image_url")} placeholder="https://…" />
-            </div>
-
-            {/* Product picker */}
-            <div className="space-y-2">
-              <Label>Components *</Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search and add products…"
-                  value={productSearch}
-                  onChange={(e) => {
-                    setProductSearch(e.target.value)
-                    setProductDropdownOpen(e.target.value.length > 0)
-                  }}
-                  onFocus={() => productSearch.length > 0 && setProductDropdownOpen(true)}
-                  onBlur={() => setTimeout(() => setProductDropdownOpen(false), 150)}
-                  className="pl-9"
-                />
-                {productDropdownOpen && filteredProducts.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
-                    {filteredProducts.map((p) => (
-                      <div
-                        key={p.id}
-                        onMouseDown={() => handleAddProduct(p)}
-                        className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-accent"
-                      >
-                        <span className="flex-1 text-sm">{p.name}</span>
-                        <span className="font-mono text-xs text-muted-foreground">{p.sku}</span>
+                {/* Items list */}
+                {fields.length > 0 && (
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    {fields.map((field, index) => (
+                      <div key={field.id} className="flex items-center gap-2 px-3 py-2">
+                        <span className="flex-1 text-sm truncate">{field.product_name}</span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => {
+                              const current = watchedItems[index]?.quantity ?? 1
+                              if (current <= 1) return
+                              setValue(`items.${index}.quantity`, current - 1)
+                            }}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                            className="h-6 w-12 text-center text-xs px-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            onClick={() => {
+                              const current = watchedItems[index]?.quantity ?? 1
+                              setValue(`items.${index}.quantity`, current + 1)
+                            }}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => remove(index)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              {errors.items && (
-                <p className="text-xs text-destructive">{errors.items.message as string}</p>
-              )}
 
-              {/* Items list */}
-              {fields.length > 0 && (
-                <div className="rounded-lg border border-border divide-y divide-border">
-                  {fields.map((field, index) => (
-                    <div key={field.id} className="flex items-center gap-2 px-3 py-2">
-                      <span className="flex-1 text-sm truncate">{field.product_name}</span>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-xs"
-                          onClick={() => {
-                            const current = watchedItems[index]?.quantity ?? 1
-                            if (current <= 1) return
-                            setValue(`items.${index}.quantity`, current - 1)
-                          }}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <Input
-                          type="number"
-                          min={1}
-                          {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                          className="h-6 w-12 text-center text-xs px-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-xs"
-                          onClick={() => {
-                            const current = watchedItems[index]?.quantity ?? 1
-                            setValue(`items.${index}.quantity`, current + 1)
-                          }}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => remove(index)}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="price">Bundle Price *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("price", { valueAsNumber: true })}
+                  placeholder="0.00"
+                />
+                {errors.price && (
+                  <p className="text-xs text-destructive">{errors.price.message}</p>
+                )}
+              </div>
             </div>
 
-            <SheetFooter className="pt-2">
+            <div className="border-t border-border bg-muted/40 px-6 py-4 flex items-center justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Saving…" : editingBundle ? "Save Changes" : "Create Bundle"}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
