@@ -21,7 +21,7 @@ const getOrgSettingsCached = unstable_cache(
     const supabase = getAdminClient()
     const { data } = await supabase
       .from('organizations')
-      .select('currency_code, currency_locale, tax_rate, gcash_qr_url, maya_qr_url, receipt_header, receipt_footer, max_cashier_discount_pct, manager_override_pin')
+      .select('currency_code, currency_locale, tax_rate, gcash_qr_url, maya_qr_url, receipt_header, receipt_footer, max_cashier_discount_pct, manager_override_pin, company_name, address_1, address_2, logo_url')
       .eq('id', ORG_ID)
       .single()
     return data ?? {
@@ -34,6 +34,10 @@ const getOrgSettingsCached = unstable_cache(
       receipt_footer: null,
       max_cashier_discount_pct: 20,
       manager_override_pin: null,
+      company_name: null,
+      address_1: null,
+      address_2: null,
+      logo_url: null,
     }
   },
   ['org-settings'],
@@ -224,6 +228,35 @@ export async function updateOwnerSettings(settings: {
     .eq('id', ORG_ID)
 
   if (updateError) throw new Error(updateError.message)
+
+  revalidateTag(CACHE_TAGS.ORG_SETTINGS, {})
+  revalidatePath('/settings/organization')
+}
+
+export async function updateCompanyInfo(settings: {
+  company_name: string | null
+  address_1: string | null
+  address_2: string | null
+  logo_url: string | null
+}) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('clerk_user_id', userId)
+    .single()
+
+  if (profile?.role !== 'owner') throw new Error('Forbidden')
+
+  const { error } = await supabase
+    .from('organizations')
+    .update(settings)
+    .eq('id', ORG_ID)
+
+  if (error) throw new Error(error.message)
 
   revalidateTag(CACHE_TAGS.ORG_SETTINGS, {})
   revalidatePath('/settings/organization')
