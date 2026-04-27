@@ -62,18 +62,20 @@ function PrintContent({
   return (
     <div id="z-report-print">
       {companyName && (
-        <div style={{ textAlign: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           {logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}
               alt="logo"
-              style={{ height: 56, objectFit: "contain", display: "block", margin: "0 auto 6px" }}
+              style={{ height: 40, width: 40, objectFit: "contain", flexShrink: 0 }}
             />
           )}
-          <div style={{ fontWeight: "bold", fontSize: 15 }}>{companyName}</div>
-          {address1 && <div style={{ fontSize: 11, marginTop: 2 }}>{address1}</div>}
-          {address2 && <div style={{ fontSize: 11 }}>{address2}</div>}
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: 13 }}>{companyName}</div>
+            {address1 && <div style={{ fontSize: 10, color: "#555" }}>{address1}</div>}
+            {address2 && <div style={{ fontSize: 10, color: "#555" }}>{address2}</div>}
+          </div>
         </div>
       )}
       <div style={{ textAlign: "center", marginBottom: 16 }}>
