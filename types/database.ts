@@ -20,6 +20,10 @@ export type Database = {
           receipt_footer: string | null;
           max_cashier_discount_pct: number;
           manager_override_pin: string | null;
+          company_name: string | null;
+          address_1: string | null;
+          address_2: string | null;
+          logo_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -34,6 +38,10 @@ export type Database = {
           receipt_footer?: string | null;
           max_cashier_discount_pct?: number;
           manager_override_pin?: string | null;
+          company_name?: string | null;
+          address_1?: string | null;
+          address_2?: string | null;
+          logo_url?: string | null;
           created_at?: string;
         };
         Update: {
@@ -48,6 +56,10 @@ export type Database = {
           receipt_footer?: string | null;
           max_cashier_discount_pct?: number;
           manager_override_pin?: string | null;
+          company_name?: string | null;
+          address_1?: string | null;
+          address_2?: string | null;
+          logo_url?: string | null;
           created_at?: string;
         };
         Relationships: [];
