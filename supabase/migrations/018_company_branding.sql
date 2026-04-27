@@ -1,0 +1,5 @@
+ALTER TABLE organizations
+  ADD COLUMN IF NOT EXISTS company_name TEXT,
+  ADD COLUMN IF NOT EXISTS address_1    TEXT,
+  ADD COLUMN IF NOT EXISTS address_2    TEXT,
+  ADD COLUMN IF NOT EXISTS logo_url     TEXT;
