@@ -38,12 +38,20 @@ function PrintContent({
   dateFrom,
   dateTo,
   formatCurrency,
+  companyName,
+  address1,
+  address2,
+  logoUrl,
 }: {
   mode: Mode
   data: SalesReadingData
   dateFrom: string
   dateTo: string
   formatCurrency: (v: number) => string
+  companyName?: string | null
+  address1?: string | null
+  address2?: string | null
+  logoUrl?: string | null
 }) {
   const header = mode === "z-reading" ? "Z-READING" : "X-READING"
   const subHeader =
@@ -53,6 +61,21 @@ function PrintContent({
 
   return (
     <div id="z-report-print">
+      {companyName && (
+        <div style={{ textAlign: "center", marginBottom: 12 }}>
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt="logo"
+              style={{ height: 56, objectFit: "contain", display: "block", margin: "0 auto 6px" }}
+            />
+          )}
+          <div style={{ fontWeight: "bold", fontSize: 15 }}>{companyName}</div>
+          {address1 && <div style={{ fontSize: 11, marginTop: 2 }}>{address1}</div>}
+          {address2 && <div style={{ fontSize: 11 }}>{address2}</div>}
+        </div>
+      )}
       <div style={{ textAlign: "center", marginBottom: 16 }}>
         <div style={{ fontWeight: "bold", fontSize: 18, letterSpacing: 2 }}>{header}</div>
         <div style={{ fontSize: 12, marginTop: 4 }}>{subHeader}</div>
@@ -164,10 +187,18 @@ export function ZReportClient({
   initialData,
   initialDate,
   userBranchId,
+  companyName,
+  address1,
+  address2,
+  logoUrl,
 }: {
   initialData: SalesReadingData
   initialDate: string
   userBranchId?: string | null
+  companyName?: string | null
+  address1?: string | null
+  address2?: string | null
+  logoUrl?: string | null
 }) {
   const { formatCurrency } = useCurrency()
   const [mode, setMode] = React.useState<Mode>("z-reading")
@@ -472,6 +503,10 @@ export function ZReportClient({
             dateFrom={dateFrom}
             dateTo={dateTo}
             formatCurrency={formatCurrency}
+            companyName={companyName}
+            address1={address1}
+            address2={address2}
+            logoUrl={logoUrl}
           />,
           document.body
         )}

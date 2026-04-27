@@ -158,6 +158,8 @@ type OrgSettingsForReceipt = {
   receipt_footer: string | null
   currency_code: string
   currency_locale: string
+  company_name: string | null
+  address_1: string | null
 }
 
 interface TransactionsClientProps {
@@ -233,6 +235,8 @@ export function TransactionsClient({
       paymentMethod: tx.payment_method as ReceiptData["paymentMethod"],
       receiptHeader: orgSettings.receipt_header ?? undefined,
       receiptFooter: orgSettings.receipt_footer ?? undefined,
+      companyName: orgSettings.company_name ?? undefined,
+      companyAddress1: orgSettings.address_1 ?? undefined,
       formatCurrency,
     }
   }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
 import { getSalesReading } from "@/lib/actions/reports"
+import { getOrgSettings } from "@/lib/actions/organization"
 import { ZReportClient } from "./z-report-client"
 
 function getAdminClient() {
@@ -37,13 +38,20 @@ export default async function ZReportPage() {
   }
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: timezone })
-  const initialData = await getSalesReading({ mode: "all-time", branch_id: branchId })
+  const [initialData, orgSettings] = await Promise.all([
+    getSalesReading({ mode: "all-time", branch_id: branchId }),
+    getOrgSettings(),
+  ])
 
   return (
     <ZReportClient
       initialData={initialData}
       initialDate={today}
       userBranchId={branchId}
+      companyName={orgSettings.company_name ?? null}
+      address1={orgSettings.address_1 ?? null}
+      address2={orgSettings.address_2 ?? null}
+      logoUrl={orgSettings.logo_url ?? null}
     />
   )
 }

@@ -50,6 +50,8 @@ export interface ReceiptData {
   ewalletReference?: string
   receiptHeader?: string
   receiptFooter?: string
+  companyName?: string | null
+  companyAddress1?: string | null
   formatCurrency: (n: number) => string
 }
 

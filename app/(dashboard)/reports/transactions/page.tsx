@@ -49,6 +49,8 @@ export default async function TransactionsPage() {
         receipt_footer: orgSettings.receipt_footer ?? null,
         currency_code: orgSettings.currency_code,
         currency_locale: orgSettings.currency_locale,
+        company_name: orgSettings.company_name ?? null,
+        address_1: orgSettings.address_1 ?? null,
       }}
     />
   )
