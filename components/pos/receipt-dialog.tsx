@@ -115,35 +115,24 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
           <Divider char="-" />
         </>
       )}
-      {/* Company header */}
-      {data.companyName && (
-        <>
-          <ReceiptLine>
-            {"".padStart(Math.floor((42 - Math.min(data.companyName.length, 42)) / 2))}
-            {data.companyName.slice(0, 42)}
-          </ReceiptLine>
-          {data.companyAddress1 && (
-            <ReceiptLine>
-              {"".padStart(Math.floor((42 - Math.min(data.companyAddress1.length, 42)) / 2))}
-              {data.companyAddress1.slice(0, 42)}
-            </ReceiptLine>
-          )}
-          <Divider char="-" />
-        </>
-      )}
       {/* Header */}
       <Divider />
-      <ReceiptLine>{"".padStart(Math.floor((42 - data.branchName.length) / 2)) + data.branchName}</ReceiptLine>
-      {data.branchAddress && (
+      {(() => {
+        const combined = data.companyName
+          ? `${data.companyName} · ${data.branchName}`
+          : data.branchName
+        const displayed = combined.slice(0, 42)
+        return (
+          <ReceiptLine>
+            {"".padStart(Math.floor((42 - displayed.length) / 2))}
+            {displayed}
+          </ReceiptLine>
+        )
+      })()}
+      {data.companyAddress1 && (
         <ReceiptLine>
-          {"".padStart(Math.floor((42 - data.branchAddress.length) / 2))}
-          {data.branchAddress.slice(0, 42)}
-        </ReceiptLine>
-      )}
-      {data.branchPhone && (
-        <ReceiptLine>
-          {"".padStart(Math.floor((42 - data.branchPhone.length) / 2))}
-          {data.branchPhone}
+          {"".padStart(Math.floor((42 - Math.min(data.companyAddress1.length, 42)) / 2))}
+          {data.companyAddress1.slice(0, 42)}
         </ReceiptLine>
       )}
       <Divider />
