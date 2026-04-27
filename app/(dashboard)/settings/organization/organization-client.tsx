@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, KeyRound, Percent, QrCode, Receipt, ShieldCheck, Upload, X } from "lucide-react";
+import { Building2, Globe, KeyRound, Percent, Receipt, ShieldCheck, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateOrgSettings, updateQRSettings, updateOwnerSettings, uploadQrImage, setManagerOverridePin } from "@/lib/actions/organization";
+import { updateOrgSettings, updateOwnerSettings, updateCompanyInfo, setManagerOverridePin } from "@/lib/actions/organization";
+import { uploadLogoImage } from "@/lib/actions/upload";
 import {
   Dialog,
   DialogContent,
@@ -52,51 +53,54 @@ const CURRENCIES = [
 interface OrganizationClientProps {
   initialCurrencyCode: string;
   initialTaxRate: number;
-  initialGcashQrUrl: string | null;
-  initialMayaQrUrl: string | null;
   initialReceiptHeader: string | null;
   initialReceiptFooter: string | null;
   initialMaxCashierDiscountPct: number;
   initialHasManagerPin: boolean;
+  initialCompanyName: string | null;
+  initialAddress1: string | null;
+  initialAddress2: string | null;
+  initialLogoUrl: string | null;
   isOwner: boolean;
 }
 
 export function OrganizationClient({
   initialCurrencyCode,
   initialTaxRate,
-  initialGcashQrUrl,
-  initialMayaQrUrl,
   initialReceiptHeader,
   initialReceiptFooter,
   initialMaxCashierDiscountPct,
   initialHasManagerPin,
+  initialCompanyName,
+  initialAddress1,
+  initialAddress2,
+  initialLogoUrl,
   isOwner,
 }: OrganizationClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [isQrPending, startQrTransition] = useTransition();
+  const [isCompanyPending, startCompanyTransition] = useTransition();
   const [isOwnerPending, startOwnerTransition] = useTransition();
   const [isPinPending, startPinTransition] = useTransition();
 
   const [selectedCode, setSelectedCode] = React.useState(initialCurrencyCode);
-  // Display as percentage string, e.g. 0.12 → "12"
   const [taxInput, setTaxInput] = React.useState(
     String(Math.round(initialTaxRate * 10000) / 100)
   );
-  const [gcashQrUrl, setGcashQrUrl] = React.useState(initialGcashQrUrl ?? "");
-  const [mayaQrUrl, setMayaQrUrl] = React.useState(initialMayaQrUrl ?? "");
-  // Track what's actually saved in DB (updated after upload auto-saves)
-  const [gcashSaved, setGcashSaved] = React.useState(initialGcashQrUrl ?? "");
-  const [mayaSaved, setMayaSaved] = React.useState(initialMayaQrUrl ?? "");
-  const [gcashUploading, setGcashUploading] = React.useState(false);
-  const [mayaUploading, setMayaUploading] = React.useState(false);
-  const gcashFileRef = React.useRef<HTMLInputElement>(null);
-  const mayaFileRef = React.useRef<HTMLInputElement>(null);
   const [receiptHeader, setReceiptHeader] = React.useState(initialReceiptHeader ?? "");
   const [receiptFooter, setReceiptFooter] = React.useState(initialReceiptFooter ?? "");
   const [maxDiscountInput, setMaxDiscountInput] = React.useState(
     String(initialMaxCashierDiscountPct)
   );
+
+  // Company branding state
+  const [companyName, setCompanyName] = React.useState(initialCompanyName ?? "");
+  const [address1, setAddress1] = React.useState(initialAddress1 ?? "");
+  const [address2, setAddress2] = React.useState(initialAddress2 ?? "");
+  const [logoUrl, setLogoUrl] = React.useState(initialLogoUrl ?? "");
+  const [logoSaved, setLogoSaved] = React.useState(initialLogoUrl ?? "");
+  const [logoUploading, setLogoUploading] = React.useState(false);
+  const logoFileRef = React.useRef<HTMLInputElement>(null);
 
   // Manager override PIN state
   const [hasPin, setHasPin] = React.useState(initialHasManagerPin);
@@ -117,37 +121,51 @@ export function OrganizationClient({
     selectedCode !== initialCurrencyCode ||
     taxRateNum !== Math.round(initialTaxRate * 10000) / 100;
 
-  const isQrDirty =
-    gcashQrUrl !== gcashSaved ||
-    mayaQrUrl !== mayaSaved;
-
   const isOwnerDirty =
     receiptHeader !== (initialReceiptHeader ?? "") ||
     receiptFooter !== (initialReceiptFooter ?? "") ||
     maxDiscountNum !== initialMaxCashierDiscountPct;
 
-  async function handleQrUpload(e: React.ChangeEvent<HTMLInputElement>, type: 'gcash' | 'maya') {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const setUploading = type === 'gcash' ? setGcashUploading : setMayaUploading
-    const setUrl = type === 'gcash' ? setGcashQrUrl : setMayaQrUrl
-    setUploading(true)
+  const isCompanyDirty =
+    companyName !== (initialCompanyName ?? "") ||
+    address1 !== (initialAddress1 ?? "") ||
+    address2 !== (initialAddress2 ?? "") ||
+    logoUrl !== logoSaved;
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const url = await uploadQrImage(formData, type)
-      setUrl(url)
-      // Upload already saved to DB — sync the "initial" value so Save button doesn't flag as dirty
-      if (type === 'gcash') setGcashSaved(url)
-      else setMayaSaved(url)
-      toast.success(`${type === 'gcash' ? 'GCash' : 'Maya'} QR image uploaded and saved`)
+      const formData = new FormData();
+      formData.append("file", file);
+      const url = await uploadLogoImage(formData);
+      setLogoUrl(url);
+      toast.success("Logo uploaded");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed')
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
-      setUploading(false)
-      // Reset input so the same file can be re-selected
-      e.target.value = ''
+      setLogoUploading(false);
+      e.target.value = "";
     }
+  }
+
+  function handleCompanySave() {
+    startCompanyTransition(async () => {
+      try {
+        await updateCompanyInfo({
+          company_name: companyName.trim() || null,
+          address_1: address1.trim() || null,
+          address_2: address2.trim() || null,
+          logo_url: logoUrl.trim() || null,
+        });
+        setLogoSaved(logoUrl);
+        toast.success("Company info saved");
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to save company info");
+      }
+    });
   }
 
   function handleSave() {
@@ -160,36 +178,12 @@ export function OrganizationClient({
         await updateOrgSettings({
           currency_code: selectedCurrency.code,
           currency_locale: selectedCurrency.locale,
-          tax_rate: taxRateNum / 100, // store as decimal
+          tax_rate: taxRateNum / 100,
         });
         toast.success("Organization settings saved");
         router.refresh();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to save settings");
-      }
-    });
-  }
-
-  function sanitizeUrl(url: string): string {
-    // Remove all whitespace (spaces, newlines, tabs) from the URL
-    return url.replace(/\s+/g, "").trim()
-  }
-
-  function handleQrSave() {
-    startQrTransition(async () => {
-      try {
-        const cleanGcash = sanitizeUrl(gcashQrUrl)
-        const cleanMaya = sanitizeUrl(mayaQrUrl)
-        await updateQRSettings({
-          gcash_qr_url: cleanGcash || null,
-          maya_qr_url: cleanMaya || null,
-        });
-        setGcashSaved(cleanGcash)
-        setMayaSaved(cleanMaya)
-        toast.success("QR payment settings saved");
-        router.refresh();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to save QR settings");
       }
     });
   }
@@ -265,122 +259,85 @@ export function OrganizationClient({
       </div>
 
       {isOwner && <>
-      {/* QR Payment Settings */}
+      {/* Company Branding */}
       <Card>
         <CardHeader className="border-b border-border pb-4">
           <div className="flex items-center gap-2">
-            <QrCode className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium">QR Payment Settings</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Company Branding</CardTitle>
           </div>
           <CardDescription className="text-xs mt-1">
-            Upload or paste the URL of your GCash or Maya merchant QR image. Customers scan it during checkout.
+            Shown in report headers and on receipts.
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-5 space-y-5">
-          {/* GCash */}
+        <CardContent className="pt-5 space-y-4">
           <div className="space-y-2">
-            <Label>GCash QR Image</Label>
-            <div className="flex gap-2">
-              <Input
-                type="url"
-                placeholder="https://... or upload an image →"
-                value={gcashQrUrl}
-                onChange={(e) => setGcashQrUrl(e.target.value.replace(/\s+/g, ""))}
-                className="flex-1"
-              />
-              <input
-                ref={gcashFileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-                className="hidden"
-                onChange={(e) => handleQrUpload(e, 'gcash')}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                disabled={gcashUploading}
-                onClick={() => gcashFileRef.current?.click()}
-              >
-                <Upload className="h-4 w-4 mr-1.5" />
-                {gcashUploading ? "Uploading…" : "Upload"}
-              </Button>
-              {gcashQrUrl.trim() && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => setGcashQrUrl("")}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            {gcashQrUrl.trim() && (
-              <div className="rounded-lg border border-border bg-muted/40 p-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Preview</p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={gcashQrUrl.trim()}
-                  alt="GCash QR"
-                  className="h-40 w-40 rounded object-contain"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
-                />
-              </div>
-            )}
+            <Label htmlFor="company-name">Company Name</Label>
+            <Input
+              id="company-name"
+              placeholder="e.g. ABC Hardware Store"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+            />
           </div>
-
-          {/* Maya */}
           <div className="space-y-2">
-            <Label>Maya QR Image</Label>
-            <div className="flex gap-2">
-              <Input
-                type="url"
-                placeholder="https://... or upload an image →"
-                value={mayaQrUrl}
-                onChange={(e) => setMayaQrUrl(e.target.value.replace(/\s+/g, ""))}
-                className="flex-1"
-              />
+            <Label htmlFor="address-1">Address 1</Label>
+            <Input
+              id="address-1"
+              placeholder="e.g. 123 Main St"
+              value={address1}
+              onChange={(e) => setAddress1(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="address-2">Address 2</Label>
+            <Input
+              id="address-2"
+              placeholder="e.g. Makati City, Metro Manila"
+              value={address2}
+              onChange={(e) => setAddress2(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Company Logo</Label>
+            <div className="flex gap-2 items-center">
               <input
-                ref={mayaFileRef}
+                ref={logoFileRef}
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
                 className="hidden"
-                onChange={(e) => handleQrUpload(e, 'maya')}
+                onChange={handleLogoUpload}
               />
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="shrink-0"
-                disabled={mayaUploading}
-                onClick={() => mayaFileRef.current?.click()}
+                disabled={logoUploading}
+                onClick={() => logoFileRef.current?.click()}
               >
                 <Upload className="h-4 w-4 mr-1.5" />
-                {mayaUploading ? "Uploading…" : "Upload"}
+                {logoUploading ? "Uploading…" : "Upload Logo"}
               </Button>
-              {mayaQrUrl.trim() && (
+              {logoUrl.trim() && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => setMayaQrUrl("")}
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => setLogoUrl("")}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
-            {mayaQrUrl.trim() && (
+            {logoUrl.trim() && (
               <div className="rounded-lg border border-border bg-muted/40 p-3">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Preview</p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={mayaQrUrl.trim()}
-                  alt="Maya QR"
-                  className="h-40 w-40 rounded object-contain"
+                  src={logoUrl.trim()}
+                  alt="Company Logo"
+                  className="h-24 w-24 rounded object-contain"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
                 />
               </div>
@@ -390,8 +347,8 @@ export function OrganizationClient({
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleQrSave} disabled={!isQrDirty || isQrPending}>
-          {isQrPending ? "Saving…" : "Save QR Settings"}
+        <Button onClick={handleCompanySave} disabled={!isCompanyDirty || isCompanyPending}>
+          {isCompanyPending ? "Saving…" : "Save Company Info"}
         </Button>
       </div>
 

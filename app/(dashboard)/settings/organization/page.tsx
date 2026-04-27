@@ -31,12 +31,14 @@ export default async function OrganizationSettingsPage() {
     <OrganizationClient
       initialCurrencyCode={settings.currency_code}
       initialTaxRate={settings.tax_rate}
-      initialGcashQrUrl={settings.gcash_qr_url ?? null}
-      initialMayaQrUrl={settings.maya_qr_url ?? null}
       initialReceiptHeader={settings.receipt_header ?? null}
       initialReceiptFooter={settings.receipt_footer ?? null}
       initialMaxCashierDiscountPct={settings.max_cashier_discount_pct}
       initialHasManagerPin={settings.has_manager_pin}
+      initialCompanyName={settings.company_name ?? null}
+      initialAddress1={settings.address_1 ?? null}
+      initialAddress2={settings.address_2 ?? null}
+      initialLogoUrl={settings.logo_url ?? null}
       isOwner={profile?.role === "owner"}
     />
   );
