@@ -143,24 +143,21 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
       <ReceiptLine>{`Cashier: ${data.cashierName}`}</ReceiptLine>
       <Divider char="-" />
 
-      {/* Column headers */}
-      <ReceiptLine>{pad("Item", 20)}{pad("Qty", 6, "right")}{pad("Price", 8, "right")}{pad("Total", 8, "right")}</ReceiptLine>
-      <Divider char="-" />
-
       {/* Items */}
-      {data.items.map((item, i) => (
-        <React.Fragment key={i}>
-          <ReceiptLine>
-            {pad(item.name.length > 14 ? item.name.slice(0, 13) + "…" : item.name, 20)}
-            {String(item.qty).padStart(6)}
-            {data.formatCurrency(item.unitPrice).padStart(8)}
-            {data.formatCurrency(item.lineTotal).padStart(8)}
-          </ReceiptLine>
-          {item.discountAmount > 0 && (
-            <ReceiptLine>{`  (Discount: -${data.formatCurrency(item.discountAmount)})`}</ReceiptLine>
-          )}
-        </React.Fragment>
-      ))}
+      {data.items.map((item, i) => {
+        const qtyPrice = `  ${item.qty}x ${data.formatCurrency(item.unitPrice)}`
+        const total = data.formatCurrency(item.lineTotal)
+        const gap = Math.max(1, 42 - qtyPrice.length - total.length)
+        return (
+          <React.Fragment key={i}>
+            <ReceiptLine>{item.name.slice(0, 42)}</ReceiptLine>
+            <ReceiptLine>{qtyPrice}{" ".repeat(gap)}{total}</ReceiptLine>
+            {item.discountAmount > 0 && (
+              <ReceiptLine>{`  Discount: -${data.formatCurrency(item.discountAmount)}`}</ReceiptLine>
+            )}
+          </React.Fragment>
+        )
+      })}
 
       <Divider char="-" />
 
