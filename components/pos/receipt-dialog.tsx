@@ -115,6 +115,22 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
           <Divider char="-" />
         </>
       )}
+      {/* Company header */}
+      {data.companyName && (
+        <>
+          <ReceiptLine>
+            {"".padStart(Math.floor((42 - Math.min(data.companyName.length, 42)) / 2))}
+            {data.companyName.slice(0, 42)}
+          </ReceiptLine>
+          {data.companyAddress1 && (
+            <ReceiptLine>
+              {"".padStart(Math.floor((42 - Math.min(data.companyAddress1.length, 42)) / 2))}
+              {data.companyAddress1.slice(0, 42)}
+            </ReceiptLine>
+          )}
+          <Divider char="-" />
+        </>
+      )}
       {/* Header */}
       <Divider />
       <ReceiptLine>{"".padStart(Math.floor((42 - data.branchName.length) / 2)) + data.branchName}</ReceiptLine>

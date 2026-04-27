@@ -73,6 +73,8 @@ export function POSClient({
   maxCashierDiscountPct,
   receiptHeader,
   receiptFooter,
+  companyName,
+  companyAddress1,
   hasPinConfigured,
   initialQuotation,
 }: {
@@ -85,6 +87,8 @@ export function POSClient({
   maxCashierDiscountPct: number
   receiptHeader?: string | null
   receiptFooter?: string | null
+  companyName?: string | null
+  companyAddress1?: string | null
   hasPinConfigured?: boolean
   initialQuotation?: QuotationWithRelations | null
 }) {
@@ -1120,6 +1124,8 @@ export function POSClient({
         mayaQrUrl={mayaQrUrl}
         receiptHeader={receiptHeader}
         receiptFooter={receiptFooter}
+        companyName={companyName}
+        companyAddress1={companyAddress1}
         quotationId={initialQuotation?.id ?? null}
       />
       <HoldOrderDialog

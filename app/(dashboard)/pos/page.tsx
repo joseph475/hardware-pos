@@ -54,6 +54,8 @@ export default async function POSPage({
       maxCashierDiscountPct={orgSettings.max_cashier_discount_pct}
       receiptHeader={orgSettings.receipt_header ?? null}
       receiptFooter={orgSettings.receipt_footer ?? null}
+      companyName={orgSettings.company_name ?? null}
+      companyAddress1={orgSettings.address_1 ?? null}
       hasPinConfigured={orgSettings.has_manager_pin}
       initialQuotation={initialQuotation}
     />

@@ -45,6 +45,8 @@ interface PaymentDialogProps {
   mayaQrUrl?: string | null
   receiptHeader?: string | null
   receiptFooter?: string | null
+  companyName?: string | null
+  companyAddress1?: string | null
   quotationId?: string | null
 }
 
@@ -72,6 +74,8 @@ export function PaymentDialog({
   mayaQrUrl,
   receiptHeader,
   receiptFooter,
+  companyName,
+  companyAddress1,
   quotationId,
 }: PaymentDialogProps) {
   const { items, bundleItems, clearCart, subtotal, totalDiscount, tax, total } = useCartStore()
@@ -266,6 +270,8 @@ export function PaymentDialog({
         ewalletReference: hasEwallet ? ewalletReference.trim() : undefined,
         receiptHeader: receiptHeader ?? undefined,
         receiptFooter: receiptFooter ?? undefined,
+        companyName: companyName ?? undefined,
+        companyAddress1: companyAddress1 ?? undefined,
         formatCurrency,
       })
       setReceiptOpen(true)
