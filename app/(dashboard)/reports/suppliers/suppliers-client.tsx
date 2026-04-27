@@ -27,9 +27,13 @@ import type { SupplierProductRow } from "@/lib/actions/reports"
 interface Props {
   rows: SupplierProductRow[]
   suppliers: Array<{ id: string; name: string }>
+  companyName?: string | null
+  address1?: string | null
+  address2?: string | null
+  logoUrl?: string | null
 }
 
-export function SuppliersReportClient({ rows, suppliers }: Props) {
+export function SuppliersReportClient({ rows, suppliers, companyName, address1, address2, logoUrl }: Props) {
   const { formatCurrency } = useCurrency()
   const [supplierFilter, setSupplierFilter] = React.useState("all")
   const [search, setSearch] = React.useState("")
@@ -63,6 +67,19 @@ export function SuppliersReportClient({ rows, suppliers }: Props) {
     <div className="p-6 space-y-5">
       {/* Header */}
       <div>
+        {companyName && (
+          <div className="flex items-center gap-2 mb-2">
+            {logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="logo" className="h-8 w-auto object-contain" />
+            )}
+            <div>
+              <p className="text-sm font-semibold text-foreground">{companyName}</p>
+              {address1 && <p className="text-xs text-muted-foreground">{address1}</p>}
+              {address2 && <p className="text-xs text-muted-foreground">{address2}</p>}
+            </div>
+          </div>
+        )}
         <h1 className="text-xl font-semibold text-foreground">Supplier Report</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Fast-moving items by supplier — units sold and cost of goods

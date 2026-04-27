@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
 import { getProductReport } from "@/lib/actions/reports"
+import { getOrgSettings } from "@/lib/actions/organization"
 import { ProductReportClient } from "./product-report-client"
 
 function getAdminClient() {
@@ -27,12 +28,19 @@ export default async function ProductReportPage() {
 
   const branchId = profile?.role !== "owner" ? (profile?.branch_id ?? null) : null
 
-  const initialData = await getProductReport("month", branchId)
+  const [initialData, orgSettings] = await Promise.all([
+    getProductReport("month", branchId),
+    getOrgSettings(),
+  ])
 
   return (
     <ProductReportClient
       initialData={initialData}
       userBranchId={branchId}
+      companyName={orgSettings.company_name ?? null}
+      address1={orgSettings.address_1 ?? null}
+      address2={orgSettings.address_2 ?? null}
+      logoUrl={orgSettings.logo_url ?? null}
     />
   )
 }

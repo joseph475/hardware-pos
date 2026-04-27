@@ -36,9 +36,17 @@ const RANGES: { value: Range; label: string }[] = [
 export function ProductReportClient({
   initialData,
   userBranchId,
+  companyName,
+  address1,
+  address2,
+  logoUrl,
 }: {
   initialData: ProductReportData
   userBranchId?: string | null
+  companyName?: string | null
+  address1?: string | null
+  address2?: string | null
+  logoUrl?: string | null
 }) {
   const { formatCurrency, currencySymbol } = useCurrency()
   const [data, setData] = React.useState(initialData)
@@ -66,6 +74,19 @@ export function ProductReportClient({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          {companyName && (
+            <div className="flex items-center gap-2 mb-2">
+              {logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="logo" className="h-8 w-auto object-contain" />
+              )}
+              <div>
+                <p className="text-sm font-semibold text-foreground">{companyName}</p>
+                {address1 && <p className="text-xs text-muted-foreground">{address1}</p>}
+                {address2 && <p className="text-xs text-muted-foreground">{address2}</p>}
+              </div>
+            </div>
+          )}
           <h1 className="text-xl font-semibold text-foreground">Product Performance</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Top-selling products and category breakdown
