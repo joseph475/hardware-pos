@@ -2,10 +2,9 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { ChevronDown, ChevronRight, Ban, Download, Printer } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronLeft, Ban, Download, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -205,7 +204,10 @@ export function TransactionsClient({
   const [paymentFilter, setPaymentFilter] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState("")
   const [refSearch, setRefSearch] = React.useState("")
+  const [page, setPage] = React.useState(1)
   const [isPending, startTransition] = React.useTransition()
+
+  const PAGE_SIZE = 25
   const [expandedId, setExpandedId] = React.useState<string | null>(null)
   const [voidTarget, setVoidTarget] = React.useState<TransactionSummary | null>(null)
   const [reprintTarget, setReprintTarget] = React.useState<TransactionSummary | null>(null)
@@ -264,6 +266,7 @@ export function TransactionsClient({
   }
 
   function applyFilters(from: string, to: string, payment: string, status: string) {
+    setPage(1)
     startTransition(async () => {
       try {
         const result = await getTransactions({
@@ -312,6 +315,10 @@ export function TransactionsClient({
     ? data.filter((tx) => tx.id.slice(0, 8).toUpperCase().includes(refSearch.trim().toUpperCase()))
     : data
 
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedData = filteredData.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -323,41 +330,32 @@ export function TransactionsClient({
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4 flex flex-wrap gap-3 items-end">
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">Ref #</p>
+        <CardContent className="py-2.5 px-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               id="ref-search"
               placeholder="Search ref…"
               value={refSearch}
-              onChange={(e) => setRefSearch(e.target.value)}
-              className="w-36"
+              onChange={(e) => { setRefSearch(e.target.value); setPage(1) }}
+              className="h-8 w-36 text-xs"
             />
-          </div>
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">From</p>
             <Input
               id="date-from"
               type="date"
               value={dateFrom}
               onChange={(e) => handleDateFromChange(e.target.value)}
-              className="w-40"
+              className="h-8 w-40 text-xs [color-scheme:dark]"
             />
-          </div>
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">To</p>
+            <span className="text-xs text-muted-foreground">–</span>
             <Input
               id="date-to"
               type="date"
               value={dateTo}
               onChange={(e) => handleDateToChange(e.target.value)}
-              className="w-40"
+              className="h-8 w-40 text-xs [color-scheme:dark]"
             />
-          </div>
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">Payment</p>
             <Select value={paymentFilter} onValueChange={(val) => handlePaymentChange(val ?? "")}>
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="h-8 w-36 text-xs">
                 <SelectValue placeholder="All methods">
                   {PAYMENT_METHODS.find((m) => m.value === paymentFilter)?.label ?? "All methods"}
                 </SelectValue>
@@ -368,11 +366,8 @@ export function TransactionsClient({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">Status</p>
             <Select value={statusFilter} onValueChange={(val) => handleStatusChange(val ?? "")}>
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="h-8 w-36 text-xs">
                 <SelectValue placeholder="All statuses">
                   {STATUSES.find((s) => s.value === statusFilter)?.label ?? "All statuses"}
                 </SelectValue>
@@ -383,19 +378,14 @@ export function TransactionsClient({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          {isPending && (
-            <span className="text-xs text-muted-foreground self-center">Loading…</span>
-          )}
-          <div className="ml-auto">
             <Button
               variant="outline"
               size="sm"
+              className="h-8 ml-auto"
               onClick={handleExportCSV}
-              disabled={data.length === 0}
+              disabled={data.length === 0 || isPending}
             >
-              <Download className="h-4 w-4 mr-1.5" />
-              Export CSV
+              {isPending ? "Loading…" : <><Download className="h-4 w-4 mr-1.5" />Export CSV</>}
             </Button>
           </div>
         </CardContent>
@@ -425,7 +415,7 @@ export function TransactionsClient({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredData.map((tx) => {
+              paginatedData.map((tx) => {
                 const isExpanded = expandedId === tx.id
                 const dt = new Date(tx.created_at)
                 return (
@@ -517,10 +507,38 @@ export function TransactionsClient({
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground">
-        {filteredData.length} transaction{filteredData.length !== 1 ? "s" : ""} shown
-        {refSearch.trim() && ` (filtered by ref "${refSearch.trim().toUpperCase()}")`}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {filteredData.length === 0
+            ? "No transactions found"
+            : `${(safePage - 1) * PAGE_SIZE + 1}–${Math.min(safePage * PAGE_SIZE, filteredData.length)} of ${filteredData.length} transaction${filteredData.length !== 1 ? "s" : ""}`}
+        </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={safePage === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-xs text-muted-foreground px-1">
+              {safePage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={safePage === totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
 
       <VoidDialog
         transaction={voidTarget}

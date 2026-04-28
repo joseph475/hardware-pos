@@ -131,6 +131,7 @@ export default async function DashboardLayout({
             {/* Mobile hamburger */}
             <Sheet>
               <SheetTrigger
+                id="nav-sheet-trigger"
                 render={
                   <Button
                     variant="ghost"

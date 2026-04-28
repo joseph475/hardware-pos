@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { NewAdjustmentDialog } from "./new-adjustment-dialog"
 
 // ---------------------------------------------------------------------------
@@ -66,6 +67,8 @@ const TYPE_COLORS: Record<AdjType, string> = {
   transfer_out: "bg-amber-500/15 text-amber-500 border-transparent",
 }
 
+const PAGE_SIZE = 25
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -75,6 +78,7 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
   const [typeFilter, setTypeFilter] = React.useState("all")
   const [dateFrom, setDateFrom] = React.useState("")
   const [dateTo, setDateTo] = React.useState("")
+  const [page, setPage] = React.useState(1)
 
   // Sync when server re-renders with fresh data via router refresh
   React.useEffect(() => {
@@ -92,6 +96,12 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
     const matchTo = !dateTo || rowDate <= dateTo
     return matchSearch && matchType && matchFrom && matchTo
   })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  function resetPage() { setPage(1) }
 
   return (
     <div className="p-6 space-y-5">
@@ -118,7 +128,7 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
             {/* Type */}
             <Select
               value={typeFilter}
-              onValueChange={(v) => { if (v !== null) setTypeFilter(v) }}
+              onValueChange={(v) => { if (v !== null) { setTypeFilter(v); resetPage() } }}
             >
               <SelectTrigger className="h-8 w-36 text-xs">
                 <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
@@ -140,15 +150,15 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
               <Input
                 type="date"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-8 w-36 text-xs [color-scheme:dark]"
+                onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+                className="h-8 w-36 text-xs"
               />
               <span className="text-xs text-muted-foreground">–</span>
               <Input
                 type="date"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-8 w-36 text-xs [color-scheme:dark]"
+                onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+                className="h-8 w-36 text-xs"
               />
             </div>
 
@@ -158,7 +168,7 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
               <Input
                 placeholder="Search by name or SKU…"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); resetPage() }}
                 className="h-8 pl-8 text-xs w-full"
               />
             </div>
@@ -169,7 +179,7 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-xs text-muted-foreground"
-                onClick={() => { setSearch(""); setTypeFilter("all"); setDateFrom(""); setDateTo("") }}
+                onClick={() => { setSearch(""); setTypeFilter("all"); setDateFrom(""); setDateTo(""); resetPage() }}
               >
                 Clear
               </Button>
@@ -200,7 +210,7 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((row) => (
+                {paginated.map((row) => (
                   <TableRow key={row.id} className="border-b border-border/50">
                     <TableCell className="pl-4 font-mono text-xs text-muted-foreground whitespace-nowrap">
                       {row.date.slice(0, 10)}
@@ -241,9 +251,38 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground text-right">
-        Showing {filtered.length} of {rows.length} records
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {filtered.length === 0
+            ? "No records"
+            : `${(safePage - 1) * PAGE_SIZE + 1}–${Math.min(safePage * PAGE_SIZE, filtered.length)} of ${filtered.length} records`}
+        </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={safePage === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-xs text-muted-foreground px-1">
+              {safePage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={safePage === totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

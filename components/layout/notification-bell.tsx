@@ -57,6 +57,7 @@ export function NotificationBell({ initialCounts }: { initialCounts: Notificatio
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        id="notification-bell-trigger"
         render={
           <Button
             variant="ghost"
