@@ -24,6 +24,7 @@ import {
   Users2,
   PackageSearch,
   Layers,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -82,6 +83,13 @@ const NAV_ENTRIES: NavEntry[] = [
     href: "/quotations",
     icon: ClipboardList,
     roles: ["manager", "cashier"],
+  },
+  {
+    type: "link",
+    label: "Expenses",
+    href: "/expenses",
+    icon: Receipt,
+    roles: ["owner", "manager", "cashier"],
   },
   {
     type: "section",

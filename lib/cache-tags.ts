@@ -11,4 +11,5 @@ export const CACHE_TAGS = {
   CUSTOMERS: 'customers',
   QUOTATIONS: 'quotations',
   BUNDLES: 'bundles',
+  EXPENSES: 'expenses',
 } as const

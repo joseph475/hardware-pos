@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import { Card, CardContent } from "@/components/ui/card"
 import { format } from "date-fns"
 import { getTransactions, voidTransaction, type TransactionSummary } from "@/lib/actions/transactions"
 import { useCurrency } from "@/lib/context/currency"
@@ -321,85 +322,88 @@ export function TransactionsClient({
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div className="space-y-1">
-          <Label htmlFor="ref-search" className="text-xs">Ref #</Label>
-          <Input
-            id="ref-search"
-            placeholder="Search ref…"
-            value={refSearch}
-            onChange={(e) => setRefSearch(e.target.value)}
-            className="h-9 w-36"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="date-from" className="text-xs">From</Label>
-          <Input
-            id="date-from"
-            type="date"
-            value={dateFrom}
-            onChange={(e) => handleDateFromChange(e.target.value)}
-            className="h-9 w-40 [color-scheme:dark]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="date-to" className="text-xs">To</Label>
-          <Input
-            id="date-to"
-            type="date"
-            value={dateTo}
-            onChange={(e) => handleDateToChange(e.target.value)}
-            className="h-9 w-40 [color-scheme:dark]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Payment</Label>
-          <Select value={paymentFilter} onValueChange={(val) => handlePaymentChange(val ?? "")}>
-            <SelectTrigger className="h-9 w-36">
-              <SelectValue placeholder="All methods">
-                {PAYMENT_METHODS.find((m) => m.value === paymentFilter)?.label ?? "All methods"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {PAYMENT_METHODS.map((m) => (
-                <SelectItem key={m.value || "all"} value={m.value}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Status</Label>
-          <Select value={statusFilter} onValueChange={(val) => handleStatusChange(val ?? "")}>
-            <SelectTrigger className="h-9 w-36">
-              <SelectValue placeholder="All statuses">
-                {STATUSES.find((s) => s.value === statusFilter)?.label ?? "All statuses"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {STATUSES.map((s) => (
-                <SelectItem key={s.value || "all"} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {isPending && (
-          <span className="text-xs text-muted-foreground pb-2">Loading…</span>
-        )}
-        <div className="ml-auto pb-0.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={data.length === 0}
-          >
-            <Download className="h-4 w-4 mr-1.5" />
-            Export CSV
-          </Button>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-4 flex flex-wrap gap-3 items-end">
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">Ref #</p>
+            <Input
+              id="ref-search"
+              placeholder="Search ref…"
+              value={refSearch}
+              onChange={(e) => setRefSearch(e.target.value)}
+              className="w-36"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">From</p>
+            <Input
+              id="date-from"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => handleDateFromChange(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">To</p>
+            <Input
+              id="date-to"
+              type="date"
+              value={dateTo}
+              onChange={(e) => handleDateToChange(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">Payment</p>
+            <Select value={paymentFilter} onValueChange={(val) => handlePaymentChange(val ?? "")}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All methods">
+                  {PAYMENT_METHODS.find((m) => m.value === paymentFilter)?.label ?? "All methods"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_METHODS.map((m) => (
+                  <SelectItem key={m.value || "all"} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">Status</p>
+            <Select value={statusFilter} onValueChange={(val) => handleStatusChange(val ?? "")}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All statuses">
+                  {STATUSES.find((s) => s.value === statusFilter)?.label ?? "All statuses"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((s) => (
+                  <SelectItem key={s.value || "all"} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {isPending && (
+            <span className="text-xs text-muted-foreground self-center">Loading…</span>
+          )}
+          <div className="ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              disabled={data.length === 0}
+            >
+              <Download className="h-4 w-4 mr-1.5" />
+              Export CSV
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Table */}
-      <div className="rounded-lg border border-border overflow-hidden">
+      <Card>
+        <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -510,7 +514,8 @@ export function TransactionsClient({
             )}
           </TableBody>
         </Table>
-      </div>
+        </CardContent>
+      </Card>
 
       <p className="text-xs text-muted-foreground">
         {filteredData.length} transaction{filteredData.length !== 1 ? "s" : ""} shown

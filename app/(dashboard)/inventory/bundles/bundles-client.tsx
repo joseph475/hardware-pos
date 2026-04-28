@@ -10,6 +10,7 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
@@ -181,10 +182,11 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-border overflow-hidden">
+      <Card>
+        <CardContent className="p-0">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40">
+            <TableRow>
               <TableHead>Bundle</TableHead>
               <TableHead className="text-right">Price</TableHead>
               <TableHead className="text-center">Items</TableHead>
@@ -262,7 +264,8 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
             )}
           </TableBody>
         </Table>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Create / Edit Dialog */}
       <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>

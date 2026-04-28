@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Briefcase, ShoppingCart, Loader2, Crown } from 'lucide-react'
+import { Briefcase, Loader2, Crown } from 'lucide-react'
 import { toast } from 'sonner'
 import { getDemoSignInUrl, type DemoRole, type DemoBranchNames } from '@/lib/actions/demo'
 
@@ -38,19 +38,6 @@ const DEMO_GROUPS: {
       { role: 'manager' },
       { role: 'manager2' },
       { role: 'manager3' },
-    ],
-  },
-  {
-    groupLabel: 'Cashier',
-    description: 'POS sales only',
-    icon: ShoppingCart,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10 hover:bg-emerald-500/20',
-    border: 'border-emerald-500/30',
-    accounts: [
-      { role: 'cashier' },
-      { role: 'cashier2' },
-      { role: 'cashier3' },
     ],
   },
 ]

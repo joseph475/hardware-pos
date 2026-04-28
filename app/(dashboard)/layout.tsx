@@ -10,6 +10,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { SidebarNav } from "@/components/layout/sidebar";
+import { NotificationBell } from "@/components/layout/notification-bell";
+import { getMyNotificationCounts } from "@/lib/actions/notifications";
 import { UserProfileProvider } from "@/lib/context/user-profile";
 import { CurrencyProvider } from "@/lib/context/currency";
 import { TaxRateSync } from "@/lib/context/tax-rate-sync";
@@ -93,13 +95,14 @@ export default async function DashboardLayout({
   if (!userId) redirect("/sign-in");
 
   const supabase = getAdminClient();
-  const [profile, orgData] = await Promise.all([
+  const [profile, orgData, initialNotifCounts] = await Promise.all([
     ensureProfile(userId),
     supabase
       .from("organizations")
       .select("currency_code, currency_locale, tax_rate")
       .eq("id", "00000000-0000-0000-0000-000000000001")
       .single(),
+    getMyNotificationCounts(),
   ]);
 
   const isOwner = profile?.profile?.role === "owner";
@@ -153,6 +156,7 @@ export default async function DashboardLayout({
             </div>
 
             <div className="ml-auto flex items-center gap-3">
+              <NotificationBell initialCounts={initialNotifCounts} />
               <UserButton
                 appearance={{
                   elements: {

@@ -906,6 +906,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      expenses: {
+        Row: {
+          id: string;
+          org_id: string;
+          category: string;
+          date: string;
+          amount: number;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          category: string;
+          date: string;
+          amount: number;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          category?: string;
+          date?: string;
+          amount?: number;
+          note?: string | null;
+        };
+        Relationships: [];
+      };
     };
   };
 };
@@ -947,6 +977,7 @@ export type ProductSupplierStock = Database["public"]["Tables"]["product_supplie
 export type TransactionItemSupplierCost = Database["public"]["Tables"]["transaction_item_supplier_costs"]["Row"];
 export type Bundle = Database["public"]["Tables"]["bundles"]["Row"];
 export type BundleItem = Database["public"]["Tables"]["bundle_items"]["Row"];
+export type Expense = Database["public"]["Tables"]["expenses"]["Row"];
 
 export type BranchStockRequestWithRelations = BranchStockRequest & {
   requesting_branch: { name: string } | null;
