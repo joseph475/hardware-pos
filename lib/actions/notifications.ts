@@ -33,15 +33,17 @@ export async function getMyNotificationCounts(): Promise<NotificationCounts> {
 
   const supabase = getAdminClient()
 
-  const { data: profile } = await supabase
+  const { data: profileRaw } = await supabase
     .from('profiles')
     .select('role, branch_id, branches(is_main)')
     .eq('clerk_user_id', userId)
     .single()
 
+  const profile = profileRaw as any
+
   if (!profile || profile.role === 'cashier') return EMPTY_COUNTS
 
-  const isMainBranch = (profile.branches as any)?.is_main === true
+  const isMainBranch = profile.branches?.is_main === true
   const isGlobalView = profile.role === 'owner' || isMainBranch
   const branchId = profile.branch_id
 
