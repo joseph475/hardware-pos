@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { MoreHorizontal, Eye, Pencil, Trash2, PackageCheck } from "lucide-react"
+import { MoreHorizontal, Eye, Pencil, Trash2, PackageCheck, Banknote, Receipt } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -33,6 +33,7 @@ import { useCurrency } from "@/lib/context/currency"
 import { NewPOSheet } from "./new-po-sheet"
 import { ReceivePODialog } from "./receive-po-dialog"
 import { ViewPODialog } from "./view-po-dialog"
+import { ChequeDetailsDialog } from "@/components/purchasing/cheque-details-dialog"
 import type { POWithRelations } from "@/lib/actions/purchasing"
 
 // ---------------------------------------------------------------------------
@@ -95,6 +96,9 @@ export function OrdersClient({
   const [dateTo, setDateTo] = React.useState("")
   const [receivingPO, setReceivingPO] = React.useState<POWithRelations | null>(null)
   const [viewingPO, setViewingPO] = React.useState<POWithRelations | null>(null)
+  const [editingPO, setEditingPO] = React.useState<POWithRelations | null>(null)
+  const [chequeFilter, setChequeFilter] = React.useState("all")
+  const [chequePO, setChequePO] = React.useState<POWithRelations | null>(null)
 
   // Sync when server re-renders with fresh data via router refresh
   React.useEffect(() => {
@@ -103,13 +107,21 @@ export function OrdersClient({
 
   const allSupplierOptions = ["All Suppliers", ...supplierNames]
 
+  const chequePoIds = React.useMemo(
+    () => new Set(fullOrders.filter((o) => (o.purchase_order_cheques?.length ?? 0) > 0).map((o) => o.id)),
+    [fullOrders]
+  )
+
   const filtered = orders.filter((o) => {
     const matchStatus = statusFilter === "all" || o.status === statusFilter
     const matchSupplier = supplierFilter === "All Suppliers" || o.supplier === supplierFilter
     const rowDate = o.created_at.slice(0, 10)
     const matchFrom = !dateFrom || rowDate >= dateFrom
     const matchTo = !dateTo || rowDate <= dateTo
-    return matchStatus && matchSupplier && matchFrom && matchTo
+    const matchCheque =
+      chequeFilter === "all" ||
+      (chequeFilter === "has_cheque" ? chequePoIds.has(o.id) : !chequePoIds.has(o.id))
+    return matchStatus && matchSupplier && matchFrom && matchTo && matchCheque
   })
 
   return (
@@ -130,17 +142,19 @@ export function OrdersClient({
             Use Stock Requests instead
           </a>
         )}
-        {isMainBranch && <NewPOSheet
-          suppliers={suppliers}
-          branches={branches}
-          products={products}
-          productSupplierCosts={productSupplierCosts}
-          userBranchId={userBranchId}
-          userRole={userRole}
-          onSuccess={() => {
-            // Page will revalidate via server action; re-render will update initialOrders
-          }}
-        />}
+        {isMainBranch && (
+          <NewPOSheet
+            suppliers={suppliers}
+            branches={branches}
+            products={products}
+            productSupplierCosts={productSupplierCosts}
+            userBranchId={userBranchId}
+            userRole={userRole}
+            onSuccess={() => {}}
+            editingPO={editingPO}
+            onEditClose={() => setEditingPO(null)}
+          />
+        )}
       </div>
 
       {/* Filters */}
@@ -199,6 +213,26 @@ export function OrdersClient({
                 />
               </div>
             </div>
+
+            <Select
+              value={chequeFilter}
+              onValueChange={(v) => { if (v !== null) setChequeFilter(v) }}
+            >
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue placeholder="Cheque">
+                  {chequeFilter === "all"
+                    ? "All Cheques"
+                    : chequeFilter === "has_cheque"
+                    ? "Has Cheque"
+                    : "No Cheque"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cheques</SelectItem>
+                <SelectItem value="has_cheque">Has Cheque</SelectItem>
+                <SelectItem value="no_cheque">No Cheque</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -231,9 +265,14 @@ export function OrdersClient({
                   return (
                     <TableRow key={order.id} className="border-b border-border/50">
                       <TableCell className="pl-4">
-                        <span className="font-mono text-xs font-medium text-foreground">
-                          {order.id.slice(0, 8).toUpperCase()}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-medium text-foreground">
+                            {order.id.slice(0, 8).toUpperCase()}
+                          </span>
+                          {chequePoIds.has(order.id) && (
+                            <Banknote className="size-3.5 text-muted-foreground" />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-foreground">{order.supplier}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{order.branch}</TableCell>
@@ -268,7 +307,12 @@ export function OrdersClient({
                               View
                             </DropdownMenuItem>
                             {order.status === "draft" && (
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  const full = fullOrders.find((o) => o.id === order.id) ?? null
+                                  setEditingPO(full)
+                                }}
+                              >
                                 <Pencil className="h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
@@ -282,6 +326,17 @@ export function OrdersClient({
                               >
                                 <PackageCheck className="h-4 w-4" />
                                 Receive Items
+                              </DropdownMenuItem>
+                            )}
+                            {order.status === "received" && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  const full = fullOrders.find((o) => o.id === order.id) ?? null
+                                  setChequePO(full)
+                                }}
+                              >
+                                <Receipt className="h-4 w-4" />
+                                Manage Cheques
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
@@ -316,6 +371,13 @@ export function OrdersClient({
         po={receivingPO}
         onClose={() => setReceivingPO(null)}
       />
+
+      <ChequeDetailsDialog
+        po={chequePO}
+        open={!!chequePO}
+        onOpenChange={(v) => { if (!v) setChequePO(null) }}
+      />
+
     </div>
   )
 }
