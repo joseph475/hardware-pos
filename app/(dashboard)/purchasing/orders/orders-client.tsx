@@ -166,7 +166,14 @@ export function OrdersClient({
               onValueChange={(v) => { if (v !== null) setStatusFilter(v) }}
             >
               <SelectTrigger className="w-full sm:w-36">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Status">
+                  {statusFilter === "all" ? "All Statuses"
+                    : statusFilter === "draft" ? "Draft"
+                    : statusFilter === "ordered" ? "Ordered"
+                    : statusFilter === "partial" ? "Partial"
+                    : statusFilter === "received" ? "Received"
+                    : "Cancelled"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>

@@ -83,7 +83,7 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
   const [isPending, startTransition] = useTransition();
   const { formatCurrency } = useCurrency();
   const [search, setSearch] = React.useState("");
-  const [categoryFilter, setCategoryFilter] = React.useState("All");
+  const [categoryFilter, setCategoryFilter] = React.useState("All Categories");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [page, setPage] = React.useState(1);
   const [editingProduct, setEditingProduct] = React.useState<ProductWithCategory | null>(null);
@@ -110,7 +110,7 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
     });
   }
 
-  const categoryOptions = ["All", ...categories.map((c) => c.name)];
+  const categoryOptions = ["All Categories", ...categories.map((c) => c.name)];
 
   const filtered = initialProducts.filter((p) => {
     const matchSearch =
@@ -118,7 +118,7 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.sku.toLowerCase().includes(search.toLowerCase());
     const matchCategory =
-      categoryFilter === "All" || p.category_name === categoryFilter;
+      categoryFilter === "All Categories" || p.category_name === categoryFilter;
     const matchStatus =
       statusFilter === "all" ||
       (statusFilter === "active" && p.is_active) ||
@@ -197,7 +197,9 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
               onValueChange={(v) => { if (v !== null) setStatusFilter(v); }}
             >
               <SelectTrigger className="w-full sm:w-36">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Status">
+                  {statusFilter === "all" ? "All Statuses" : statusFilter === "active" ? "Active" : "Inactive"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
