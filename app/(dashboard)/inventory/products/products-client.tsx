@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
   ToggleLeft,
+  ScanBarcode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ProductDialog } from "./components/product-dialog";
+import { SerialLookupDialog } from "./components/serial-lookup-dialog";
 import { useCurrency } from "@/lib/context/currency";
 import { upsertProduct, deleteProduct, toggleProductActive } from "@/lib/actions/products";
 import type { ProductSaveValues } from "./components/product-dialog";
@@ -85,6 +87,7 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [page, setPage] = React.useState(1);
   const [editingProduct, setEditingProduct] = React.useState<ProductWithCategory | null>(null);
+  const [serialLookupOpen, setSerialLookupOpen] = React.useState(false);
 
   function handleSave(product: Product | undefined, values: ProductSaveValues) {
     startTransition(async () => {
@@ -140,19 +143,25 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
             Manage your product catalog
           </p>
         </div>
-        <ProductDialog
-          categories={categories}
-          branches={branches}
-          suppliers={suppliers}
-          defaultBranchId={userBranchId ?? undefined}
-          onSave={(values) => handleSave(undefined, values)}
-          trigger={
-            <Button>
-              <Plus className="h-4 w-4" />
-              Add Product
-            </Button>
-          }
-        />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setSerialLookupOpen(true)}>
+            <ScanBarcode className="h-4 w-4" />
+            Serial Lookup
+          </Button>
+          <ProductDialog
+            categories={categories}
+            branches={branches}
+            suppliers={suppliers}
+            defaultBranchId={userBranchId ?? undefined}
+            onSave={(values) => handleSave(undefined, values)}
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4" />
+                Add Product
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       {/* Filters */}
@@ -191,7 +200,7 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
@@ -292,6 +301,11 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
           )}
         </CardContent>
       </Card>
+
+      <SerialLookupDialog
+        open={serialLookupOpen}
+        onOpenChange={setSerialLookupOpen}
+      />
 
       {/* Edit product dialog (controlled, outside dropdown) */}
       <ProductDialog
