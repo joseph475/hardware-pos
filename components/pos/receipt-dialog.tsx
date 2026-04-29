@@ -32,7 +32,7 @@ export interface ReceiptData {
   taxAmount: number
   taxRate: number
   total: number
-  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet"
+  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit"
   cashTendered?: number
   change?: number
   splitCash?: number

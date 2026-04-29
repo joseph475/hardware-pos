@@ -29,7 +29,7 @@ import { createTransaction } from "@/lib/actions/transactions"
 import { sendQuotationToPos } from "@/lib/actions/quotations"
 import { ReceiptDialog, type ReceiptData } from "@/components/pos/receipt-dialog"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit"
 type SplitLegMethod = "cash" | "card" | "e_wallet"
 
 const EWALLET_PROVIDERS = ["GCash", "PayMaya", "Maribank"] as const
@@ -56,6 +56,7 @@ function paymentMethodLabel(method: PaymentMethod): string {
   if (method === "split") return "Split"
   if (method === "check") return "Check"
   if (method === "e_wallet") return "E-Wallet"
+  if (method === "home_credit") return "Home Credit"
   return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
@@ -97,6 +98,8 @@ export function PaymentDialog({
   const [checkNumber, setCheckNumber] = React.useState("")
   const [checkName, setCheckName] = React.useState("")
   const [checkAmountStr, setCheckAmountStr] = React.useState("")
+  const [hcDownpayment, setHcDownpayment] = React.useState("")
+  const [hcTerms, setHcTerms] = React.useState<number | null>(null)
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [qrConfirmed, setQrConfirmed] = React.useState(false)
   const [qrElapsed, setQrElapsed] = React.useState(0)
@@ -181,13 +184,21 @@ export function PaymentDialog({
       ? ewalletReference.trim() !== ""
       : true
 
+  const hcDownpaymentNum = parseFloat(hcDownpayment) || 0
+  const hcAmountComputed = Math.max(0, orderTotal - hcDownpaymentNum)
+  const isHcValid =
+    paymentMethod === "home_credit"
+      ? hcTerms !== null && hcAmountComputed > 0
+      : true
+
   const canConfirm =
     paymentMethod === "card" ||
     (paymentMethod === "cash" && isCashValid) ||
     (paymentMethod === "split" && isSplitValid) ||
     (paymentMethod === "check" && isCheckValid) ||
     (paymentMethod === "e_wallet" && isEwalletValid) ||
-    (isQrPayment && qrConfirmed)
+    (isQrPayment && qrConfirmed) ||
+    (paymentMethod === "home_credit" && isHcValid)
 
   async function handleConfirm() {
     if (!canConfirm) return
@@ -210,6 +221,7 @@ export function PaymentDialog({
           unit_price: b.unit_price,
           discount_amount: b.discount_amount,
           components: b.components,
+          component_serials: Object.keys(b.serials).length > 0 ? b.serials : undefined,
         })),
         subtotal: orderSubtotal,
         discount_amount: orderDiscount,
@@ -224,6 +236,9 @@ export function PaymentDialog({
         check_amount: paymentMethod === "check" ? checkAmountNum : null,
         ewallet_provider: hasEwallet ? ewalletProvider : null,
         ewallet_reference: hasEwallet ? ewalletReference.trim() : null,
+        hc_downpayment: paymentMethod === "home_credit" ? hcDownpaymentNum : null,
+        hc_terms: paymentMethod === "home_credit" ? hcTerms : null,
+        hc_amount: paymentMethod === "home_credit" ? hcAmountComputed : null,
       })
 
       setReceiptData({
@@ -315,6 +330,8 @@ export function PaymentDialog({
         setCheckNumber("")
         setCheckName("")
         setCheckAmountStr("")
+        setHcDownpayment("")
+        setHcTerms(null)
       }
       onOpenChange(value)
     }
@@ -711,6 +728,70 @@ export function PaymentDialog({
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Home Credit payment */}
+        {paymentMethod === "home_credit" && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="hc-downpayment">
+                Downpayment <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                  {currencySymbol}
+                </span>
+                <Input
+                  id="hc-downpayment"
+                  type="number"
+                  min={0}
+                  max={orderTotal}
+                  step="0.01"
+                  placeholder="0.00"
+                  value={hcDownpayment}
+                  onChange={(e) => setHcDownpayment(e.target.value)}
+                  className="pl-6"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave blank if fully financed by Home Credit.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Terms <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex gap-2 flex-wrap">
+                {[3, 6, 12, 18, 24].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setHcTerms(t)}
+                    className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      hcTerms === t
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {t} mos
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Downpayment collected now</span>
+                <span className="font-medium">{formatCurrency(hcDownpaymentNum)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">HC amount (awaiting payout)</span>
+                <span className="font-medium">{formatCurrency(hcAmountComputed)}</span>
+              </div>
+            </div>
           </div>
         )}
 
