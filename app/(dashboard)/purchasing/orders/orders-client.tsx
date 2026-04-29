@@ -221,14 +221,14 @@ export function OrdersClient({
               <SelectTrigger className="w-full sm:w-36">
                 <SelectValue placeholder="Cheque">
                   {chequeFilter === "all"
-                    ? "All Cheques"
+                    ? "All Orders"
                     : chequeFilter === "has_cheque"
                     ? "Has Cheque"
                     : "No Cheque"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Cheques</SelectItem>
+                <SelectItem value="all">All Orders</SelectItem>
                 <SelectItem value="has_cheque">Has Cheque</SelectItem>
                 <SelectItem value="no_cheque">No Cheque</SelectItem>
               </SelectContent>
