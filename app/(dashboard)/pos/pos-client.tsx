@@ -39,7 +39,7 @@ import type { Customer } from "@/types/database"
 import type { QuotationWithRelations } from "@/lib/actions/quotations"
 import { cn } from "@/lib/utils"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit"
 
 function StockBadge({ stock }: { stock: number }) {
   if (stock === 0) {
@@ -112,6 +112,7 @@ export function POSClient({
     updateBundleQuantity,
     updateBundleItemDiscount,
     updateBundleItemAddTax,
+    updateBundleSerials,
     isReadyToCharge,
     setDiscount,
     setTaxRate,
@@ -132,6 +133,8 @@ export function POSClient({
 
   // Serial number input refs keyed by product id
   const serialRefs = React.useRef<Record<string, (HTMLInputElement | null)[]>>({})
+  // Bundle serial refs: bundleId → productId → slot refs
+  const bundleSerialRefs = React.useRef<Record<string, Record<string, (HTMLInputElement | null)[]>>>({})
 
   // Dialog / sheet state
   const [heldOrdersOpen, setHeldOrdersOpen] = React.useState(false)
@@ -216,6 +219,12 @@ export function POSClient({
         if (!bundle) return null
         const baseTotal = qi.unit_price * qi.quantity
         const discount_pct = baseTotal > 0 ? (qi.discount_amount / baseTotal) * 100 : 0
+        const serials: Record<string, string[]> = {};
+        for (const item of bundle.items) {
+          if (item.serial_required) {
+            serials[item.product_id] = Array(item.quantity * qi.quantity).fill("");
+          }
+        }
         return {
           bundle_id: qi.bundle_id!,
           bundle_name: qi.product_name,
@@ -225,6 +234,7 @@ export function POSClient({
           discount_pct,
           add_tax_pct: qi.add_tax_pct ?? 0,
           components: bundle.items,
+          serials,
         }
       })
       .filter((b): b is NonNullable<typeof b> => b !== null)
@@ -243,7 +253,7 @@ export function POSClient({
     | { kind: "product"; data: POSProduct }
     | { kind: "bundle"; data: POSBundle }
 
-  // Combined product + bundle search results (max 8)
+  // Combined product + bundle search results (up to 6 products + all matching bundles)
   const filteredResults = React.useMemo((): SearchResult[] => {
     if (!search.trim()) return []
     const q = search.toLowerCase()
@@ -254,11 +264,12 @@ export function POSClient({
           p.sku.toLowerCase().includes(q) ||
           (p.barcode ?? "").includes(q)
       )
+      .slice(0, 6)
       .map((p) => ({ kind: "product" as const, data: p }))
     const bundles: SearchResult[] = initialBundles
       .filter((b) => b.name.toLowerCase().includes(q))
       .map((b) => ({ kind: "bundle" as const, data: b }))
-    return [...products, ...bundles].slice(0, 8)
+    return [...bundles, ...products]
   }, [search, initialProducts, initialBundles])
 
   // Backward-compat: product-only list for barcode Enter handler
@@ -398,6 +409,7 @@ export function POSClient({
     { value: "card", label: "Card", icon: <CreditCard className="h-4 w-4" /> },
     { value: "e_wallet", label: "E-Wallet", icon: <Wallet className="h-4 w-4" /> },
     { value: "check", label: "Check", icon: <CheckSquare className="h-4 w-4" /> },
+    { value: "home_credit", label: "Home Credit", icon: <CreditCard className="h-4 w-4" /> },
     { value: "split", label: "Split", icon: <SplitSquareHorizontal className="h-4 w-4" /> },
     ...(gcashQrUrl ? [{ value: "gcash" as const, label: "GCash", icon: <Smartphone className="h-4 w-4" /> }] : []),
     ...(mayaQrUrl ? [{ value: "maya" as const, label: "Maya", icon: <Smartphone className="h-4 w-4" /> }] : []),
@@ -950,6 +962,55 @@ export function POSClient({
                           </Button>
                         </div>
                       )}
+
+                      {/* Bundle component serial inputs — one sub-item row per serial-required component */}
+                      {bundleItem.components
+                        .filter((comp) => comp.serial_required)
+                        .map((comp) => {
+                          const totalNeeded = comp.quantity * bundleItem.quantity
+                          const compSerials = bundleItem.serials[comp.product_id] ?? []
+                          return (
+                            <div key={comp.product_id} className="mx-3 mb-2 ml-8 border-l-2 border-border/50 pl-3">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{comp.product_name}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {Array.from({ length: totalNeeded }, (_, i) => (
+                                  <input
+                                    key={i}
+                                    ref={(el) => {
+                                      if (!bundleSerialRefs.current[bundleItem.bundle_id])
+                                        bundleSerialRefs.current[bundleItem.bundle_id] = {}
+                                      if (!bundleSerialRefs.current[bundleItem.bundle_id][comp.product_id])
+                                        bundleSerialRefs.current[bundleItem.bundle_id][comp.product_id] = []
+                                      bundleSerialRefs.current[bundleItem.bundle_id][comp.product_id][i] = el
+                                    }}
+                                    className={cn(
+                                      "h-7 w-44 rounded border bg-background px-2 font-mono text-xs transition-colors",
+                                      compSerials[i]
+                                        ? "border-green-500/50 text-foreground"
+                                        : "border-border text-foreground placeholder:text-muted-foreground"
+                                    )}
+                                    placeholder={`SN ${i + 1}`}
+                                    value={compSerials[i] ?? ""}
+                                    onChange={(e) => {
+                                      const newSerials = [...compSerials]
+                                      newSerials[i] = e.target.value
+                                      updateBundleSerials(bundleItem.bundle_id, comp.product_id, newSerials)
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key !== "Enter") return
+                                      e.preventDefault()
+                                      const refs = bundleSerialRefs.current[bundleItem.bundle_id]?.[comp.product_id]
+                                      if (refs && i < totalNeeded - 1) refs[i + 1]?.focus()
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })}
                     </div>
                   )
                 })}
@@ -1085,7 +1146,7 @@ export function POSClient({
               }}
               title={!readyToCharge ? "Enter all serial numbers to continue" : undefined}
             >
-              {items.length > 0 && !readyToCharge ? "Enter serials first" : "Charge →"}
+              {!readyToCharge ? "Enter serials first" : "Charge →"}
             </Button>
           </div>
         </div>
