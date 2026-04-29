@@ -145,6 +145,7 @@ export type Database = {
           received_at: string | null;
           received_by: string | null;
           hc_account_number: string | null;
+          installment_company: string | null;
           created_at: string;
         };
         Insert: {
@@ -158,6 +159,7 @@ export type Database = {
           received_at?: string | null;
           received_by?: string | null;
           hc_account_number?: string | null;
+          installment_company?: string | null;
           created_at?: string;
         };
         Update: {
@@ -171,6 +173,7 @@ export type Database = {
           received_at?: string | null;
           received_by?: string | null;
           hc_account_number?: string | null;
+          installment_company?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -342,6 +345,7 @@ export type Database = {
           notes: string | null;
           created_by: string;
           created_at: string;
+          serials: string[];
         };
         Insert: {
           id?: string;
@@ -359,6 +363,7 @@ export type Database = {
           notes?: string | null;
           created_by: string;
           created_at?: string;
+          serials?: string[];
         };
         Update: {
           id?: string;
@@ -376,6 +381,7 @@ export type Database = {
           notes?: string | null;
           created_by?: string;
           created_at?: string;
+          serials?: string[];
         };
         Relationships: [];
       };
@@ -420,6 +426,8 @@ export type Database = {
           created_by: string;
           created_at: string;
           updated_at: string;
+          payment_due_date: string | null;
+          shipping_fee: number;
         };
         Insert: {
           id?: string;
@@ -431,6 +439,8 @@ export type Database = {
           created_by: string;
           created_at?: string;
           updated_at?: string;
+          payment_due_date?: string | null;
+          shipping_fee?: number;
         };
         Update: {
           id?: string;
@@ -442,6 +452,8 @@ export type Database = {
           created_by?: string;
           created_at?: string;
           updated_at?: string;
+          payment_due_date?: string | null;
+          shipping_fee?: number;
         };
         Relationships: [];
       };
@@ -469,6 +481,42 @@ export type Database = {
           quantity_ordered?: number;
           quantity_received?: number;
           unit_cost?: number;
+        };
+        Relationships: [];
+      };
+      purchase_order_cheques: {
+        Row: {
+          id: string;
+          org_id: string;
+          po_id: string;
+          check_name: string;
+          check_number: string;
+          check_date: string;
+          amount: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          po_id: string;
+          check_name: string;
+          check_number: string;
+          check_date: string;
+          amount: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          po_id?: string;
+          check_name?: string;
+          check_number?: string;
+          check_date?: string;
+          amount?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -999,6 +1047,8 @@ export type PurchaseOrder =
   Database["public"]["Tables"]["purchase_orders"]["Row"];
 export type PurchaseOrderItem =
   Database["public"]["Tables"]["purchase_order_items"]["Row"];
+export type PurchaseOrderCheque =
+  Database["public"]["Tables"]["purchase_order_cheques"]["Row"];
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 export type TransactionItem =
   Database["public"]["Tables"]["transaction_items"]["Row"];
