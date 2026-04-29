@@ -116,6 +116,7 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
               <TableHead className="text-right">Downpayment</TableHead>
               <TableHead className="text-right">HC Amount</TableHead>
               <TableHead className="text-center">Terms</TableHead>
+              <TableHead>HC Account #</TableHead>
               <TableHead className="text-center">Status</TableHead>
               {canMarkReceived && <TableHead className="text-center">Action</TableHead>}
             </TableRow>
@@ -123,7 +124,7 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canMarkReceived ? 8 : 7} className="py-16 text-center">
+                <TableCell colSpan={canMarkReceived ? 9 : 8} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <CreditCard className="h-8 w-8 opacity-30" />
                     <p className="text-sm">No installment records found</p>
@@ -152,6 +153,9 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
                   </TableCell>
                   <TableCell className="text-center text-sm text-muted-foreground">
                     {plan.terms} mos
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {plan.hc_account_number ?? <span className="italic">—</span>}
                   </TableCell>
                   <TableCell className="text-center">
                     {plan.status === "pending" ? (
