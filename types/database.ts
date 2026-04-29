@@ -133,6 +133,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      installment_plans: {
+        Row: {
+          id: string;
+          org_id: string;
+          transaction_id: string;
+          downpayment: number;
+          hc_amount: number;
+          terms: number;
+          status: "pending" | "received";
+          received_at: string | null;
+          received_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          transaction_id: string;
+          downpayment?: number;
+          hc_amount: number;
+          terms: number;
+          status?: "pending" | "received";
+          received_at?: string | null;
+          received_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          transaction_id?: string;
+          downpayment?: number;
+          hc_amount?: number;
+          terms?: number;
+          status?: "pending" | "received";
+          received_at?: string | null;
+          received_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       customers: {
         Row: {
           id: string;
@@ -539,7 +578,7 @@ export type Database = {
           discount_amount: number;
           tax_amount: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit";
           status: "completed" | "voided" | "held";
           notes: string | null;
           void_reason: string | null;
@@ -563,7 +602,7 @@ export type Database = {
           discount_amount?: number;
           tax_amount?: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit";
           status?: "completed" | "voided" | "held";
           notes?: string | null;
           void_reason?: string | null;
@@ -616,6 +655,7 @@ export type Database = {
           discount_amount: number;
           total: number;
           serials: string[];
+          component_serials: Record<string, string[]> | null;
         };
         Insert: {
           id?: string;
@@ -628,6 +668,7 @@ export type Database = {
           discount_amount?: number;
           total: number;
           serials?: string[];
+          component_serials?: Record<string, string[]> | null;
         };
         Update: {
           id?: string;
@@ -640,6 +681,7 @@ export type Database = {
           discount_amount?: number;
           total?: number;
           serials?: string[];
+          component_serials?: Record<string, string[]> | null;
         };
         Relationships: [];
       };
