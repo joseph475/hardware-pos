@@ -144,6 +144,7 @@ export type Database = {
           status: "pending" | "received";
           received_at: string | null;
           received_by: string | null;
+          hc_account_number: string | null;
           created_at: string;
         };
         Insert: {
@@ -156,6 +157,7 @@ export type Database = {
           status?: "pending" | "received";
           received_at?: string | null;
           received_by?: string | null;
+          hc_account_number?: string | null;
           created_at?: string;
         };
         Update: {
@@ -168,6 +170,7 @@ export type Database = {
           status?: "pending" | "received";
           received_at?: string | null;
           received_by?: string | null;
+          hc_account_number?: string | null;
           created_at?: string;
         };
         Relationships: [];

@@ -84,6 +84,7 @@ export async function createTransaction(params: {
   hc_downpayment?: number | null
   hc_terms?: number | null
   hc_amount?: number | null
+  hc_account_number?: string | null
 }): Promise<{ id: string }> {
   const profile = await getProfile()
   const supabase = getAdminClient()
@@ -169,6 +170,7 @@ export async function createTransaction(params: {
       downpayment: params.hc_downpayment ?? 0,
       hc_amount: params.hc_amount,
       terms: params.hc_terms,
+      hc_account_number: params.hc_account_number ?? null,
       status: 'pending',
     })
   }

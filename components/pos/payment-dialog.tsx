@@ -100,6 +100,7 @@ export function PaymentDialog({
   const [checkAmountStr, setCheckAmountStr] = React.useState("")
   const [hcDownpayment, setHcDownpayment] = React.useState("")
   const [hcTerms, setHcTerms] = React.useState<number | null>(null)
+  const [hcAccountNumber, setHcAccountNumber] = React.useState("")
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [qrConfirmed, setQrConfirmed] = React.useState(false)
   const [qrElapsed, setQrElapsed] = React.useState(0)
@@ -239,6 +240,7 @@ export function PaymentDialog({
         hc_downpayment: paymentMethod === "home_credit" ? hcDownpaymentNum : null,
         hc_terms: paymentMethod === "home_credit" ? hcTerms : null,
         hc_amount: paymentMethod === "home_credit" ? hcAmountComputed : null,
+        hc_account_number: paymentMethod === "home_credit" ? (hcAccountNumber.trim() || null) : null,
       })
 
       setReceiptData({
@@ -332,6 +334,7 @@ export function PaymentDialog({
         setCheckAmountStr("")
         setHcDownpayment("")
         setHcTerms(null)
+        setHcAccountNumber("")
       }
       onOpenChange(value)
     }
@@ -758,6 +761,18 @@ export function PaymentDialog({
               <p className="text-xs text-muted-foreground">
                 Leave blank if fully financed by Home Credit.
               </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="hc-account">
+                HC Account Number <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
+              <Input
+                id="hc-account"
+                placeholder="e.g. 1234-5678-9012"
+                value={hcAccountNumber}
+                onChange={(e) => setHcAccountNumber(e.target.value)}
+              />
             </div>
 
             <div className="space-y-1.5">
