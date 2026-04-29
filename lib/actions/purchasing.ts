@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
-import type { Database, PurchaseOrder as PurchaseOrderRow } from '@/types/database'
+import type { Database, PurchaseOrder as PurchaseOrderRow, PurchaseOrderCheque } from '@/types/database'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export type POWithRelations = PurchaseOrderRow & {
@@ -16,8 +16,9 @@ export type POWithRelations = PurchaseOrderRow & {
     quantity_ordered: number
     quantity_received: number
     unit_cost: number
-    products: { name: string } | null
+    products: { name: string; serial_required: boolean } | null
   }>
+  purchase_order_cheques: Array<{ id: string }>
 }
 
 function getAdminClient() {
@@ -121,6 +122,63 @@ export async function updatePurchaseOrderStatus(poId: string, status: 'ordered' 
   revalidatePath('/purchasing/orders')
 }
 
+// Update a draft PO's details and line items
+export async function updatePurchaseOrder(poId: string, params: {
+  supplier_id: string
+  branch_id: string
+  notes: string
+  items: Array<{
+    product_id: string
+    quantity_ordered: number
+    unit_cost: number
+  }>
+}) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+
+  const { data: existing } = await supabase
+    .from('purchase_orders')
+    .select('status')
+    .eq('id', poId)
+    .single()
+  if (!existing) throw new Error('Purchase order not found')
+  if (existing.status !== 'draft') throw new Error('Only draft purchase orders can be edited')
+
+  const total = params.items.reduce((sum, item) => sum + item.quantity_ordered * item.unit_cost, 0)
+
+  const { error: poErr } = await supabase
+    .from('purchase_orders')
+    .update({
+      supplier_id: params.supplier_id,
+      branch_id: params.branch_id,
+      notes: params.notes || null,
+      total,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', poId)
+  if (poErr) throw new Error(poErr.message)
+
+  // Replace all line items
+  await supabase.from('purchase_order_items').delete().eq('po_id', poId)
+  const { error: itemErr } = await supabase
+    .from('purchase_order_items')
+    .insert(
+      params.items.map((item) => ({
+        po_id: poId,
+        product_id: item.product_id,
+        quantity_ordered: item.quantity_ordered,
+        quantity_received: 0,
+        unit_cost: item.unit_cost,
+      }))
+    )
+  if (itemErr) throw new Error(itemErr.message)
+
+  revalidateTag(CACHE_TAGS.PURCHASE_ORDERS, {})
+  revalidatePath('/purchasing/orders')
+}
+
 // Get all purchase orders with related data
 const getPurchaseOrdersCached = unstable_cache(
   async (filters?: { status?: string; branch_id?: string }): Promise<POWithRelations[]> => {
@@ -132,7 +190,8 @@ const getPurchaseOrdersCached = unstable_cache(
         suppliers(name),
         branches(name),
         profiles!created_by(full_name),
-        purchase_order_items(id, product_id, quantity_ordered, quantity_received, unit_cost, products(name))
+        purchase_order_items(id, product_id, quantity_ordered, quantity_received, unit_cost, products(name, serial_required)),
+        purchase_order_cheques(id)
       `)
       .order('created_at', { ascending: false })
 
@@ -143,7 +202,7 @@ const getPurchaseOrdersCached = unstable_cache(
     if (error) throw new Error(error.message)
     return (data ?? []) as unknown as POWithRelations[]
   },
-  ['purchase-orders'],
+  ['purchase-orders-v3'],
   { tags: [CACHE_TAGS.PURCHASE_ORDERS] }
 )
 
@@ -208,8 +267,10 @@ export async function getProductSupplierCosts() {
 // Receive goods against a purchase order
 export async function receivePurchaseOrder(params: {
   poId: string
-  items: Array<{ itemId: string; productId: string; quantityReceived: number; unitCost: number }>
+  items: Array<{ itemId: string; productId: string; quantityReceived: number; unitCost: number; serials: string[] }>
   updateCostPrice: boolean
+  paymentDueDate: string | null
+  shippingFee: number
 }): Promise<void> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
@@ -283,6 +344,7 @@ export async function receivePurchaseOrder(params: {
       reference_id: params.poId,
       notes: `Received via PO ${params.poId.slice(0, 8).toUpperCase()}`,
       created_by: profile.id,
+      serials: item.serials,
     })
 
     // Update product_supplier_stock for the PO's supplier
@@ -336,7 +398,12 @@ export async function receivePurchaseOrder(params: {
 
   await supabase
     .from('purchase_orders')
-    .update({ status: allReceived ? 'received' : 'partial', updated_at: new Date().toISOString() })
+    .update({
+      status: allReceived ? 'received' : 'partial',
+      payment_due_date: params.paymentDueDate ?? null,
+      shipping_fee: params.shippingFee,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', params.poId)
 
   revalidateTag(CACHE_TAGS.INVENTORY, {})
@@ -383,4 +450,160 @@ export async function upsertSupplier(params: {
   }
   revalidateTag(CACHE_TAGS.SUPPLIERS, {})
   revalidatePath('/purchasing/suppliers')
+}
+
+// ---------------------------------------------------------------------------
+// Cheque CRUD
+// ---------------------------------------------------------------------------
+
+const ORG_ID = '00000000-0000-0000-0000-000000000001'
+
+export async function getPOCheques(poId: string): Promise<PurchaseOrderCheque[]> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+  const { data, error } = await supabase
+    .from('purchase_order_cheques')
+    .select('*')
+    .eq('po_id', poId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as PurchaseOrderCheque[]
+}
+
+export async function addPOCheque(params: {
+  po_id: string
+  check_name: string
+  check_number: string
+  check_date: string
+  amount: number
+}): Promise<{ error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { error: 'Unauthorized' }
+
+  const supabase = getAdminClient()
+
+  const { data: po } = await supabase
+    .from('purchase_orders')
+    .select('total')
+    .eq('id', params.po_id)
+    .single()
+
+  if (!po) return { error: 'PO not found' }
+
+  const { data: existing } = await supabase
+    .from('purchase_order_cheques')
+    .select('amount')
+    .eq('po_id', params.po_id)
+
+  const existingTotal = ((existing ?? []) as any[]).reduce(
+    (sum: number, c: any) => sum + Number(c.amount),
+    0
+  )
+
+  if (existingTotal + params.amount > Number((po as any).total)) {
+    return { error: 'Total cheque amount exceeds PO total' }
+  }
+
+  const { error } = await supabase
+    .from('purchase_order_cheques')
+    .insert({
+      org_id: ORG_ID,
+      po_id: params.po_id,
+      check_name: params.check_name,
+      check_number: params.check_number,
+      check_date: params.check_date,
+      amount: params.amount,
+    })
+
+  if (error) return { error: error.message }
+
+  revalidateTag(CACHE_TAGS.PURCHASE_ORDERS, {})
+  revalidatePath('/purchasing/orders')
+  return {}
+}
+
+export async function updatePOCheque(
+  id: string,
+  params: {
+    check_name: string
+    check_number: string
+    check_date: string
+    amount: number
+  }
+): Promise<{ error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { error: 'Unauthorized' }
+
+  const supabase = getAdminClient()
+
+  const { data: cheque } = await supabase
+    .from('purchase_order_cheques')
+    .select('po_id')
+    .eq('id', id)
+    .single()
+
+  if (!cheque) return { error: 'Cheque not found' }
+
+  const poId = (cheque as any).po_id
+
+  const { data: po } = await supabase
+    .from('purchase_orders')
+    .select('total')
+    .eq('id', poId)
+    .single()
+
+  if (!po) return { error: 'PO not found' }
+
+  const { data: others } = await supabase
+    .from('purchase_order_cheques')
+    .select('amount')
+    .eq('po_id', poId)
+    .neq('id', id)
+
+  const othersTotal = ((others ?? []) as any[]).reduce(
+    (sum: number, c: any) => sum + Number(c.amount),
+    0
+  )
+
+  if (othersTotal + params.amount > Number((po as any).total)) {
+    return { error: 'Total cheque amount exceeds PO total' }
+  }
+
+  const { error } = await supabase
+    .from('purchase_order_cheques')
+    .update({
+      check_name: params.check_name,
+      check_number: params.check_number,
+      check_date: params.check_date,
+      amount: params.amount,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+
+  revalidateTag(CACHE_TAGS.PURCHASE_ORDERS, {})
+  revalidatePath('/purchasing/orders')
+  return {}
+}
+
+export async function deletePOCheque(id: string): Promise<{ error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { error: 'Unauthorized' }
+
+  const supabase = getAdminClient()
+
+  const { error } = await supabase
+    .from('purchase_order_cheques')
+    .delete()
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+
+  revalidateTag(CACHE_TAGS.PURCHASE_ORDERS, {})
+  revalidatePath('/purchasing/orders')
+  return {}
 }
