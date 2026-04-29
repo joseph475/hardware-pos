@@ -29,6 +29,7 @@ export interface TxBundleItem {
   unit_price: number
   discount_amount: number
   components: Array<{ product_id: string; product_name: string; quantity: number }>
+  component_serials?: Record<string, string[]>
 }
 
 async function getProfile() {
@@ -70,7 +71,7 @@ export async function createTransaction(params: {
   discount_amount: number
   tax_amount: number
   total: number
-  payment_method: 'cash' | 'card' | 'split' | 'gcash' | 'maya' | 'check' | 'e_wallet'
+  payment_method: 'cash' | 'card' | 'split' | 'gcash' | 'maya' | 'check' | 'e_wallet' | 'home_credit'
   customer_id?: string | null
   notes?: string
   check_bank_name?: string | null
@@ -80,6 +81,9 @@ export async function createTransaction(params: {
   check_amount?: number | null
   ewallet_provider?: string | null
   ewallet_reference?: string | null
+  hc_downpayment?: number | null
+  hc_terms?: number | null
+  hc_amount?: number | null
 }): Promise<{ id: string }> {
   const profile = await getProfile()
   const supabase = getAdminClient()
@@ -156,6 +160,18 @@ export async function createTransaction(params: {
     .single()
 
   if (txError || !transaction) throw new Error(txError?.message ?? 'Failed to create transaction')
+
+  if (params.payment_method === 'home_credit' && params.hc_amount != null && params.hc_terms != null) {
+    const ORG_ID = '00000000-0000-0000-0000-000000000001'
+    await supabase.from('installment_plans').insert({
+      org_id: ORG_ID,
+      transaction_id: transaction.id,
+      downpayment: params.hc_downpayment ?? 0,
+      hc_amount: params.hc_amount,
+      terms: params.hc_terms,
+      status: 'pending',
+    })
+  }
 
   const { data: insertedItems, error: itemsError } = await supabase.from('transaction_items').insert(
     params.items.map((item) => ({
@@ -267,7 +283,8 @@ export async function createTransaction(params: {
       discount_amount: bundleItem.discount_amount,
       total: bundleItem.unit_price * bundleItem.quantity - bundleItem.discount_amount,
       serials: [],
-    })
+      component_serials: bundleItem.component_serials ?? null,
+    } as any)
 
     for (const component of bundleItem.components) {
       const deductQty = component.quantity * bundleItem.quantity
@@ -674,6 +691,7 @@ export async function clearExpiredHeldOrders(): Promise<number> {
 
 export async function createHeldTransaction(params: {
   items: TxItem[]
+  bundleItems?: TxBundleItem[]
   subtotal: number
   discount_amount: number
   tax_amount: number
@@ -701,17 +719,31 @@ export async function createHeldTransaction(params: {
 
   if (txError || !transaction) throw new Error(txError?.message ?? 'Failed to hold transaction')
 
-  const { error: itemsError } = await supabase.from('transaction_items').insert(
-    params.items.map((item) => ({
-      transaction_id: transaction.id,
-      product_id: item.product_id,
-      product_name: item.product_name,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      discount_amount: item.discount_amount,
-      total: item.unit_price * item.quantity - item.discount_amount,
-    }))
-  )
+  const regularRows = params.items.map((item) => ({
+    transaction_id: transaction.id,
+    product_id: item.product_id,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    discount_amount: item.discount_amount,
+    total: item.unit_price * item.quantity - item.discount_amount,
+  }))
+
+  const bundleRows = (params.bundleItems ?? []).map((b) => ({
+    transaction_id: transaction.id,
+    bundle_id: b.bundle_id,
+    product_name: b.bundle_name,
+    quantity: b.quantity,
+    unit_price: b.unit_price,
+    discount_amount: b.discount_amount,
+    total: b.unit_price * b.quantity - b.discount_amount,
+    serials: [],
+  }))
+
+  const allRows = [...regularRows, ...bundleRows]
+  if (allRows.length === 0) return
+
+  const { error: itemsError } = await supabase.from('transaction_items').insert(allRows as any[])
   if (itemsError) throw new Error(itemsError.message)
 }
 
@@ -727,6 +759,14 @@ export type HeldTransaction = {
     quantity: number
     unit_price: number
     discount_amount: number
+  }>
+  bundleItems: Array<{
+    bundle_id: string
+    bundle_name: string
+    quantity: number
+    unit_price: number
+    discount_amount: number
+    components: Array<{ product_id: string; product_name: string; quantity: number; serial_required: boolean }>
   }>
 }
 
@@ -747,20 +787,61 @@ export async function getHeldTransactions(): Promise<HeldTransaction[]> {
 
   const { data, error } = await supabase
     .from('transactions')
-    .select('id, notes, total, created_at, transaction_items(id, product_id, product_name, quantity, unit_price, discount_amount)')
+    .select('id, notes, total, created_at, transaction_items(id, product_id, bundle_id, product_name, quantity, unit_price, discount_amount)')
     .eq('status', 'held')
     .eq('branch_id', profile.branch_id)
     .order('created_at', { ascending: false })
 
   if (error) throw new Error(error.message)
 
-  return ((data ?? []) as any[]).map((tx) => ({
-    id: tx.id as string,
-    notes: tx.notes as string | null,
-    total: tx.total as number,
-    created_at: tx.created_at as string,
-    items: (Array.isArray(tx.transaction_items) ? tx.transaction_items : []) as HeldTransaction['items'],
-  }))
+  const txList = (data ?? []) as any[]
+
+  // Collect all bundle_ids across all transactions to fetch components in one query
+  const allBundleIds = new Set<string>()
+  for (const tx of txList) {
+    for (const item of (tx.transaction_items ?? []) as any[]) {
+      if (item.bundle_id) allBundleIds.add(item.bundle_id)
+    }
+  }
+
+  const componentsByBundle = new Map<string, Array<{ product_id: string; product_name: string; quantity: number; serial_required: boolean }>>()
+  if (allBundleIds.size > 0) {
+    const { data: compRows } = await supabase
+      .from('bundle_items')
+      .select('bundle_id, product_id, quantity, products(name, serial_required)')
+      .in('bundle_id', [...allBundleIds])
+    for (const row of (compRows ?? []) as any[]) {
+      const list = componentsByBundle.get(row.bundle_id) ?? []
+      list.push({
+        product_id: row.product_id,
+        product_name: row.products?.name ?? 'Unknown',
+        quantity: row.quantity,
+        serial_required: row.products?.serial_required ?? false,
+      })
+      componentsByBundle.set(row.bundle_id, list)
+    }
+  }
+
+  return txList.map((tx) => {
+    const allItems = (Array.isArray(tx.transaction_items) ? tx.transaction_items : []) as any[]
+    const regularItems = allItems.filter((i) => !i.bundle_id)
+    const bundleTxItems = allItems.filter((i) => !!i.bundle_id)
+    return {
+      id: tx.id as string,
+      notes: tx.notes as string | null,
+      total: tx.total as number,
+      created_at: tx.created_at as string,
+      items: regularItems as HeldTransaction['items'],
+      bundleItems: bundleTxItems.map((i) => ({
+        bundle_id: i.bundle_id as string,
+        bundle_name: i.product_name as string,
+        quantity: i.quantity as number,
+        unit_price: i.unit_price as number,
+        discount_amount: i.discount_amount as number,
+        components: componentsByBundle.get(i.bundle_id) ?? [],
+      })),
+    }
+  })
 }
 
 export async function deleteHeldTransaction(id: string): Promise<void> {
