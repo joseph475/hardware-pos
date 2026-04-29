@@ -302,6 +302,9 @@ export function PaymentDialog({
       setSplitAmount1("")
       setSplitAmount2("")
       setEwalletReference("")
+      setHcDownpayment("")
+      setHcTerms(null)
+      setHcAccountNumber("")
       toast.success("Transaction completed", {
         description: `${itemCount} item${itemCount !== 1 ? "s" : ""} — ${formatCurrency(orderTotal)}`,
       })
