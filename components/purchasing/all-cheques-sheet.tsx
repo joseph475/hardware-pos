@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Banknote } from "lucide-react"
+import { toast } from "sonner"
 import {
   Sheet,
   SheetContent,
@@ -23,9 +24,7 @@ import { getAllCheques } from "@/lib/actions/purchasing"
 import { ChequeDetailsDialog } from "@/components/purchasing/cheque-details-dialog"
 import type { ChequeWithPO } from "@/lib/actions/purchasing"
 
-interface Props {}
-
-export function AllChequesSheet({}: Props) {
+export function AllChequesSheet() {
   const [open, setOpen] = React.useState(false)
   const [cheques, setCheques] = React.useState<ChequeWithPO[]>([])
   const [chequePO, setChequePO] = React.useState<{ id: string; total: number } | null>(null)
@@ -35,7 +34,7 @@ export function AllChequesSheet({}: Props) {
       const data = await getAllCheques()
       setCheques(data)
     } catch {
-      // auth failure or server error — silently fail, sheet stays empty
+      toast.error("Failed to load cheques")
     }
   }
 
