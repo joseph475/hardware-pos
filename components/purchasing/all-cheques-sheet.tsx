@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Banknote } from "lucide-react"
+import { Banknote, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -18,15 +18,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { formatDate, formatNumber } from "@/lib/format"
 import { getAllCheques } from "@/lib/actions/purchasing"
 import { ChequeDetailsDialog } from "@/components/purchasing/cheque-details-dialog"
 import type { ChequeWithPO } from "@/lib/actions/purchasing"
 
+const PAGE_SIZE = 10
+
 export function AllChequesSheet() {
   const [open, setOpen] = React.useState(false)
   const [cheques, setCheques] = React.useState<ChequeWithPO[]>([])
   const [chequePO, setChequePO] = React.useState<{ id: string; total: number } | null>(null)
+  const [search, setSearch] = React.useState("")
+  const [page, setPage] = React.useState(1)
 
   async function fetchCheques() {
     try {
@@ -38,8 +43,29 @@ export function AllChequesSheet() {
   }
 
   React.useEffect(() => {
-    if (open) fetchCheques()
+    if (open) {
+      fetchCheques()
+      setSearch("")
+      setPage(1)
+    }
   }, [open])
+
+  const filtered = cheques.filter((c) => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      c.po_id.slice(0, 8).toLowerCase().includes(q) ||
+      c.check_number.toLowerCase().includes(q)
+    )
+  })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  function handleSearch(value: string) {
+    setSearch(value)
+    setPage(1)
+  }
 
   function handleRowClick(cheque: ChequeWithPO) {
     setChequePO({ id: cheque.po_id, total: cheque.po_total })
@@ -65,8 +91,21 @@ export function AllChequesSheet() {
             <DialogTitle>All Cheques</DialogTitle>
           </DialogHeader>
 
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search by PO # or Check #…"
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-8 h-8 text-sm"
+            />
+          </div>
+
           {cheques.length === 0 ? (
             <p className="text-sm text-muted-foreground">No cheques recorded yet.</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No cheques match your search.</p>
           ) : (
             <div className="overflow-y-auto border rounded-md">
               <Table>
@@ -80,7 +119,7 @@ export function AllChequesSheet() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cheques.map((c) => (
+                  {paginated.map((c) => (
                     <TableRow
                       key={c.id}
                       className="border-b border-border/50 cursor-pointer hover:bg-muted/40"
@@ -107,10 +146,37 @@ export function AllChequesSheet() {
             </div>
           )}
 
-          {cheques.length > 0 && (
-            <p className="text-xs text-muted-foreground text-right">
-              {cheques.length} cheque{cheques.length !== 1 ? "s" : ""}
-            </p>
+          {filtered.length > 0 && (
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {filtered.length > PAGE_SIZE
+                  ? `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} of ${filtered.length}`
+                  : `${filtered.length} cheque${filtered.length !== 1 ? "s" : ""}`}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="px-1">
+                    {page} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>
