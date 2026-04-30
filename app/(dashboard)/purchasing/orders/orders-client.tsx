@@ -136,7 +136,7 @@ export function OrdersClient({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <AllChequesSheet fullOrders={fullOrders} />
+          <AllChequesSheet />
           {!isMainBranch && (
             <a
               href="/purchasing/branch-requests"

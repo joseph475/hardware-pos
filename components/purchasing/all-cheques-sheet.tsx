@@ -21,13 +21,11 @@ import { Button } from "@/components/ui/button"
 import { formatDate, formatNumber } from "@/lib/format"
 import { getAllCheques } from "@/lib/actions/purchasing"
 import { ChequeDetailsDialog } from "@/components/purchasing/cheque-details-dialog"
-import type { ChequeWithPO, POWithRelations } from "@/lib/actions/purchasing"
+import type { ChequeWithPO } from "@/lib/actions/purchasing"
 
-interface Props {
-  fullOrders: POWithRelations[]
-}
+interface Props {}
 
-export function AllChequesSheet({ fullOrders: _fullOrders }: Props) {
+export function AllChequesSheet({}: Props) {
   const [open, setOpen] = React.useState(false)
   const [cheques, setCheques] = React.useState<ChequeWithPO[]>([])
   const [chequePO, setChequePO] = React.useState<{ id: string; total: number } | null>(null)
