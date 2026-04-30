@@ -72,11 +72,11 @@ export function AllChequesSheet() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border hover:bg-transparent">
-                    <TableHead className="pl-4">Date</TableHead>
+                    <TableHead className="pl-4">PO</TableHead>
+                    <TableHead>Date</TableHead>
                     <TableHead>Payee</TableHead>
                     <TableHead>Check #</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="pr-4">PO</TableHead>
+                    <TableHead className="text-right pr-4">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -86,19 +86,19 @@ export function AllChequesSheet() {
                       className="border-b border-border/50 cursor-pointer hover:bg-muted/40"
                       onClick={() => handleRowClick(c)}
                     >
-                      <TableCell className="pl-4 tabular-nums text-sm">
+                      <TableCell className="pl-4 text-xs text-muted-foreground">
+                        <span className="font-mono">{c.po_id.slice(0, 8).toUpperCase()}</span>
+                        <span className="ml-1 text-muted-foreground/70">· {c.supplier_name}</span>
+                      </TableCell>
+                      <TableCell className="tabular-nums text-sm">
                         {formatDate(c.check_date)}
                       </TableCell>
                       <TableCell className="text-sm">{c.check_name}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {c.check_number}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm tabular-nums">
+                      <TableCell className="text-right font-mono text-sm tabular-nums pr-4">
                         {formatNumber(c.amount)}
-                      </TableCell>
-                      <TableCell className="pr-4 text-xs text-muted-foreground">
-                        <span className="font-mono">{c.po_id.slice(0, 8).toUpperCase()}</span>
-                        <span className="ml-1 text-muted-foreground/70">· {c.supplier_name}</span>
                       </TableCell>
                     </TableRow>
                   ))}
