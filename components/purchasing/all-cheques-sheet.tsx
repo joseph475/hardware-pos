@@ -27,7 +27,7 @@ interface Props {
   fullOrders: POWithRelations[]
 }
 
-export function AllChequesSheet({ fullOrders }: Props) {
+export function AllChequesSheet({ fullOrders: _fullOrders }: Props) {
   const [open, setOpen] = React.useState(false)
   const [cheques, setCheques] = React.useState<ChequeWithPO[]>([])
   const [chequePO, setChequePO] = React.useState<{ id: string; total: number } | null>(null)
@@ -110,9 +110,11 @@ export function AllChequesSheet({ fullOrders }: Props) {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground mt-3 text-right">
-            {cheques.length} cheque{cheques.length !== 1 ? "s" : ""}
-          </p>
+          {cheques.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-3 text-right">
+              {cheques.length} cheque{cheques.length !== 1 ? "s" : ""}
+            </p>
+          )}
         </SheetContent>
       </Sheet>
 
