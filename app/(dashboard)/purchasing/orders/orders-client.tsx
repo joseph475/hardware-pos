@@ -34,6 +34,7 @@ import { NewPOSheet } from "./new-po-sheet"
 import { ReceivePODialog } from "./receive-po-dialog"
 import { ViewPODialog } from "./view-po-dialog"
 import { ChequeDetailsDialog } from "@/components/purchasing/cheque-details-dialog"
+import { AllChequesSheet } from "@/components/purchasing/all-cheques-sheet"
 import type { POWithRelations } from "@/lib/actions/purchasing"
 
 // ---------------------------------------------------------------------------
@@ -134,27 +135,30 @@ export function OrdersClient({
             Track orders from your suppliers
           </p>
         </div>
-        {!isMainBranch && (
-          <a
-            href="/purchasing/branch-requests"
-            className="text-sm text-muted-foreground underline"
-          >
-            Use Stock Requests instead
-          </a>
-        )}
-        {isMainBranch && (
-          <NewPOSheet
-            suppliers={suppliers}
-            branches={branches}
-            products={products}
-            productSupplierCosts={productSupplierCosts}
-            userBranchId={userBranchId}
-            userRole={userRole}
-            onSuccess={() => {}}
-            editingPO={editingPO}
-            onEditClose={() => setEditingPO(null)}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          <AllChequesSheet fullOrders={fullOrders} />
+          {!isMainBranch && (
+            <a
+              href="/purchasing/branch-requests"
+              className="text-sm text-muted-foreground underline"
+            >
+              Use Stock Requests instead
+            </a>
+          )}
+          {isMainBranch && (
+            <NewPOSheet
+              suppliers={suppliers}
+              branches={branches}
+              products={products}
+              productSupplierCosts={productSupplierCosts}
+              userBranchId={userBranchId}
+              userRole={userRole}
+              onSuccess={() => {}}
+              editingPO={editingPO}
+              onEditClose={() => setEditingPO(null)}
+            />
+          )}
+        </div>
       </div>
 
       {/* Filters */}
