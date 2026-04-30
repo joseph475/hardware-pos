@@ -30,7 +30,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { useCurrency } from "@/lib/context/currency"
-import { createPurchaseOrder } from "@/lib/actions/purchasing"
+import { createPurchaseOrder, updatePurchaseOrder } from "@/lib/actions/purchasing"
+import type { POWithRelations } from "@/lib/actions/purchasing"
 import { ProductSearchInput } from "@/components/pos/product-search-input"
 
 // ---------------------------------------------------------------------------
@@ -67,12 +68,14 @@ interface Props {
   userBranchId: string | null
   userRole: "owner" | "manager" | "cashier"
   onSuccess: () => void
+  editingPO?: POWithRelations | null
+  onEditClose?: () => void
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function NewPOSheet({ suppliers, branches, products, productSupplierCosts = [], userBranchId, userRole, onSuccess }: Props) {
+export function NewPOSheet({ suppliers, branches, products, productSupplierCosts = [], userBranchId, userRole, onSuccess, editingPO, onEditClose }: Props) {
   const { formatCurrency, currencyCode, locale } = useCurrency()
   const currencySymbol = React.useMemo(
     () =>
@@ -81,6 +84,7 @@ export function NewPOSheet({ suppliers, branches, products, productSupplierCosts
         .find((p) => p.type === 'currency')?.value ?? currencyCode,
     [locale, currencyCode],
   )
+  const isEditMode = !!editingPO
   const [open, setOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
 
@@ -103,6 +107,23 @@ export function NewPOSheet({ suppliers, branches, products, productSupplierCosts
     resolver: zodResolver(schema),
     defaultValues: emptyDefaults,
   })
+
+  // When editing PO is set externally, open the sheet and populate the form
+  React.useEffect(() => {
+    if (editingPO) {
+      reset({
+        supplier_id: editingPO.supplier_id ?? "",
+        branch_id: editingPO.branch_id ?? "",
+        notes: editingPO.notes ?? "",
+        items: editingPO.purchase_order_items.map((item) => ({
+          product_id: item.product_id,
+          quantity_ordered: item.quantity_ordered,
+          unit_cost: item.unit_cost,
+        })),
+      })
+      setOpen(true)
+    }
+  }, [editingPO])
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" })
   const watchedItems = watch("items")
@@ -137,6 +158,7 @@ export function NewPOSheet({ suppliers, branches, products, productSupplierCosts
   function handleOpenChange(next: boolean) {
     if (!next) {
       reset(emptyDefaults)
+      onEditClose?.()
     }
     setOpen(next)
   }
@@ -144,18 +166,28 @@ export function NewPOSheet({ suppliers, branches, products, productSupplierCosts
   async function onSubmit(values: FormValues) {
     setSubmitting(true)
     try {
-      await createPurchaseOrder({
-        supplier_id: values.supplier_id,
-        branch_id: values.branch_id,
-        notes: values.notes,
-        items: values.items,
-      })
-      toast.success("Purchase order created")
+      if (isEditMode && editingPO) {
+        await updatePurchaseOrder(editingPO.id, {
+          supplier_id: values.supplier_id,
+          branch_id: values.branch_id,
+          notes: values.notes,
+          items: values.items,
+        })
+        toast.success("Purchase order updated")
+      } else {
+        await createPurchaseOrder({
+          supplier_id: values.supplier_id,
+          branch_id: values.branch_id,
+          notes: values.notes,
+          items: values.items,
+        })
+        toast.success("Purchase order created")
+      }
       setOpen(false)
       reset()
       onSuccess()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create purchase order")
+      toast.error(err instanceof Error ? err.message : isEditMode ? "Failed to update purchase order" : "Failed to create purchase order")
     } finally {
       setSubmitting(false)
     }
@@ -163,15 +195,19 @@ export function NewPOSheet({ suppliers, branches, products, productSupplierCosts
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetTrigger render={<Button />}>
-        <Plus className="h-4 w-4" />
-        New PO
-      </SheetTrigger>
+      {!isEditMode && (
+        <SheetTrigger render={<Button />}>
+          <Plus className="h-4 w-4" />
+          New PO
+        </SheetTrigger>
+      )}
 
       <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>New Purchase Order</SheetTitle>
-          <SheetDescription>Create a draft purchase order with line items.</SheetDescription>
+          <SheetTitle>{isEditMode ? "Edit Purchase Order" : "New Purchase Order"}</SheetTitle>
+          <SheetDescription>
+            {isEditMode ? "Update this draft purchase order." : "Create a draft purchase order with line items."}
+          </SheetDescription>
         </SheetHeader>
 
         <form
@@ -445,7 +481,9 @@ export function NewPOSheet({ suppliers, branches, products, productSupplierCosts
                 disabled={submitting}
                 onClick={() => handleSubmit(onSubmit)()}
               >
-                {submitting ? "Creating…" : "Create PO"}
+                {isEditMode
+                  ? (submitting ? "Saving…" : "Save Changes")
+                  : (submitting ? "Creating…" : "Create PO")}
               </Button>
             </div>
           </div>

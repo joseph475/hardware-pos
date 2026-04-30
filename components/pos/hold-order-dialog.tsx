@@ -29,15 +29,13 @@ export function HoldOrderDialog({ open, onOpenChange }: HoldOrderDialogProps) {
   const [note, setNote] = React.useState("")
   const [isSaving, setIsSaving] = React.useState(false)
 
-  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0)
+  const itemCount =
+    items.reduce((sum, i) => sum + i.quantity, 0) +
+    bundleItems.reduce((sum, b) => sum + b.quantity, 0)
   const orderTotal = total()
 
   async function handleSave() {
     if (items.length === 0 && bundleItems.length === 0) return
-    if (bundleItems.length > 0) {
-      toast.error("Cannot hold orders with bundle items. Remove bundles before holding.")
-      return
-    }
     setIsSaving(true)
     try {
       await createHeldTransaction({
@@ -47,6 +45,14 @@ export function HoldOrderDialog({ open, onOpenChange }: HoldOrderDialogProps) {
           quantity: i.quantity,
           unit_price: i.unit_price,
           discount_amount: i.discount_amount,
+        })),
+        bundleItems: bundleItems.map((b) => ({
+          bundle_id: b.bundle_id,
+          bundle_name: b.bundle_name,
+          quantity: b.quantity,
+          unit_price: b.unit_price,
+          discount_amount: b.discount_amount,
+          components: b.components,
         })),
         subtotal: subtotal(),
         discount_amount: totalDiscount(),

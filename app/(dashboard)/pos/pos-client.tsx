@@ -409,7 +409,7 @@ export function POSClient({
     { value: "card", label: "Card", icon: <CreditCard className="h-4 w-4" /> },
     { value: "e_wallet", label: "E-Wallet", icon: <Wallet className="h-4 w-4" /> },
     { value: "check", label: "Check", icon: <CheckSquare className="h-4 w-4" /> },
-    { value: "home_credit", label: "Home Credit", icon: <CreditCard className="h-4 w-4" /> },
+    { value: "home_credit", label: "Installment", icon: <CreditCard className="h-4 w-4" /> },
     { value: "split", label: "Split", icon: <SplitSquareHorizontal className="h-4 w-4" /> },
     ...(gcashQrUrl ? [{ value: "gcash" as const, label: "GCash", icon: <Smartphone className="h-4 w-4" /> }] : []),
     ...(mayaQrUrl ? [{ value: "maya" as const, label: "Maya", icon: <Smartphone className="h-4 w-4" /> }] : []),
@@ -1092,13 +1092,13 @@ export function POSClient({
 
               {/* Payment method selector */}
               <div className="px-4 pb-3">
-                <div className={cn("grid gap-1.5", paymentMethods.length <= 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-5")}>
+                <div className="flex gap-1.5">
                   {paymentMethods.map((method) => (
                     <button
                       key={method.value}
                       onClick={() => setPaymentMethod(method.value)}
                       className={cn(
-                        "flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition-all",
+                        "flex flex-1 flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition-all",
                         paymentMethod === method.value
                           ? "border-primary bg-primary text-primary-foreground shadow-sm"
                           : "border-border bg-background text-muted-foreground hover:border-ring/50 hover:bg-muted hover:text-foreground"

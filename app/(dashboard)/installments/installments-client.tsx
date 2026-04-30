@@ -66,9 +66,9 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Home Credit Installments</h1>
+          <h1 className="text-xl font-semibold text-foreground">Installments</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Track HC payout status for all installment sales
+            Track payout status for all installment sales
           </p>
         </div>
         <div className="flex gap-2 shrink-0 flex-wrap justify-end">
@@ -112,11 +112,12 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead>Date</TableHead>
               <TableHead>Customer</TableHead>
+              <TableHead>Company</TableHead>
               <TableHead className="text-right">Sale Total</TableHead>
               <TableHead className="text-right">Downpayment</TableHead>
-              <TableHead className="text-right">HC Amount</TableHead>
+              <TableHead className="text-right">Financed Amount</TableHead>
               <TableHead className="text-center">Terms</TableHead>
-              <TableHead>HC Account #</TableHead>
+              <TableHead>Account #</TableHead>
               <TableHead className="text-center">Status</TableHead>
               {canMarkReceived && <TableHead className="text-center">Action</TableHead>}
             </TableRow>
@@ -124,7 +125,7 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canMarkReceived ? 9 : 8} className="py-16 text-center">
+                <TableCell colSpan={canMarkReceived ? 10 : 9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <CreditCard className="h-8 w-8 opacity-30" />
                     <p className="text-sm">No installment records found</p>
@@ -136,6 +137,9 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
                 <TableRow key={plan.id}>
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                     {formatDate(plan.transaction_date)}
+                  </TableCell>
+                  <TableCell className="text-sm font-medium whitespace-nowrap">
+                    {plan.installment_company ?? "HomeCredit"}
                   </TableCell>
                   <TableCell className="text-sm font-medium">
                     {plan.customer_name ?? (

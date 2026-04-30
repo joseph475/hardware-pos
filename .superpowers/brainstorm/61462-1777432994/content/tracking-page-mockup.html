@@ -1,0 +1,114 @@
+<h2>Home Credit Tracking Page</h2>
+<p class="subtitle">Manager/Owner view — list of all HC transactions with payout status</p>
+
+<div class="mockup" style="max-width:900px;margin:0 auto">
+  <div class="mockup-header">/installments — Home Credit Tracking</div>
+  <div class="mockup-body" style="padding:0">
+
+    <!-- Page header -->
+    <div style="padding:20px 20px 0;display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:1.1rem;font-weight:700;color:#111">Home Credit Installments</div>
+        <div style="font-size:0.8rem;color:#888;margin-top:2px">Track HC payout status for all installment sales</div>
+      </div>
+      <!-- Summary chips -->
+      <div style="display:flex;gap:8px">
+        <div style="padding:6px 14px;background:#fef9c3;border:1px solid #fde047;border-radius:999px;font-size:0.78rem;font-weight:600;color:#854d0e">3 Pending · ₱34,500</div>
+        <div style="padding:6px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:999px;font-size:0.78rem;font-weight:600;color:#166534">8 Received · ₱92,000</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div style="padding:14px 20px;display:flex;gap:10px;align-items:center">
+      <div style="flex:1;max-width:260px;border:1px solid #e5e7eb;border-radius:8px;padding:7px 12px;font-size:0.82rem;color:#aaa;display:flex;align-items:center;gap:6px">
+        <span>🔍</span> Search customer or items...
+      </div>
+      <div style="display:flex;gap:4px">
+        <div style="padding:6px 14px;border-radius:6px;background:#111;color:#fff;font-size:0.8rem;font-weight:600">All</div>
+        <div style="padding:6px 14px;border-radius:6px;border:1px solid #ddd;font-size:0.8rem;color:#666">Pending</div>
+        <div style="padding:6px 14px;border-radius:6px;border:1px solid #ddd;font-size:0.8rem;color:#666">Received</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead>
+          <tr style="background:#f9fafb;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb">
+            <th style="padding:9px 16px;text-align:left;font-weight:600;color:#666;white-space:nowrap">Date</th>
+            <th style="padding:9px 16px;text-align:left;font-weight:600;color:#666">Customer</th>
+            <th style="padding:9px 16px;text-align:right;font-weight:600;color:#666">Sale Total</th>
+            <th style="padding:9px 16px;text-align:right;font-weight:600;color:#666">Downpayment</th>
+            <th style="padding:9px 16px;text-align:right;font-weight:600;color:#666">HC Amount</th>
+            <th style="padding:9px 16px;text-align:center;font-weight:600;color:#666">Terms</th>
+            <th style="padding:9px 16px;text-align:center;font-weight:600;color:#666">Status</th>
+            <th style="padding:9px 16px;text-align:center;font-weight:600;color:#666">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Pending rows -->
+          <tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:11px 16px;color:#555;white-space:nowrap">Apr 29, 2026</td>
+            <td style="padding:11px 16px;color:#111;font-weight:500">Juan dela Cruz</td>
+            <td style="padding:11px 16px;text-align:right;color:#111">₱25,000</td>
+            <td style="padding:11px 16px;text-align:right;color:#666">₱5,000</td>
+            <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111">₱20,000</td>
+            <td style="padding:11px 16px;text-align:center;color:#666">12 mos</td>
+            <td style="padding:11px 16px;text-align:center"><span style="padding:3px 10px;background:#fef9c3;color:#854d0e;border-radius:999px;font-weight:600;font-size:0.75rem">Pending</span></td>
+            <td style="padding:11px 16px;text-align:center"><div style="padding:5px 10px;background:#111;color:#fff;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Mark Received</div></td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0f0f0;background:#fffbeb">
+            <td style="padding:11px 16px;color:#555;white-space:nowrap">Apr 27, 2026</td>
+            <td style="padding:11px 16px;color:#111;font-weight:500">Maria Santos</td>
+            <td style="padding:11px 16px;text-align:right;color:#111">₱8,500</td>
+            <td style="padding:11px 16px;text-align:right;color:#666">—</td>
+            <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111">₱8,500</td>
+            <td style="padding:11px 16px;text-align:center;color:#666">6 mos</td>
+            <td style="padding:11px 16px;text-align:center"><span style="padding:3px 10px;background:#fef9c3;color:#854d0e;border-radius:999px;font-weight:600;font-size:0.75rem">Pending</span></td>
+            <td style="padding:11px 16px;text-align:center"><div style="padding:5px 10px;background:#111;color:#fff;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Mark Received</div></td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:11px 16px;color:#555;white-space:nowrap">Apr 25, 2026</td>
+            <td style="padding:11px 16px;color:#aaa;font-style:italic">No customer</td>
+            <td style="padding:11px 16px;text-align:right;color:#111">₱6,000</td>
+            <td style="padding:11px 16px;text-align:right;color:#666">₱1,000</td>
+            <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111">₱5,000</td>
+            <td style="padding:11px 16px;text-align:center;color:#666">3 mos</td>
+            <td style="padding:11px 16px;text-align:center"><span style="padding:3px 10px;background:#fef9c3;color:#854d0e;border-radius:999px;font-weight:600;font-size:0.75rem">Pending</span></td>
+            <td style="padding:11px 16px;text-align:center"><div style="padding:5px 10px;background:#111;color:#fff;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Mark Received</div></td>
+          </tr>
+          <!-- Received rows -->
+          <tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:11px 16px;color:#555;white-space:nowrap">Apr 20, 2026</td>
+            <td style="padding:11px 16px;color:#111;font-weight:500">Pedro Reyes</td>
+            <td style="padding:11px 16px;text-align:right;color:#111">₱15,000</td>
+            <td style="padding:11px 16px;text-align:right;color:#666">₱3,000</td>
+            <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111">₱12,000</td>
+            <td style="padding:11px 16px;text-align:center;color:#666">12 mos</td>
+            <td style="padding:11px 16px;text-align:center">
+              <span style="padding:3px 10px;background:#dcfce7;color:#166534;border-radius:999px;font-weight:600;font-size:0.75rem">Received</span>
+              <div style="font-size:0.72rem;color:#aaa;margin-top:2px">Apr 28</div>
+            </td>
+            <td style="padding:11px 16px;text-align:center;color:#ccc;font-size:0.78rem">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:11px 16px;color:#555;white-space:nowrap">Apr 15, 2026</td>
+            <td style="padding:11px 16px;color:#111;font-weight:500">Ana Lim</td>
+            <td style="padding:11px 16px;text-align:right;color:#111">₱32,000</td>
+            <td style="padding:11px 16px;text-align:right;color:#666">₱7,000</td>
+            <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111">₱25,000</td>
+            <td style="padding:11px 16px;text-align:center;color:#666">24 mos</td>
+            <td style="padding:11px 16px;text-align:center">
+              <span style="padding:3px 10px;background:#dcfce7;color:#166534;border-radius:999px;font-weight:600;font-size:0.75rem">Received</span>
+              <div style="font-size:0.72rem;color:#aaa;margin-top:2px">Apr 22</div>
+            </td>
+            <td style="padding:11px 16px;text-align:center;color:#ccc;font-size:0.78rem">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<p style="text-align:center;color:#888;font-size:0.82rem;margin-top:16px">Does this tracking page look right? Note: "Mark Received" only visible to manager/owner.</p>

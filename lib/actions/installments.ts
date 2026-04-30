@@ -36,6 +36,7 @@ export type InstallmentPlanRow = {
   status: 'pending' | 'received'
   received_at: string | null
   hc_account_number: string | null
+  installment_company: string | null
   created_at: string
   customer_name: string | null
   sale_total: number
@@ -100,6 +101,7 @@ export async function getInstallmentPlans(filter?: 'pending' | 'received'): Prom
       status: plan.status,
       received_at: plan.received_at,
       hc_account_number: plan.hc_account_number ?? null,
+      installment_company: plan.installment_company ?? null,
       created_at: plan.created_at,
       customer_name: tx?.customer_id ? (customerMap.get(tx.customer_id) ?? null) : null,
       sale_total: tx?.total ?? 0,

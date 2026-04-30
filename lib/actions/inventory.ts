@@ -220,7 +220,7 @@ export type POSBundle = {
   price: number
   image_url: string | null
   is_active: boolean
-  items: Array<{ product_id: string; product_name: string; quantity: number }>
+  items: Array<{ product_id: string; product_name: string; quantity: number; serial_required: boolean }>
 }
 
 const getPOSBundlesCached = unstable_cache(
@@ -259,13 +259,15 @@ const getPOSBundlesCached = unstable_cache(
     }
 
     const activeProducts = new Set<string>()
+    const serialRequiredMap = new Map<string, boolean>()
     if (productIds.length > 0) {
       const { data: productRows } = await supabase
         .from('products')
-        .select('id, is_active')
+        .select('id, is_active, serial_required')
         .in('id', productIds)
       for (const p of (productRows ?? []) as any[]) {
         if (p.is_active) activeProducts.add(p.id)
+        serialRequiredMap.set(p.id, p.serial_required ?? false)
       }
     }
 
@@ -277,6 +279,7 @@ const getPOSBundlesCached = unstable_cache(
         product_id: bi.product_id,
         product_name: bi.products?.name ?? 'Unknown',
         quantity: bi.quantity,
+        serial_required: serialRequiredMap.get(bi.product_id) ?? false,
       })
     }
 
@@ -306,4 +309,62 @@ const getPOSBundlesCached = unstable_cache(
 
 export async function getPOSBundles(branch_id: string | null): Promise<POSBundle[]> {
   return getPOSBundlesCached(branch_id)
+}
+
+export type SerialLookupResult = {
+  serial: string
+  product: { id: string; name: string; sku: string } | null
+  received: Array<{ date: string; reference_id: string | null; branch: string }>
+  sold: Array<{ date: string; transaction_id: string; branch: string }>
+}
+
+export async function lookupSerial(serial: string): Promise<SerialLookupResult> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+  const trimmed = serial.trim()
+
+  // Find in inventory_movements (PO receipts)
+  const { data: movements } = await supabase
+    .from('inventory_movements')
+    .select('reference_id, created_at, product_id, products(name, sku), branches(name)')
+    .eq('type', 'purchase')
+    .contains('serials', [trimmed])
+    .order('created_at', { ascending: false })
+
+  // Find in transaction_items (sales)
+  const { data: txItems } = await supabase
+    .from('transaction_items')
+    .select('transaction_id, product_id, products(name, sku), transactions(id, created_at, branch_id, branches(name))')
+    .contains('serials', [trimmed])
+    .order('transaction_id', { ascending: false })
+
+  const movementsTyped = (movements ?? []) as any[]
+  const txItemsTyped = (txItems ?? []) as any[]
+
+  // Determine product from whichever source has data
+  let product: SerialLookupResult['product'] = null
+  if (movementsTyped.length > 0) {
+    const p = movementsTyped[0].products
+    if (p) product = { id: movementsTyped[0].product_id, name: p.name, sku: p.sku }
+  } else if (txItemsTyped.length > 0) {
+    const p = txItemsTyped[0].products
+    if (p) product = { id: txItemsTyped[0].product_id, name: p.name, sku: p.sku }
+  }
+
+  return {
+    serial: trimmed,
+    product,
+    received: movementsTyped.map((m) => ({
+      date: m.created_at,
+      reference_id: m.reference_id,
+      branch: m.branches?.name ?? '—',
+    })),
+    sold: txItemsTyped.map((t) => ({
+      date: t.transactions?.created_at ?? '',
+      transaction_id: t.transaction_id,
+      branch: t.transactions?.branches?.name ?? '—',
+    })),
+  }
 }

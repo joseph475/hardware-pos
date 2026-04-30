@@ -48,7 +48,7 @@ export default async function QuotationsPage() {
       .order('name'),
     supabase
       .from('organizations')
-      .select('name')
+      .select('name, company_name, address_1, address_2')
       .eq('id', '00000000-0000-0000-0000-000000000001')
       .single(),
   ])
@@ -68,14 +68,19 @@ export default async function QuotationsPage() {
     image_url: string | null
   }>
 
-  const orgName = orgResult.data?.name ?? ''
+  const org = {
+    name: orgResult.data?.name ?? '',
+    company_name: orgResult.data?.company_name ?? null,
+    address_1: orgResult.data?.address_1 ?? null,
+    address_2: orgResult.data?.address_2 ?? null,
+  }
 
   return (
     <QuotationsClient
       initialQuotations={quotations}
       customers={customers}
       products={products}
-      orgName={orgName}
+      org={org}
     />
   )
 }

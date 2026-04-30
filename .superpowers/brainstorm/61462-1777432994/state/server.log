@@ -1,0 +1,6 @@
+{"type":"server-started","port":53029,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:53029","screen_dir":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/61462-1777432994/content","state_dir":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/61462-1777432994/state"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/61462-1777432994/content/approaches.html"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/61462-1777432994/content/payment-dialog-mockup.html"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/61462-1777432994/content/payment-dialog-v2.html"}
+{"type":"screen-added","file":"/Users/joseph-macbookpro-m3/Documents/Apps/practice/hardware-pos/.superpowers/brainstorm/61462-1777432994/content/tracking-page-mockup.html"}
+{"type":"server-stopped","reason":"idle timeout"}

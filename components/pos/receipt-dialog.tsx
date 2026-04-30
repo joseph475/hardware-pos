@@ -177,6 +177,7 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
         data.paymentMethod === "maya" ? "Maya" :
         data.paymentMethod === "check" ? "Check" :
         data.paymentMethod === "e_wallet" ? `E-Wallet (${data.ewalletProvider ?? ""})` :
+        data.paymentMethod === "home_credit" ? "Installment" :
         data.paymentMethod.charAt(0).toUpperCase() + data.paymentMethod.slice(1)
       }`}</ReceiptLine>
       {data.paymentMethod === "cash" && data.cashTendered !== undefined && (

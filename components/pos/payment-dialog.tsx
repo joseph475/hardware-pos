@@ -35,6 +35,9 @@ type SplitLegMethod = "cash" | "card" | "e_wallet"
 const EWALLET_PROVIDERS = ["GCash", "PayMaya", "Maribank"] as const
 type EwalletProvider = typeof EWALLET_PROVIDERS[number]
 
+const INSTALLMENT_COMPANIES = ["HomeCredit", "SKYGO"] as const
+type InstallmentCompany = typeof INSTALLMENT_COMPANIES[number]
+
 interface PaymentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -56,7 +59,7 @@ function paymentMethodLabel(method: PaymentMethod): string {
   if (method === "split") return "Split"
   if (method === "check") return "Check"
   if (method === "e_wallet") return "E-Wallet"
-  if (method === "home_credit") return "Home Credit"
+  if (method === "home_credit") return "Installment"
   return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
@@ -101,6 +104,7 @@ export function PaymentDialog({
   const [hcDownpayment, setHcDownpayment] = React.useState("")
   const [hcTerms, setHcTerms] = React.useState<number | null>(null)
   const [hcAccountNumber, setHcAccountNumber] = React.useState("")
+  const [installmentCompany, setInstallmentCompany] = React.useState<InstallmentCompany>("HomeCredit")
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [qrConfirmed, setQrConfirmed] = React.useState(false)
   const [qrElapsed, setQrElapsed] = React.useState(0)
@@ -241,6 +245,7 @@ export function PaymentDialog({
         hc_terms: paymentMethod === "home_credit" ? hcTerms : null,
         hc_amount: paymentMethod === "home_credit" ? hcAmountComputed : null,
         hc_account_number: paymentMethod === "home_credit" ? (hcAccountNumber.trim() || null) : null,
+        installment_company: paymentMethod === "home_credit" ? installmentCompany : null,
       })
 
       setReceiptData({
@@ -305,6 +310,7 @@ export function PaymentDialog({
       setHcDownpayment("")
       setHcTerms(null)
       setHcAccountNumber("")
+      setInstallmentCompany("HomeCredit")
       toast.success("Transaction completed", {
         description: `${itemCount} item${itemCount !== 1 ? "s" : ""} — ${formatCurrency(orderTotal)}`,
       })
@@ -338,6 +344,7 @@ export function PaymentDialog({
         setHcDownpayment("")
         setHcTerms(null)
         setHcAccountNumber("")
+        setInstallmentCompany("HomeCredit")
       }
       onOpenChange(value)
     }
@@ -737,9 +744,28 @@ export function PaymentDialog({
           </div>
         )}
 
-        {/* Home Credit payment */}
+        {/* Installment payment */}
         {paymentMethod === "home_credit" && (
           <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Company <span className="text-destructive">*</span></Label>
+              <Select
+                value={installmentCompany}
+                onValueChange={(val) => setInstallmentCompany(val as InstallmentCompany)}
+              >
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue placeholder="Select company">
+                    {installmentCompany}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {INSTALLMENT_COMPANIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="hc-downpayment">
                 Downpayment <span className="text-muted-foreground text-xs">(optional)</span>
@@ -762,7 +788,7 @@ export function PaymentDialog({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Leave blank if fully financed by Home Credit.
+                Leave blank if fully financed by {installmentCompany}.
               </p>
             </div>
 
@@ -806,7 +832,7 @@ export function PaymentDialog({
                 <span className="font-medium">{formatCurrency(hcDownpaymentNum)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">HC amount (awaiting payout)</span>
+                <span className="text-muted-foreground">{installmentCompany} amount (awaiting payout)</span>
                 <span className="font-medium">{formatCurrency(hcAmountComputed)}</span>
               </div>
             </div>

@@ -20,7 +20,8 @@ export interface BundleCartItem {
   discount_amount: number;
   discount_pct: number;
   add_tax_pct: number;
-  components: Array<{ product_id: string; product_name: string; quantity: number }>;
+  components: Array<{ product_id: string; product_name: string; quantity: number; serial_required: boolean }>;
+  serials: Record<string, string[]>;
 }
 
 interface CartStore {
@@ -41,12 +42,16 @@ interface CartStore {
   updateBundleQuantity: (bundleId: string, quantity: number) => void;
   updateBundleItemDiscount: (bundleId: string, pct: number) => void;
   updateBundleItemAddTax: (bundleId: string, pct: number) => void;
+  updateBundleSerials: (bundleId: string, productId: string, serials: string[]) => void;
   // Cart-wide
   setDiscount: (discount: number) => void;
   setTaxRate: (rate: number) => void;
   clearCart: () => void;
   setBundleItemsDirect: (items: BundleCartItem[]) => void;
-  loadHeldOrder: (heldItems: Array<{ product_id: string; product_name: string; quantity: number; unit_price: number; discount_amount: number }>) => void;
+  loadHeldOrder: (
+    heldItems: Array<{ product_id: string; product_name: string; quantity: number; unit_price: number; discount_amount: number }>,
+    heldBundleItems?: Array<{ bundle_id: string; bundle_name: string; quantity: number; unit_price: number; discount_amount: number; components: Array<{ product_id: string; product_name: string; quantity: number; serial_required: boolean }> }>
+  ) => void;
   loadQuotationOrder: (items: Array<{
     product: Product
     quantity: number
@@ -160,10 +165,22 @@ export const useCartStore = create<CartStore>((set, get) => ({
           if (b.bundle_id !== bundle.id) return b;
           const quantity = b.quantity + 1;
           const discount_amount = b.unit_price * quantity * (b.discount_pct / 100);
-          return { ...b, quantity, discount_amount };
+          const serials = { ...b.serials };
+          for (const comp of b.components) {
+            if (comp.serial_required) {
+              serials[comp.product_id] = [...(serials[comp.product_id] ?? []), ...Array(comp.quantity).fill("")]
+            }
+          }
+          return { ...b, quantity, discount_amount, serials };
         }),
       });
     } else {
+      const serials: Record<string, string[]> = {};
+      for (const item of bundle.items) {
+        if (item.serial_required) {
+          serials[item.product_id] = Array(item.quantity).fill("");
+        }
+      }
       set({
         bundleItems: [
           ...bundleItems,
@@ -176,6 +193,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
             discount_pct: 0,
             add_tax_pct: 0,
             components: bundle.items,
+            serials,
           },
         ],
       });
@@ -194,7 +212,17 @@ export const useCartStore = create<CartStore>((set, get) => ({
       bundleItems: get().bundleItems.map((b) => {
         if (b.bundle_id !== bundleId) return b;
         const discount_amount = b.unit_price * quantity * (b.discount_pct / 100);
-        return { ...b, quantity, discount_amount };
+        const serials = { ...b.serials };
+        for (const comp of b.components) {
+          if (comp.serial_required) {
+            const needed = comp.quantity * quantity;
+            const current = serials[comp.product_id] ?? [];
+            serials[comp.product_id] = needed > current.length
+              ? [...current, ...Array(needed - current.length).fill("")]
+              : current.slice(0, needed);
+          }
+        }
+        return { ...b, quantity, discount_amount, serials };
       }),
     });
   },
@@ -215,6 +243,15 @@ export const useCartStore = create<CartStore>((set, get) => ({
       ),
     }),
 
+  updateBundleSerials: (bundleId, productId, serials) =>
+    set({
+      bundleItems: get().bundleItems.map((b) =>
+        b.bundle_id === bundleId
+          ? { ...b, serials: { ...b.serials, [productId]: serials } }
+          : b
+      ),
+    }),
+
   setDiscount: (discount) => set({ discount }),
 
   setTaxRate: (rate) => set({ taxRate: rate }),
@@ -223,10 +260,9 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   setBundleItemsDirect: (items) => set({ bundleItems: items }),
 
-  loadHeldOrder: (heldItems) =>
+  loadHeldOrder: (heldItems, heldBundleItems) =>
     set({
       discount: 0,
-      bundleItems: [],
       items: heldItems.map((item) => ({
         product: { id: item.product_id, name: item.product_name, serial_required: false } as Product,
         quantity: item.quantity,
@@ -236,6 +272,27 @@ export const useCartStore = create<CartStore>((set, get) => ({
         add_tax_pct: 0,
         serials: [],
       })),
+      bundleItems: (heldBundleItems ?? []).map((b) => {
+        const baseTotal = b.unit_price * b.quantity
+        const discount_pct = baseTotal > 0 ? (b.discount_amount / baseTotal) * 100 : 0
+        const serials: Record<string, string[]> = {}
+        for (const comp of b.components) {
+          if (comp.serial_required) {
+            serials[comp.product_id] = Array(comp.quantity * b.quantity).fill('')
+          }
+        }
+        return {
+          bundle_id: b.bundle_id,
+          bundle_name: b.bundle_name,
+          quantity: b.quantity,
+          unit_price: b.unit_price,
+          discount_amount: b.discount_amount,
+          discount_pct,
+          add_tax_pct: 0,
+          components: b.components,
+          serials,
+        }
+      }),
     }),
 
   loadQuotationOrder: (items) =>
@@ -291,10 +348,20 @@ export const useCartStore = create<CartStore>((set, get) => ({
   total: () =>
     get().subtotal() - get().totalDiscount() + get().totalAddTax() + get().tax(),
 
-  isReadyToCharge: () =>
-    get().items.every(
+  isReadyToCharge: () => {
+    const itemsReady = get().items.every(
       (i) =>
         !i.product.serial_required ||
         (i.serials.length >= i.quantity && i.serials.every((s) => s !== ""))
-    ),
+    );
+    const bundlesReady = get().bundleItems.every((b) =>
+      b.components.every((comp) => {
+        if (!comp.serial_required) return true;
+        const serials = b.serials[comp.product_id] ?? [];
+        const needed = comp.quantity * b.quantity;
+        return serials.length >= needed && serials.every((s) => s !== "");
+      })
+    );
+    return itemsReady && bundlesReady;
+  },
 }));

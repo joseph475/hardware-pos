@@ -33,10 +33,12 @@ type ProductMeta = {
   serial_required: boolean
 }
 
+type OrgInfo = { name: string; company_name: string | null; address_1: string | null; address_2: string | null }
+
 interface QuotationDetailSheetProps {
   quotation: QuotationWithRelations | null
   productMeta: ProductMeta[]
-  orgName: string
+  org: OrgInfo
   open: boolean
   onOpenChange: (open: boolean) => void
   onMarkSent: (id: string) => Promise<void>
@@ -47,7 +49,7 @@ interface QuotationDetailSheetProps {
 export function QuotationDetailSheet({
   quotation,
   productMeta,
-  orgName,
+  org,
   open,
   onOpenChange,
   onMarkSent,
@@ -332,7 +334,7 @@ export function QuotationDetailSheet({
       </DialogContent>
       <QuotationPrintDialog
         quotation={quotation}
-        orgName={orgName}
+        org={org}
         open={printOpen}
         onOpenChange={setPrintOpen}
       />

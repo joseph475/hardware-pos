@@ -10,13 +10,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
 import { useCurrency } from "@/lib/context/currency"
 import type { QuotationWithRelations } from "@/lib/actions/quotations"
+import type { QuotationItem } from "@/types/database"
+
+type OrgInfo = { name: string; company_name: string | null; address_1: string | null; address_2: string | null }
 
 interface QuotationPrintDialogProps {
   quotation: QuotationWithRelations
-  orgName: string
+  org: OrgInfo
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -42,16 +44,24 @@ function statusLabel(status: string): string {
   return map[status] ?? status
 }
 
+function itemUnitPrice(item: QuotationItem): number {
+  return item.unit_price * (1 + (item.add_tax_pct ?? 0) / 100)
+}
+
+function itemDisplayedTotal(item: QuotationItem): number {
+  return itemUnitPrice(item) * item.quantity - item.discount_amount
+}
+
 // ─── Print-only content (inline styles — no Tailwind/CSS vars needed) ─────────
 
 function QuotationPrintContent({
   quotation,
-  orgName,
+  org,
   formatCurrency,
   quoteNumber,
 }: {
   quotation: QuotationWithRelations
-  orgName: string
+  org: OrgInfo
   formatCurrency: (v: number) => string
   quoteNumber: string
 }) {
@@ -59,19 +69,29 @@ function QuotationPrintContent({
   const customer = quotation.customers
   const items = quotation.quotation_items
 
+  const addTaxAmount = quotation.add_tax_amount ?? 0
+  const displayedSubtotal = quotation.subtotal + addTaxAmount
+  const displayedTotal = quotation.total + addTaxAmount
+  const vatAmount = quotation.tax_amount
+  const taxPct = Math.round((quotation.tax_rate ?? 0) * 100)
+
   return (
     <div style={{ fontFamily: "serif", fontSize: 13, color: "#000", lineHeight: 1.6 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: "bold" }}>{orgName}</div>
-          {branch && (
-            <div style={{ marginTop: 4, color: "#555" }}>
-              <div>{branch.name}</div>
-              {branch.address && <div>{branch.address}</div>}
-              {branch.phone && <div>{branch.phone}</div>}
-            </div>
-          )}
+          <div style={{ fontSize: 18, fontWeight: "bold" }}>{org.company_name ?? org.name}</div>
+          <div style={{ marginTop: 4, color: "#555" }}>
+            {org.address_1 && <div>{org.address_1}</div>}
+            {org.address_2 && <div>{org.address_2}</div>}
+            {branch && (
+              <>
+                <div>{branch.name}</div>
+                {branch.address && <div>{branch.address}</div>}
+                {branch.phone && <div>{branch.phone}</div>}
+              </>
+            )}
+          </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 22, fontWeight: "bold", letterSpacing: 2 }}>QUOTATION</div>
@@ -125,7 +145,6 @@ function QuotationPrintContent({
             <th style={{ textAlign: "left", paddingBottom: 6 }}>Item</th>
             <th style={{ textAlign: "right", paddingBottom: 6 }}>Qty</th>
             <th style={{ textAlign: "right", paddingBottom: 6 }}>Unit Price</th>
-            <th style={{ textAlign: "right", paddingBottom: 6 }}>Tax%</th>
             <th style={{ textAlign: "right", paddingBottom: 6 }}>Total</th>
           </tr>
         </thead>
@@ -134,12 +153,9 @@ function QuotationPrintContent({
             <tr key={item.id} style={{ borderBottom: "1px solid #ddd" }}>
               <td style={{ padding: "5px 8px 5px 0" }}>{item.product_name}</td>
               <td style={{ textAlign: "right", padding: "5px 0" }}>{item.quantity}</td>
-              <td style={{ textAlign: "right", padding: "5px 0" }}>{formatCurrency(item.unit_price)}</td>
-              <td style={{ textAlign: "right", padding: "5px 0", color: "#666" }}>
-                {item.add_tax_pct ? `${item.add_tax_pct}%` : "—"}
-              </td>
+              <td style={{ textAlign: "right", padding: "5px 0" }}>{formatCurrency(itemUnitPrice(item))}</td>
               <td style={{ textAlign: "right", padding: "5px 0", fontWeight: "bold" }}>
-                {formatCurrency(item.total)}
+                {formatCurrency(itemDisplayedTotal(item))}
               </td>
             </tr>
           ))}
@@ -152,29 +168,25 @@ function QuotationPrintContent({
           <tbody>
             <tr>
               <td style={{ paddingBottom: 3, color: "#555" }}>Subtotal</td>
-              <td style={{ textAlign: "right", paddingBottom: 3, color: "#555" }}>{formatCurrency(quotation.subtotal)}</td>
+              <td style={{ textAlign: "right", paddingBottom: 3, color: "#555" }}>{formatCurrency(displayedSubtotal)}</td>
             </tr>
-            {quotation.add_tax_amount > 0 && (
-              <tr>
-                <td style={{ paddingBottom: 3, color: "#555" }}>Item Tax</td>
-                <td style={{ textAlign: "right", paddingBottom: 3, color: "#555" }}>{formatCurrency(quotation.add_tax_amount)}</td>
-              </tr>
-            )}
             {quotation.discount_amount > 0 && (
               <tr>
                 <td style={{ paddingBottom: 3, color: "#555" }}>Discount</td>
                 <td style={{ textAlign: "right", paddingBottom: 3, color: "#c00" }}>−{formatCurrency(quotation.discount_amount)}</td>
               </tr>
             )}
-            {quotation.tax_amount > 0 && (
+            {vatAmount > 0 && (
               <tr>
-                <td style={{ paddingBottom: 3, color: "#555" }}>VAT ({Math.round(quotation.tax_rate * 100)}%)</td>
-                <td style={{ textAlign: "right", paddingBottom: 3, color: "#555" }}>{formatCurrency(quotation.tax_amount)}</td>
+                <td style={{ paddingBottom: 3, color: "#555" }}>
+                  {taxPct > 0 ? `VAT (${taxPct}%)` : "VAT"}
+                </td>
+                <td style={{ textAlign: "right", paddingBottom: 3, color: "#555" }}>{formatCurrency(vatAmount)}</td>
               </tr>
             )}
             <tr style={{ borderTop: "2px solid #000" }}>
               <td style={{ paddingTop: 6, fontWeight: "bold", fontSize: 14 }}>TOTAL</td>
-              <td style={{ textAlign: "right", paddingTop: 6, fontWeight: "bold", fontSize: 14 }}>{formatCurrency(quotation.total)}</td>
+              <td style={{ textAlign: "right", paddingTop: 6, fontWeight: "bold", fontSize: 14 }}>{formatCurrency(displayedTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -212,12 +224,12 @@ function QuotationPrintContent({
 
 function QuotationDocument({
   quotation,
-  orgName,
+  org,
   formatCurrency,
   quoteNumber,
 }: {
   quotation: QuotationWithRelations
-  orgName: string
+  org: OrgInfo
   formatCurrency: (v: number) => string
   quoteNumber: string
 }) {
@@ -225,35 +237,45 @@ function QuotationDocument({
   const customer = quotation.customers
   const items = quotation.quotation_items
 
+  const addTaxAmount = quotation.add_tax_amount ?? 0
+  const displayedSubtotal = quotation.subtotal + addTaxAmount
+  const displayedTotal = quotation.total + addTaxAmount
+  const vatAmount = quotation.tax_amount
+  const taxPct = Math.round((quotation.tax_rate ?? 0) * 100)
+
   return (
-    <div className="space-y-5 text-sm text-foreground">
+    <div className="bg-card rounded-lg border border-border shadow-sm p-6 text-xs text-foreground">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">{orgName}</h1>
-          {branch && (
-            <div className="mt-1 text-muted-foreground space-y-0.5">
-              <p>{branch.name}</p>
-              {branch.address && <p>{branch.address}</p>}
-              {branch.phone && <p>{branch.phone}</p>}
-            </div>
-          )}
+          <h1 className="text-base font-bold tracking-tight">{org.company_name ?? org.name}</h1>
+          <div className="mt-1 text-muted-foreground space-y-0.5 leading-relaxed">
+            {org.address_1 && <p>{org.address_1}</p>}
+            {org.address_2 && <p>{org.address_2}</p>}
+            {branch && (
+              <>
+                <p className="font-medium">{branch.name}</p>
+                {branch.address && <p>{branch.address}</p>}
+                {branch.phone && <p>{branch.phone}</p>}
+              </>
+            )}
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold tracking-tight text-primary">QUOTATION</p>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">#{quoteNumber}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Status: <span className="font-medium text-foreground">{statusLabel(quotation.status)}</span>
-          </p>
+        <div className="text-right shrink-0">
+          <p className="text-xl font-bold tracking-widest text-primary uppercase">Quotation</p>
+          <p className="mt-1 font-mono text-muted-foreground">#{quoteNumber}</p>
+          <span className="inline-block mt-1.5 px-2 py-0.5 font-medium rounded-full bg-muted text-muted-foreground border border-border">
+            {statusLabel(quotation.status)}
+          </span>
         </div>
       </div>
 
-      <Separator />
+      <div className="border-t border-border my-4" />
 
       {/* Meta row */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-6 mb-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Bill To</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 font-semibold">Bill To</p>
           {customer ? (
             <div className="space-y-0.5">
               <p className="font-semibold">{customer.name}</p>
@@ -264,55 +286,53 @@ function QuotationDocument({
             <p className="text-muted-foreground">—</p>
           )}
         </div>
-        <div className="text-right space-y-1">
+        <div className="text-right space-y-1.5">
           <div>
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">Date Issued</span>
-            <p className="font-medium">{formatDate(quotation.created_at)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Date Issued</p>
+            <p className="font-medium mt-0.5">{formatDate(quotation.created_at)}</p>
           </div>
           {quotation.valid_until && (
             <div>
-              <span className="text-xs uppercase tracking-wide text-muted-foreground">Valid Until</span>
-              <p className="font-medium">{formatDate(quotation.valid_until)}</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Valid Until</p>
+              <p className="font-medium mt-0.5">{formatDate(quotation.valid_until)}</p>
             </div>
           )}
           {quotation.creator && (
             <div>
-              <span className="text-xs uppercase tracking-wide text-muted-foreground">Prepared By</span>
-              <p className="font-medium">{quotation.creator.full_name}</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Prepared By</p>
+              <p className="font-medium mt-0.5">{quotation.creator.full_name}</p>
             </div>
           )}
         </div>
       </div>
 
-      <Separator />
-
       {/* Items table */}
-      <div>
-        <table className="w-full text-sm">
+      <div className="rounded-md overflow-hidden border border-border mb-4">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col className="w-auto" />
+            <col className="w-10" />
+            <col className="w-28" />
+            <col className="w-28" />
+          </colgroup>
           <thead>
-            <tr className="border-b border-border">
-              <th className="pb-2 text-left font-semibold text-muted-foreground">Item</th>
-              <th className="pb-2 text-right font-semibold text-muted-foreground">Qty</th>
-              <th className="pb-2 text-right font-semibold text-muted-foreground">Unit Price</th>
-              <th className="pb-2 text-right font-semibold text-muted-foreground">Tax%</th>
-              <th className="pb-2 text-right font-semibold text-muted-foreground">Total</th>
+            <tr className="bg-muted/50 border-b border-border">
+              <th className="py-2 px-3 text-left text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Item</th>
+              <th className="py-2 px-3 text-right text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Qty</th>
+              <th className="py-2 px-3 text-right text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Unit Price</th>
+              <th className="py-2 px-3 text-right text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
             {items.map((item) => (
-              <tr key={item.id}>
-                <td className="py-2 pr-4 font-medium">{item.product_name}</td>
-                <td className="py-2 text-right tabular-nums text-muted-foreground">
-                  {item.quantity}
+              <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                <td className="py-2 px-3 font-medium truncate max-w-0">{item.product_name}</td>
+                <td className="py-2 px-3 text-right tabular-nums text-muted-foreground">{item.quantity}</td>
+                <td className="py-2 px-3 text-right tabular-nums">
+                  {formatCurrency(itemUnitPrice(item))}
                 </td>
-                <td className="py-2 text-right tabular-nums">
-                  {formatCurrency(item.unit_price)}
-                </td>
-                <td className="py-2 text-right tabular-nums text-muted-foreground">
-                  {item.add_tax_pct ? `${item.add_tax_pct}%` : "—"}
-                </td>
-                <td className="py-2 text-right tabular-nums font-medium">
-                  {formatCurrency(item.total)}
+                <td className="py-2 px-3 text-right tabular-nums font-semibold">
+                  {formatCurrency(itemDisplayedTotal(item))}
                 </td>
               </tr>
             ))}
@@ -320,37 +340,30 @@ function QuotationDocument({
         </table>
       </div>
 
-      <Separator />
-
       {/* Totals */}
-      <div className="flex justify-end">
-        <div className="w-60 space-y-1.5">
+      <div className="flex justify-end mb-4">
+        <div className="w-56 space-y-1">
           <div className="flex justify-between text-muted-foreground">
             <span>Subtotal</span>
-            <span className="tabular-nums">{formatCurrency(quotation.subtotal)}</span>
+            <span className="tabular-nums">{formatCurrency(displayedSubtotal)}</span>
           </div>
-          {quotation.add_tax_amount > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Item Tax</span>
-              <span className="tabular-nums">{formatCurrency(quotation.add_tax_amount)}</span>
-            </div>
-          )}
           {quotation.discount_amount > 0 && (
             <div className="flex justify-between text-muted-foreground">
               <span>Discount</span>
-              <span className="tabular-nums text-red-500">−{formatCurrency(quotation.discount_amount)}</span>
+              <span className="tabular-nums text-destructive">−{formatCurrency(quotation.discount_amount)}</span>
             </div>
           )}
-          {quotation.tax_amount > 0 && (
+          {vatAmount > 0 && (
             <div className="flex justify-between text-muted-foreground">
-              <span>VAT ({Math.round(quotation.tax_rate * 100)}%)</span>
-              <span className="tabular-nums">{formatCurrency(quotation.tax_amount)}</span>
+              <span>{taxPct > 0 ? `VAT (${taxPct}%)` : "VAT"}</span>
+              <span className="tabular-nums">{formatCurrency(vatAmount)}</span>
             </div>
           )}
-          <Separator />
-          <div className="flex justify-between font-bold text-base">
-            <span>Total</span>
-            <span className="tabular-nums">{formatCurrency(quotation.total)}</span>
+          <div className="border-t border-border pt-1.5">
+            <div className="flex justify-between font-bold text-sm">
+              <span>Total</span>
+              <span className="tabular-nums">{formatCurrency(displayedTotal)}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -358,24 +371,24 @@ function QuotationDocument({
       {/* Notes */}
       {quotation.notes && (
         <>
-          <Separator />
+          <div className="border-t border-border my-4" />
           <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Notes</p>
-            <p className="text-muted-foreground whitespace-pre-wrap">{quotation.notes}</p>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">Notes</p>
+            <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{quotation.notes}</p>
           </div>
         </>
       )}
 
-      {/* Signature line */}
+      {/* Signature lines */}
       <div className="mt-8 grid grid-cols-2 gap-12">
         <div>
           <div className="border-t border-border pt-2">
-            <p className="text-xs text-muted-foreground">Authorized Signature</p>
+            <p className="text-muted-foreground">Authorized Signature</p>
           </div>
         </div>
         <div>
           <div className="border-t border-border pt-2">
-            <p className="text-xs text-muted-foreground">Customer Signature</p>
+            <p className="text-muted-foreground">Customer Signature</p>
           </div>
         </div>
       </div>
@@ -387,7 +400,7 @@ function QuotationDocument({
 
 export function QuotationPrintDialog({
   quotation,
-  orgName,
+  org,
   open,
   onOpenChange,
 }: QuotationPrintDialogProps) {
@@ -406,25 +419,26 @@ export function QuotationPrintDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="border-b border-border pb-3">
-            <div className="flex items-center justify-between">
-              <DialogTitle>Print Quotation #{quoteNumber}</DialogTitle>
-              <Button size="sm" onClick={handlePrint} className="gap-2">
-                <Printer className="h-4 w-4" />
-                Print
-              </Button>
-            </div>
+        <DialogContent className="w-[95vw] sm:w-[92vw] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-base">Quotation #{quoteNumber}</DialogTitle>
           </DialogHeader>
 
           {/* Screen preview */}
-          <div className="p-2">
+          <div className="min-w-0 flex-1 overflow-x-hidden pb-1">
             <QuotationDocument
               quotation={quotation}
-              orgName={orgName}
+              org={org}
               formatCurrency={formatCurrency}
               quoteNumber={quoteNumber}
             />
+          </div>
+
+          <div className="border-t border-border pt-3 flex justify-end">
+            <Button size="sm" onClick={handlePrint} className="gap-2">
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -434,7 +448,7 @@ export function QuotationPrintDialog({
         <div id="quotation-print">
           <QuotationPrintContent
             quotation={quotation}
-            orgName={orgName}
+            org={org}
             formatCurrency={formatCurrency}
             quoteNumber={quoteNumber}
           />

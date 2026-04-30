@@ -85,6 +85,7 @@ export async function createTransaction(params: {
   hc_terms?: number | null
   hc_amount?: number | null
   hc_account_number?: string | null
+  installment_company?: string | null
 }): Promise<{ id: string }> {
   const profile = await getProfile()
   const supabase = getAdminClient()
@@ -171,6 +172,7 @@ export async function createTransaction(params: {
       hc_amount: params.hc_amount,
       terms: params.hc_terms,
       hc_account_number: params.hc_account_number ?? null,
+      installment_company: params.installment_company ?? 'HomeCredit',
       status: 'pending',
     })
   }

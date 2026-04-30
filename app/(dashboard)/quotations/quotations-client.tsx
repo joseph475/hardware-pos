@@ -38,11 +38,13 @@ import { CustomerSelectDialog } from '@/components/pos/customer-select-dialog'
 
 type StatusFilter = QuotationStatus | 'all'
 
+type OrgInfo = { name: string; company_name: string | null; address_1: string | null; address_2: string | null }
+
 interface Props {
   initialQuotations: QuotationWithRelations[]
   customers: Array<{ id: string; name: string; company_name: string | null }>
   products: Array<{ id: string; name: string; sku: string; selling_price: number; serial_required: boolean; image_url: string | null }>
-  orgName: string
+  org: OrgInfo
 }
 
 const STATUS_CONFIG: Record<QuotationStatus, { label: string; className: string }> = {
@@ -67,7 +69,7 @@ export function QuotationsClient({
   initialQuotations,
   customers,
   products,
-  orgName,
+  org,
 }: Props) {
   const router = useRouter()
   const { formatCurrency } = useCurrency()
@@ -346,7 +348,7 @@ export function QuotationsClient({
           image_url: p.image_url,
           serial_required: p.serial_required,
         }))}
-        orgName={orgName}
+        org={org}
         open={detailSheetOpen}
         onOpenChange={(open) => {
           setDetailSheetOpen(open)
@@ -371,7 +373,7 @@ export function QuotationsClient({
       {printTarget && (
         <QuotationPrintDialog
           quotation={printTarget}
-          orgName={orgName}
+          org={org}
           open={!!printTarget}
           onOpenChange={(open) => { if (!open) setPrintTarget(null) }}
         />

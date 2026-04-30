@@ -1,0 +1,55 @@
+<h2>Home Credit Installment — Implementation Approach</h2>
+<p class="subtitle">Pick the data model that best fits how you want to track HC payments</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Extend the Transactions Table <span style="font-size:0.75rem;background:#22c55e22;color:#16a34a;padding:2px 8px;border-radius:999px;margin-left:6px;">Recommended</span></h3>
+      <p>Add HC-specific columns to the existing <code>transactions</code> table — same pattern as how <code>check_bank_name</code>, <code>ewallet_reference</code> etc. work today.</p>
+      <div style="margin-top:10px;font-size:0.82rem;color:var(--muted)">
+        <strong>New columns:</strong> <code>hc_downpayment</code> · <code>hc_terms</code> · <code>hc_amount</code> · <code>hc_status</code> (pending/received) · <code>hc_received_at</code>
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Follows existing pattern exactly</li><li>No extra joins on tracking page</li><li>Simpler migration</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Transactions table gets wider</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Separate <code>installment_plans</code> Table</h3>
+      <p>Create a new table linked to the transaction via FK. Cleaner schema, more flexible for future features (e.g., partial payouts, multiple HC references).</p>
+      <div style="margin-top:10px;font-size:0.82rem;color:var(--muted)">
+        <strong>New table:</strong> <code>installment_plans</code> — transaction_id · downpayment · terms · hc_amount · status · received_at
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Cleaner, more normalized</li><li>Easier to extend later</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Extra join on every query</li><li>More code to write</li><li>Overkill for a single lump-sum payout</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:28px;padding:16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+  <p class="label">Either way — the tracking page and POS flow look the same</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
+    <div style="text-align:center;padding:10px;background:var(--surface1);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:1.4rem;margin-bottom:4px">🛒</div>
+      <strong style="font-size:0.85rem">POS Payment</strong>
+      <p style="font-size:0.78rem;color:var(--muted);margin:4px 0 0">Pick "Home Credit", enter downpayment + terms</p>
+    </div>
+    <div style="text-align:center;padding:10px;background:var(--surface1);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:1.4rem;margin-bottom:4px">📋</div>
+      <strong style="font-size:0.85rem">Tracking Page</strong>
+      <p style="font-size:0.78rem;color:var(--muted);margin:4px 0 0">List all HC transactions with Pending / Received status</p>
+    </div>
+    <div style="text-align:center;padding:10px;background:var(--surface1);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:1.4rem;margin-bottom:4px">✅</div>
+      <strong style="font-size:0.85rem">Mark Received</strong>
+      <p style="font-size:0.78rem;color:var(--muted);margin:4px 0 0">Manager/owner marks when HC payout hits bank</p>
+    </div>
+  </div>
+</div>

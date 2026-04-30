@@ -73,7 +73,7 @@ export function HeldOrdersSheet({ open: controlledOpen, onOpenChange: controlled
       })
       return
     }
-    loadHeldOrder(order.items)
+    loadHeldOrder(order.items, order.bundleItems)
     // Delete the held record in the background
     deleteHeldTransaction(order.id).catch(() => {})
     setOpen(false)
@@ -161,7 +161,9 @@ export function HeldOrdersSheet({ open: controlledOpen, onOpenChange: controlled
           ) : (
             <div className="divide-y divide-border">
               {heldOrders.map((order) => {
-                const itemCount = order.items.reduce((s, i) => s + i.quantity, 0)
+                const itemCount =
+                order.items.reduce((s, i) => s + i.quantity, 0) +
+                order.bundleItems.reduce((s, b) => s + b.quantity, 0)
                 const ageBadge = getOrderAgeBadge(order.created_at)
                 return (
                   <div key={order.id} className="px-5 py-4 flex items-start justify-between gap-3">
