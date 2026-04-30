@@ -607,3 +607,38 @@ export async function deletePOCheque(id: string): Promise<{ error?: string }> {
   revalidatePath('/purchasing/orders')
   return {}
 }
+
+export type ChequeWithPO = {
+  id: string
+  check_name: string
+  check_number: string
+  check_date: string
+  amount: number
+  po_id: string
+  po_total: number
+  supplier_name: string
+}
+
+export async function getAllCheques(): Promise<ChequeWithPO[]> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+  const { data, error } = await supabase
+    .from('purchase_order_cheques')
+    .select('*, po:purchase_orders!po_id(id, total, supplier:suppliers!supplier_id(name))')
+    .order('check_date', { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  return ((data ?? []) as any[]).map((c: any) => ({
+    id: c.id,
+    check_name: c.check_name,
+    check_number: c.check_number,
+    check_date: c.check_date,
+    amount: Number(c.amount),
+    po_id: c.po_id,
+    po_total: Number(c.po?.total ?? 0),
+    supplier_name: c.po?.supplier?.name ?? 'Unknown',
+  }))
+}
