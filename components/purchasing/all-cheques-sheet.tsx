@@ -4,12 +4,11 @@ import * as React from "react"
 import { Banknote } from "lucide-react"
 import { toast } from "sonner"
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Table,
   TableBody,
@@ -55,20 +54,21 @@ export function AllChequesSheet() {
 
   return (
     <>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger render={<Button variant="outline" />} nativeButton={true}>
-          <Banknote className="size-4 mr-2" />
-          View All Cheques
-        </SheetTrigger>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>All Cheques</SheetTitle>
-          </SheetHeader>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Banknote className="size-4 mr-2" />
+        View All Cheques
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>All Cheques</DialogTitle>
+          </DialogHeader>
 
           {cheques.length === 0 ? (
-            <p className="text-sm text-muted-foreground mt-4">No cheques recorded yet.</p>
+            <p className="text-sm text-muted-foreground">No cheques recorded yet.</p>
           ) : (
-            <div className="mt-4 border rounded-md overflow-hidden">
+            <div className="overflow-y-auto border rounded-md">
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border hover:bg-transparent">
@@ -108,12 +108,12 @@ export function AllChequesSheet() {
           )}
 
           {cheques.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-3 text-right">
+            <p className="text-xs text-muted-foreground text-right">
               {cheques.length} cheque{cheques.length !== 1 ? "s" : ""}
             </p>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <ChequeDetailsDialog
         po={chequePO}
