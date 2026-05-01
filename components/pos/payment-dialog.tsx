@@ -29,7 +29,7 @@ import { createTransaction } from "@/lib/actions/transactions"
 import { sendQuotationToPos } from "@/lib/actions/quotations"
 import { ReceiptDialog, type ReceiptData } from "@/components/pos/receipt-dialog"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit" | "credit"
 type SplitLegMethod = "cash" | "card" | "e_wallet"
 
 const EWALLET_PROVIDERS = ["GCash", "PayMaya", "Maribank"] as const
@@ -60,6 +60,7 @@ function paymentMethodLabel(method: PaymentMethod): string {
   if (method === "check") return "Check"
   if (method === "e_wallet") return "E-Wallet"
   if (method === "home_credit") return "Installment"
+  if (method === "credit") return "Credit (Utang)"
   return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
@@ -105,6 +106,7 @@ export function PaymentDialog({
   const [hcTerms, setHcTerms] = React.useState<number | null>(null)
   const [hcAccountNumber, setHcAccountNumber] = React.useState("")
   const [installmentCompany, setInstallmentCompany] = React.useState<InstallmentCompany>("HomeCredit")
+  const [creditCustomerName, setCreditCustomerName] = React.useState("")
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [qrConfirmed, setQrConfirmed] = React.useState(false)
   const [qrElapsed, setQrElapsed] = React.useState(0)
@@ -133,6 +135,12 @@ export function PaymentDialog({
     setQrConfirmed(false)
     setQrElapsed(0)
   }, [paymentMethod])
+
+  React.useEffect(() => {
+    if (paymentMethod === "credit" && customerName && !creditCustomerName) {
+      setCreditCustomerName(customerName)
+    }
+  }, [paymentMethod]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // When split method 1 changes to match method 2, auto-change method 2
   React.useEffect(() => {
@@ -197,6 +205,9 @@ export function PaymentDialog({
       ? hcTerms !== null && hcAmountComputed > 0
       : true
 
+  const isCreditValid =
+    paymentMethod === "credit" ? creditCustomerName.trim() !== "" : true
+
   const canConfirm =
     paymentMethod === "card" ||
     (paymentMethod === "cash" && isCashValid) ||
@@ -204,7 +215,8 @@ export function PaymentDialog({
     (paymentMethod === "check" && isCheckValid) ||
     (paymentMethod === "e_wallet" && isEwalletValid) ||
     (isQrPayment && qrConfirmed) ||
-    (paymentMethod === "home_credit" && isHcValid)
+    (paymentMethod === "home_credit" && isHcValid) ||
+    (paymentMethod === "credit" && isCreditValid)
 
   async function handleConfirm() {
     if (!canConfirm) return
@@ -247,6 +259,7 @@ export function PaymentDialog({
         hc_amount: paymentMethod === "home_credit" ? hcAmountComputed : null,
         hc_account_number: paymentMethod === "home_credit" ? (hcAccountNumber.trim() || null) : null,
         installment_company: paymentMethod === "home_credit" ? installmentCompany : null,
+        credit_customer_name: paymentMethod === "credit" ? creditCustomerName.trim() : null,
       })
 
       setReceiptData({
@@ -256,7 +269,9 @@ export function PaymentDialog({
         branchAddress: branch?.address ?? null,
         branchPhone: branch?.phone ?? null,
         cashierName: profile?.full_name ?? "Cashier",
-        customerName: customerName ?? undefined,
+        customerName: paymentMethod === "credit"
+          ? creditCustomerName.trim()
+          : (customerName ?? undefined),
         items: [
           ...items.map((i) => ({
             name: i.product.name,
@@ -348,6 +363,7 @@ export function PaymentDialog({
         setHcTerms(null)
         setHcAccountNumber("")
         setInstallmentCompany("HomeCredit")
+        setCreditCustomerName("")
       }
       onOpenChange(value)
     }
@@ -844,6 +860,25 @@ export function PaymentDialog({
                 <span className="text-muted-foreground">{installmentCompany} amount (awaiting payout)</span>
                 <span className="font-medium">{formatCurrency(hcAmountComputed)}</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Credit / Utang */}
+        {paymentMethod === "credit" && (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              This sale will be recorded as credit (utang). Enter the customer&apos;s name below.
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="credit-name">Customer Name</Label>
+              <Input
+                id="credit-name"
+                placeholder="e.g. Juan dela Cruz"
+                value={creditCustomerName}
+                onChange={(e) => setCreditCustomerName(e.target.value)}
+                autoFocus
+              />
             </div>
           </div>
         )}

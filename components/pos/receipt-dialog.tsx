@@ -34,7 +34,7 @@ export interface ReceiptData {
   addTaxAmount?: number
   taxRate: number
   total: number
-  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit"
+  paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit" | "credit"
   cashTendered?: number
   change?: number
   splitCash?: number
@@ -184,6 +184,7 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
         data.paymentMethod === "check" ? "Check" :
         data.paymentMethod === "e_wallet" ? `E-Wallet (${data.ewalletProvider ?? ""})` :
         data.paymentMethod === "home_credit" ? "Installment" :
+        data.paymentMethod === "credit" ? "Credit (Utang)" :
         data.paymentMethod.charAt(0).toUpperCase() + data.paymentMethod.slice(1)
       }`}</ReceiptLine>
       {data.paymentMethod === "cash" && data.cashTendered !== undefined && (
