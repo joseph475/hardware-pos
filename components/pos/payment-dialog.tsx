@@ -82,7 +82,7 @@ export function PaymentDialog({
   companyAddress1,
   quotationId,
 }: PaymentDialogProps) {
-  const { items, bundleItems, clearCart, subtotal, totalDiscount, tax, total } = useCartStore()
+  const { items, bundleItems, clearCart, subtotal, totalDiscount, totalAddTax, tax, total } = useCartStore()
   const { formatCurrency, taxRate, currencySymbol } = useCurrency()
   const { profile, branch } = useUserProfile()
 
@@ -156,6 +156,7 @@ export function PaymentDialog({
   const orderDiscount = totalDiscount()
   const orderTax = tax()
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0) + bundleItems.reduce((sum, b) => sum + b.quantity, 0)
+  const orderAddTax = totalAddTax()
 
   const cashTenderedNum = parseFloat(cashTendered) || 0
   const change = cashTenderedNum - orderTotal
@@ -393,6 +394,12 @@ export function PaymentDialog({
               <div className="flex justify-between text-destructive">
                 <span>Discount</span>
                 <span>−{formatCurrency(orderDiscount)}</span>
+              </div>
+            )}
+            {orderAddTax > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Add Tax</span>
+                <span className="text-blue-600 dark:text-blue-400">+{formatCurrency(orderAddTax)}</span>
               </div>
             )}
             <div className="flex justify-between">
