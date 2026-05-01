@@ -256,6 +256,7 @@ export function PaymentDialog({
         branchAddress: branch?.address ?? null,
         branchPhone: branch?.phone ?? null,
         cashierName: profile?.full_name ?? "Cashier",
+        customerName: customerName ?? undefined,
         items: [
           ...items.map((i) => ({
             name: i.product.name,
@@ -275,6 +276,7 @@ export function PaymentDialog({
         subtotal: orderSubtotal,
         discountAmount: orderDiscount,
         taxAmount: orderTax,
+        addTaxAmount: orderAddTax > 0 ? orderAddTax : undefined,
         taxRate,
         total: orderTotal,
         paymentMethod,

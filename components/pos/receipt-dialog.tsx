@@ -20,6 +20,7 @@ export interface ReceiptData {
   branchAddress: string | null
   branchPhone: string | null
   cashierName: string
+  customerName?: string | null
   items: Array<{
     name: string
     qty: number
@@ -30,6 +31,7 @@ export interface ReceiptData {
   subtotal: number
   discountAmount: number
   taxAmount: number
+  addTaxAmount?: number
   taxRate: number
   total: number
   paymentMethod: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit"
@@ -141,6 +143,9 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
       <ReceiptLine><span suppressHydrationWarning>{`Date: ${date}  Time: ${time}`}</span></ReceiptLine>
       <ReceiptLine>{`Receipt #: ${shortId}`}</ReceiptLine>
       <ReceiptLine>{`Cashier: ${data.cashierName}`}</ReceiptLine>
+      {data.customerName && (
+        <ReceiptLine>{`Customer: ${data.customerName}`}</ReceiptLine>
+      )}
       <Divider char="-" />
 
       {/* Items */}
@@ -164,6 +169,7 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
       {/* Totals */}
       {row("Subtotal:", data.formatCurrency(data.subtotal))}
       {data.discountAmount > 0 && row("Discount:", `-${data.formatCurrency(data.discountAmount)}`)}
+      {(data.addTaxAmount ?? 0) > 0 && row("Add Tax:", `+${data.formatCurrency(data.addTaxAmount ?? 0)}`)}
       {row(`Tax (${taxPct}):`, data.formatCurrency(data.taxAmount))}
       <Divider char="-" />
       <ReceiptLine>
