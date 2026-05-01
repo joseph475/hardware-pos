@@ -2,7 +2,6 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
-import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
 
 const ORG_ID = '00000000-0000-0000-0000-000000000001'
