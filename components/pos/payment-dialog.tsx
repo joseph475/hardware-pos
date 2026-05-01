@@ -136,6 +136,7 @@ export function PaymentDialog({
     setQrElapsed(0)
   }, [paymentMethod])
 
+  // Fires once on method switch; intentionally omits customerName/creditCustomerName from deps
   React.useEffect(() => {
     if (paymentMethod === "credit" && customerName && !creditCustomerName) {
       setCreditCustomerName(customerName)
