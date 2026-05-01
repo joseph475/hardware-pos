@@ -71,7 +71,7 @@ export async function createTransaction(params: {
   discount_amount: number
   tax_amount: number
   total: number
-  payment_method: 'cash' | 'card' | 'split' | 'gcash' | 'maya' | 'check' | 'e_wallet' | 'home_credit'
+  payment_method: 'cash' | 'card' | 'split' | 'gcash' | 'maya' | 'check' | 'e_wallet' | 'home_credit' | 'credit'
   customer_id?: string | null
   notes?: string
   check_bank_name?: string | null
@@ -86,6 +86,7 @@ export async function createTransaction(params: {
   hc_amount?: number | null
   hc_account_number?: string | null
   installment_company?: string | null
+  credit_customer_name?: string | null
 }): Promise<{ id: string }> {
   const profile = await getProfile()
   const supabase = getAdminClient()
@@ -174,6 +175,19 @@ export async function createTransaction(params: {
       hc_account_number: params.hc_account_number ?? null,
       installment_company: params.installment_company ?? 'HomeCredit',
       status: 'pending',
+    })
+  }
+
+  if (params.payment_method === 'credit') {
+    const ORG_ID = '00000000-0000-0000-0000-000000000001'
+    await supabase.from('accounts_receivable').insert({
+      org_id: ORG_ID,
+      branch_id: profile.branch_id,
+      transaction_id: transaction.id,
+      customer_name: params.credit_customer_name ?? 'Unknown Customer',
+      amount_due: params.total,
+      amount_paid: 0,
+      cashier_id: profile.id,
     })
   }
 
