@@ -19,6 +19,7 @@ import {
   Wallet,
   RefreshCw,
   Layers,
+  HandCoins,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -39,7 +40,7 @@ import type { Customer } from "@/types/database"
 import type { QuotationWithRelations } from "@/lib/actions/quotations"
 import { cn } from "@/lib/utils"
 
-type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit"
+type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit" | "credit"
 
 function StockBadge({ stock }: { stock: number }) {
   if (stock === 0) {
@@ -410,6 +411,7 @@ export function POSClient({
     { value: "e_wallet", label: "E-Wallet", icon: <Wallet className="h-4 w-4" /> },
     { value: "check", label: "Check", icon: <CheckSquare className="h-4 w-4" /> },
     { value: "home_credit", label: "Installment", icon: <CreditCard className="h-4 w-4" /> },
+    { value: "credit", label: "Credit", icon: <HandCoins className="h-4 w-4" /> },
     { value: "split", label: "Split", icon: <SplitSquareHorizontal className="h-4 w-4" /> },
     ...(gcashQrUrl ? [{ value: "gcash" as const, label: "GCash", icon: <Smartphone className="h-4 w-4" /> }] : []),
     ...(mayaQrUrl ? [{ value: "maya" as const, label: "Maya", icon: <Smartphone className="h-4 w-4" /> }] : []),
@@ -1138,7 +1140,7 @@ export function POSClient({
               className="flex-1 text-sm font-semibold"
               disabled={(items.length === 0 && bundleItems.length === 0) || !readyToCharge}
               onClick={() => {
-                if (selectedCustomerId) {
+                if (paymentMethod === "credit" || selectedCustomerId) {
                   setPaymentDialogOpen(true)
                 } else {
                   setCustomerStepOpen(true)

@@ -26,6 +26,7 @@ import {
   Layers,
   Receipt,
   CreditCard,
+  Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -97,6 +98,13 @@ const NAV_ENTRIES: NavEntry[] = [
     label: "Installments",
     href: "/installments",
     icon: CreditCard,
+    roles: ["owner", "manager", "cashier"],
+  },
+  {
+    type: "link",
+    label: "Accounts Receivable",
+    href: "/accounts-receivable",
+    icon: Landmark,
     roles: ["owner", "manager", "cashier"],
   },
   {
