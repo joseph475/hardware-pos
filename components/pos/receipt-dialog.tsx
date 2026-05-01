@@ -20,7 +20,7 @@ export interface ReceiptData {
   branchAddress: string | null
   branchPhone: string | null
   cashierName: string
-  customerName?: string | null
+  customerName?: string
   items: Array<{
     name: string
     qty: number
@@ -169,7 +169,7 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
       {/* Totals */}
       {row("Subtotal:", data.formatCurrency(data.subtotal))}
       {data.discountAmount > 0 && row("Discount:", `-${data.formatCurrency(data.discountAmount)}`)}
-      {(data.addTaxAmount ?? 0) > 0 && row("Add Tax:", `+${data.formatCurrency(data.addTaxAmount ?? 0)}`)}
+      {(data.addTaxAmount ?? 0) > 0 && row("Add Tax:", `+${data.formatCurrency(data.addTaxAmount!)}`)}
       {row(`Tax (${taxPct}):`, data.formatCurrency(data.taxAmount))}
       <Divider char="-" />
       <ReceiptLine>
