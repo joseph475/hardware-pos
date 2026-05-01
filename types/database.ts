@@ -629,7 +629,7 @@ export type Database = {
           discount_amount: number;
           tax_amount: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit" | "credit";
           status: "completed" | "voided" | "held";
           notes: string | null;
           void_reason: string | null;
@@ -653,7 +653,7 @@ export type Database = {
           discount_amount?: number;
           tax_amount?: number;
           total: number;
-          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit";
+          payment_method: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit" | "credit";
           status?: "completed" | "voided" | "held";
           notes?: string | null;
           void_reason?: string | null;
@@ -677,7 +677,7 @@ export type Database = {
           discount_amount?: number;
           tax_amount?: number;
           total?: number;
-          payment_method?: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet";
+          payment_method?: "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit" | "credit";
           status?: "completed" | "voided" | "held";
           notes?: string | null;
           void_reason?: string | null;
@@ -1026,6 +1026,45 @@ export type Database = {
           date?: string;
           amount?: number;
           note?: string | null;
+        };
+        Relationships: [];
+      };
+      accounts_receivable: {
+        Row: {
+          id: string;
+          org_id: string;
+          branch_id: string;
+          transaction_id: string;
+          customer_name: string;
+          amount_due: number;
+          amount_paid: number;
+          notes: string | null;
+          cashier_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          branch_id: string;
+          transaction_id: string;
+          customer_name: string;
+          amount_due: number;
+          amount_paid?: number;
+          notes?: string | null;
+          cashier_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          branch_id?: string;
+          transaction_id?: string;
+          customer_name?: string;
+          amount_due?: number;
+          amount_paid?: number;
+          notes?: string | null;
+          cashier_id?: string;
+          created_at?: string;
         };
         Relationships: [];
       };
