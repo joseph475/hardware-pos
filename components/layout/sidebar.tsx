@@ -27,6 +27,7 @@ import {
   Receipt,
   CreditCard,
   Landmark,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -94,18 +95,15 @@ const NAV_ENTRIES: NavEntry[] = [
     roles: ["owner", "manager", "cashier"],
   },
   {
-    type: "link",
-    label: "Installments",
-    href: "/installments",
-    icon: CreditCard,
+    type: "section",
+    label: "Finance",
+    icon: Wallet,
+    defaultOpen: false,
     roles: ["owner", "manager", "cashier"],
-  },
-  {
-    type: "link",
-    label: "Accounts Receivable",
-    href: "/accounts-receivable",
-    icon: Landmark,
-    roles: ["owner", "manager", "cashier"],
+    items: [
+      { label: "Installments", href: "/installments", icon: CreditCard },
+      { label: "Accounts Receivable", href: "/accounts-receivable", icon: Landmark },
+    ],
   },
   {
     type: "section",
