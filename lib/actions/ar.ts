@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
+import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
 
 const ORG_ID = '00000000-0000-0000-0000-000000000001'
@@ -50,4 +51,31 @@ export async function getAREntries(): Promise<AREntry[]> {
     branch_name: r.branch?.name ?? '—',
     cashier_name: r.cashier?.full_name ?? '—',
   }))
+}
+
+export async function recordARPayment(id: string, amount: number): Promise<void> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+
+  const { data: entry, error: fetchError } = await supabase
+    .from('accounts_receivable')
+    .select('amount_due, amount_paid')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !entry) throw new Error('AR entry not found')
+
+  const remaining = (entry as any).amount_due - (entry as any).amount_paid
+  if (amount <= 0 || amount > remaining + 0.005) throw new Error('Invalid payment amount')
+
+  const { error } = await supabase
+    .from('accounts_receivable')
+    .update({ amount_paid: (entry as any).amount_paid + amount } as any)
+    .eq('id', id)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/accounts-receivable')
 }

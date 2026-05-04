@@ -231,12 +231,19 @@ export function TransactionsClient({
         discountAmount: item.discount_amount,
         lineTotal: item.total,
       })),
-      subtotal: tx.total - (tx.total * orgSettings.tax_rate / (1 + orgSettings.tax_rate)),
+      subtotal: tx.subtotal ?? 0,
       discountAmount: tx.discount_amount,
-      taxAmount: tx.total * orgSettings.tax_rate / (1 + orgSettings.tax_rate),
-      taxRate: orgSettings.tax_rate,
+      taxAmount: tx.tax_amount ?? 0,
+      taxRate: (() => {
+        const base = (tx.subtotal ?? 0) - tx.discount_amount
+        return base > 0 && tx.tax_amount ? tx.tax_amount / base : 0
+      })(),
       total: tx.total,
       paymentMethod: tx.payment_method as ReceiptData["paymentMethod"],
+      splitMethod1: (tx.split_method_1 ?? undefined) as ReceiptData["splitMethod1"],
+      splitAmount1: tx.split_amount_1 ?? undefined,
+      splitMethod2: (tx.split_method_2 ?? undefined) as ReceiptData["splitMethod2"],
+      splitAmount2: tx.split_amount_2 ?? undefined,
       receiptHeader: orgSettings.receipt_header ?? undefined,
       receiptFooter: orgSettings.receipt_footer ?? undefined,
       companyName: orgSettings.company_name ?? undefined,

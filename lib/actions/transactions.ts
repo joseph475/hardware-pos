@@ -162,7 +162,11 @@ export async function createTransaction(params: {
       check_amount: params.check_amount ?? null,
       ewallet_provider: params.ewallet_provider ?? null,
       ewallet_reference: params.ewallet_reference ?? null,
-    })
+      split_method_1: params.splitMethod1 ?? null,
+      split_amount_1: params.splitAmount1 ?? null,
+      split_method_2: params.splitMethod2 ?? null,
+      split_amount_2: params.splitAmount2 ?? null,
+    } as any)
     .select('id')
     .single()
 
@@ -501,10 +505,16 @@ export type TransactionSummary = {
   cashier_name: string
   item_count: number
   payment_method: string
+  subtotal: number
+  tax_amount: number
   total: number
   discount_amount: number
   status: 'completed' | 'voided' | 'held'
   void_reason: string | null
+  split_method_1: string | null
+  split_amount_1: number | null
+  split_method_2: string | null
+  split_amount_2: number | null
   items: Array<{
     id: string
     product_name: string
@@ -538,7 +548,7 @@ export async function getTransactions(filters: {
 
   let query = supabase
     .from('transactions')
-    .select('id, created_at, branch_id, cashier_id, payment_method, total, discount_amount, status, void_reason')
+    .select('id, created_at, branch_id, cashier_id, payment_method, subtotal, tax_amount, total, discount_amount, status, void_reason, split_method_1, split_amount_1, split_method_2, split_amount_2')
     .gte('created_at', filters.dateFrom)
     .lte('created_at', filters.dateTo + 'T23:59:59.999Z')
     .order('created_at', { ascending: false })
@@ -618,10 +628,16 @@ export async function getTransactions(filters: {
       cashier_name: cashierMap.get(tx.cashier_id) ?? 'Unknown',
       item_count,
       payment_method: tx.payment_method,
+      subtotal: tx.subtotal,
+      tax_amount: tx.tax_amount,
       total: tx.total,
       discount_amount: tx.discount_amount,
       status: tx.status,
       void_reason: tx.void_reason,
+      split_method_1: tx.split_method_1 ?? null,
+      split_amount_1: tx.split_amount_1 ?? null,
+      split_method_2: tx.split_method_2 ?? null,
+      split_amount_2: tx.split_amount_2 ?? null,
       items,
     }
   })
@@ -635,7 +651,7 @@ export async function getRecentBranchTransactions(branchId: string, date: string
 
   const { data: txns, error } = await supabase
     .from('transactions')
-    .select('id, created_at, branch_id, cashier_id, payment_method, total, discount_amount, status, void_reason')
+    .select('id, created_at, branch_id, cashier_id, payment_method, subtotal, tax_amount, total, discount_amount, status, void_reason, split_method_1, split_amount_1, split_method_2, split_amount_2')
     .eq('branch_id', branchId)
     .in('status', ['completed', 'voided'])
     .gte('created_at', `${date}T00:00:00.000Z`)
@@ -699,10 +715,16 @@ export async function getRecentBranchTransactions(branchId: string, date: string
       cashier_name: cashierMap.get(tx.cashier_id) ?? 'Unknown',
       item_count,
       payment_method: tx.payment_method,
+      subtotal: tx.subtotal,
+      tax_amount: tx.tax_amount,
       total: tx.total,
       discount_amount: tx.discount_amount,
       status: tx.status,
       void_reason: tx.void_reason,
+      split_method_1: tx.split_method_1 ?? null,
+      split_amount_1: tx.split_amount_1 ?? null,
+      split_method_2: tx.split_method_2 ?? null,
+      split_amount_2: tx.split_amount_2 ?? null,
       items,
     }
   })
