@@ -76,7 +76,7 @@ function defaultLeg(method: SplitLegMethod): LegState {
   }
 }
 
-function isLegValid(leg: LegState): boolean {
+function isLegValid(leg: LegState, preSelectedCustomer?: string | null): boolean {
   switch (leg.method) {
     case "cash":
     case "card":
@@ -96,7 +96,7 @@ function isLegValid(leg: LegState): boolean {
     case "home_credit":
       return leg.hcTerms !== null
     case "credit":
-      return leg.creditCustomerName.trim() !== ""
+      return preSelectedCustomer != null || leg.creditCustomerName.trim() !== ""
   }
 }
 
@@ -204,13 +204,6 @@ export function PaymentDialog({
     setQrElapsed(0)
   }, [paymentMethod])
 
-  // Fires once on method switch; intentionally omits customerName/creditCustomerName from deps
-  React.useEffect(() => {
-    if (paymentMethod === "credit" && customerName && !creditCustomerName) {
-      setCreditCustomerName(customerName)
-    }
-  }, [paymentMethod]) // eslint-disable-line react-hooks/exhaustive-deps
-
   // Auto-switch split legs when methods collide
   React.useEffect(() => {
     if (leg1.method === leg2.method) {
@@ -248,8 +241,8 @@ export function PaymentDialog({
     paymentMethod === "split"
       ? Math.abs(splitRemaining) < 0.005 &&
         leg1.method !== leg2.method &&
-        isLegValid(leg1) &&
-        isLegValid(leg2)
+        isLegValid(leg1, customerName) &&
+        isLegValid(leg2, customerName)
       : true
   const isCheckValid =
     paymentMethod === "check"
@@ -272,7 +265,9 @@ export function PaymentDialog({
       : true
 
   const isCreditValid =
-    paymentMethod === "credit" ? creditCustomerName.trim() !== "" : true
+    paymentMethod === "credit"
+      ? customerName != null || creditCustomerName.trim() !== ""
+      : true
 
   const canConfirm =
     paymentMethod === "card" ||
@@ -330,7 +325,7 @@ export function PaymentDialog({
         hc_amount: paymentMethod === "home_credit" ? hcAmountComputed : (hcLeg ? Math.max(0, orderTotal - (parseFloat(hcLeg.hcDownpayment) || 0)) : null),
         hc_account_number: paymentMethod === "home_credit" ? (hcAccountNumber.trim() || null) : (hcLeg?.hcAccountNumber.trim() || null),
         installment_company: paymentMethod === "home_credit" ? installmentCompany : (hcLeg?.installmentCompany ?? null),
-        credit_customer_name: paymentMethod === "credit" ? creditCustomerName.trim() : (creditLeg?.creditCustomerName.trim() ?? null),
+        credit_customer_name: paymentMethod === "credit" ? (customerName ?? creditCustomerName.trim()) : (creditLeg ? (customerName ?? creditLeg.creditCustomerName.trim()) : null),
       })
 
       setReceiptData({
@@ -341,7 +336,7 @@ export function PaymentDialog({
         branchPhone: branch?.phone ?? null,
         cashierName: profile?.full_name ?? "Cashier",
         customerName: paymentMethod === "credit"
-          ? creditCustomerName.trim()
+          ? (customerName ?? (creditCustomerName.trim() || undefined))
           : (customerName ?? undefined),
         items: [
           ...items.map((i) => ({
@@ -591,6 +586,7 @@ export function PaymentDialog({
       )
     }
     if (leg.method === "credit") {
+      if (customerName) return null
       return (
         <div className="space-y-1.5 rounded-lg border border-border p-3">
           <Label>
@@ -1067,18 +1063,20 @@ export function PaymentDialog({
         {paymentMethod === "credit" && (
           <div className="space-y-3">
             <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-              This sale will be recorded as credit (utang). Enter the customer&apos;s name below.
+              This sale will be recorded as credit (utang).
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="credit-name">Customer Name</Label>
-              <Input
-                id="credit-name"
-                placeholder="e.g. Juan dela Cruz"
-                value={creditCustomerName}
-                onChange={(e) => setCreditCustomerName(e.target.value)}
-                autoFocus
-              />
-            </div>
+            {!customerName && (
+              <div className="space-y-1.5">
+                <Label htmlFor="credit-name">Customer Name</Label>
+                <Input
+                  id="credit-name"
+                  placeholder="e.g. Juan dela Cruz"
+                  value={creditCustomerName}
+                  onChange={(e) => setCreditCustomerName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
           </div>
         )}
 
