@@ -30,13 +30,75 @@ import { sendQuotationToPos } from "@/lib/actions/quotations"
 import { ReceiptDialog, type ReceiptData } from "@/components/pos/receipt-dialog"
 
 type PaymentMethod = "cash" | "card" | "split" | "gcash" | "maya" | "check" | "e_wallet" | "home_credit" | "credit"
-type SplitLegMethod = "cash" | "card" | "e_wallet"
+export type SplitLegMethod = "cash" | "card" | "gcash" | "maya" | "e_wallet" | "check" | "home_credit" | "credit"
+
+const ALL_SPLIT_METHODS: SplitLegMethod[] = ["cash", "card", "gcash", "maya", "e_wallet", "check", "home_credit", "credit"]
 
 const EWALLET_PROVIDERS = ["GCash", "PayMaya", "Maribank"] as const
 type EwalletProvider = typeof EWALLET_PROVIDERS[number]
 
 const INSTALLMENT_COMPANIES = ["HomeCredit", "SKYGO"] as const
 type InstallmentCompany = typeof INSTALLMENT_COMPANIES[number]
+
+interface LegState {
+  method: SplitLegMethod
+  amount: string
+  qrConfirmed: boolean
+  ewalletProvider: EwalletProvider
+  ewalletReference: string
+  checkBankName: string
+  checkDate: string
+  checkNumber: string
+  checkName: string
+  installmentCompany: InstallmentCompany
+  hcDownpayment: string
+  hcTerms: number | null
+  hcAccountNumber: string
+  creditCustomerName: string
+}
+
+function defaultLeg(method: SplitLegMethod): LegState {
+  return {
+    method,
+    amount: "",
+    qrConfirmed: false,
+    ewalletProvider: "GCash",
+    ewalletReference: "",
+    checkBankName: "",
+    checkDate: "",
+    checkNumber: "",
+    checkName: "",
+    installmentCompany: "HomeCredit",
+    hcDownpayment: "",
+    hcTerms: null,
+    hcAccountNumber: "",
+    creditCustomerName: "",
+  }
+}
+
+function isLegValid(leg: LegState): boolean {
+  switch (leg.method) {
+    case "cash":
+    case "card":
+      return true
+    case "gcash":
+    case "maya":
+      return leg.qrConfirmed
+    case "e_wallet":
+      return leg.ewalletReference.trim() !== ""
+    case "check":
+      return (
+        leg.checkBankName.trim() !== "" &&
+        leg.checkDate !== "" &&
+        leg.checkNumber.trim() !== "" &&
+        leg.checkName.trim() !== ""
+      )
+    case "home_credit":
+      return leg.hcTerms !== null
+    case "credit":
+      return leg.creditCustomerName.trim() !== ""
+  }
+}
 
 interface PaymentDialogProps {
   open: boolean
@@ -65,7 +127,12 @@ function paymentMethodLabel(method: PaymentMethod): string {
 }
 
 function splitLegLabel(method: SplitLegMethod): string {
+  if (method === "gcash") return "GCash"
+  if (method === "maya") return "Maya"
   if (method === "e_wallet") return "E-Wallet"
+  if (method === "home_credit") return "Installment"
+  if (method === "credit") return "Credit"
+  if (method === "check") return "Check"
   return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
@@ -89,11 +156,9 @@ export function PaymentDialog({
 
   const [cashTendered, setCashTendered] = React.useState("")
   // Split state — two independent legs
-  const [splitMethod1, setSplitMethod1] = React.useState<SplitLegMethod>("cash")
-  const [splitAmount1, setSplitAmount1] = React.useState("")
-  const [splitMethod2, setSplitMethod2] = React.useState<SplitLegMethod>("card")
-  const [splitAmount2, setSplitAmount2] = React.useState("")
-  // E-wallet state (shared between standalone e_wallet and split legs)
+  const [leg1, setLeg1] = React.useState<LegState>(defaultLeg("cash"))
+  const [leg2, setLeg2] = React.useState<LegState>(defaultLeg("card"))
+  // E-wallet state (standalone e_wallet payment only)
   const [ewalletProvider, setEwalletProvider] = React.useState<EwalletProvider>("GCash")
   const [ewalletReference, setEwalletReference] = React.useState("")
   // Check state
@@ -112,6 +177,9 @@ export function PaymentDialog({
   const [qrElapsed, setQrElapsed] = React.useState(0)
   const [receiptData, setReceiptData] = React.useState<ReceiptData | null>(null)
   const [receiptOpen, setReceiptOpen] = React.useState(false)
+
+  const updateLeg1 = (patch: Partial<LegState>) => setLeg1(prev => ({ ...prev, ...patch }))
+  const updateLeg2 = (patch: Partial<LegState>) => setLeg2(prev => ({ ...prev, ...patch }))
 
   const isQrPayment = paymentMethod === "gcash" || paymentMethod === "maya"
 
@@ -143,22 +211,20 @@ export function PaymentDialog({
     }
   }, [paymentMethod]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When split method 1 changes to match method 2, auto-change method 2
+  // Auto-switch split legs when methods collide
   React.useEffect(() => {
-    if (splitMethod1 === splitMethod2) {
-      const options: SplitLegMethod[] = ["cash", "card", "e_wallet"]
-      const next = options.find((m) => m !== splitMethod1)
-      if (next) setSplitMethod2(next)
+    if (leg1.method === leg2.method) {
+      const next = ALL_SPLIT_METHODS.find(m => m !== leg1.method)
+      if (next) setLeg2(prev => ({ ...prev, method: next }))
     }
-  }, [splitMethod1, splitMethod2])
+  }, [leg1.method, leg2.method])
 
   React.useEffect(() => {
-    if (splitMethod2 === splitMethod1) {
-      const options: SplitLegMethod[] = ["cash", "card", "e_wallet"]
-      const next = options.find((m) => m !== splitMethod2)
-      if (next) setSplitMethod1(next)
+    if (leg2.method === leg1.method) {
+      const next = ALL_SPLIT_METHODS.find(m => m !== leg2.method)
+      if (next) setLeg1(prev => ({ ...prev, method: next }))
     }
-  }, [splitMethod2, splitMethod1])
+  }, [leg2.method, leg1.method])
 
   const orderTotal = total()
   const orderSubtotal = subtotal()
@@ -170,12 +236,10 @@ export function PaymentDialog({
   const cashTenderedNum = parseFloat(cashTendered) || 0
   const change = cashTenderedNum - orderTotal
 
-  const splitAmount1Num = parseFloat(splitAmount1) || 0
-  const splitAmount2Num = parseFloat(splitAmount2) || 0
+  const splitAmount1Num = parseFloat(leg1.amount) || 0
+  const splitAmount2Num = parseFloat(leg2.amount) || 0
   const splitTotal = Math.round((splitAmount1Num + splitAmount2Num) * 100) / 100
   const splitRemaining = orderTotal - splitTotal
-
-  const splitHasEwallet = paymentMethod === "split" && (splitMethod1 === "e_wallet" || splitMethod2 === "e_wallet")
 
   const checkAmountNum = parseFloat(checkAmountStr) || 0
 
@@ -183,8 +247,9 @@ export function PaymentDialog({
   const isSplitValid =
     paymentMethod === "split"
       ? Math.abs(splitRemaining) < 0.005 &&
-        splitMethod1 !== splitMethod2 &&
-        (!splitHasEwallet || ewalletReference.trim() !== "")
+        leg1.method !== leg2.method &&
+        isLegValid(leg1) &&
+        isLegValid(leg2)
       : true
   const isCheckValid =
     paymentMethod === "check"
@@ -223,7 +288,12 @@ export function PaymentDialog({
     if (!canConfirm) return
     setIsProcessing(true)
     try {
-      const hasEwallet = paymentMethod === "e_wallet" || splitHasEwallet
+      // Resolve per-leg extra fields for split payment
+      const checkLeg  = paymentMethod === "split" ? ([leg1, leg2].find(l => l.method === "check") ?? null) : null
+      const walletLeg = paymentMethod === "split" ? ([leg1, leg2].find(l => l.method === "e_wallet") ?? null) : null
+      const hcLeg     = paymentMethod === "split" ? ([leg1, leg2].find(l => l.method === "home_credit") ?? null) : null
+      const creditLeg = paymentMethod === "split" ? ([leg1, leg2].find(l => l.method === "credit") ?? null) : null
+
       const result = await createTransaction({
         items: items.map((i) => ({
           product_id: i.product.id,
@@ -248,19 +318,19 @@ export function PaymentDialog({
         total: orderTotal,
         payment_method: paymentMethod,
         customer_id: customerId ?? null,
-        check_bank_name: paymentMethod === "check" ? checkBankName : null,
-        check_date: paymentMethod === "check" ? checkDate : null,
-        check_number: paymentMethod === "check" ? checkNumber : null,
-        check_name: paymentMethod === "check" ? checkName : null,
-        check_amount: paymentMethod === "check" ? checkAmountNum : null,
-        ewallet_provider: hasEwallet ? ewalletProvider : null,
-        ewallet_reference: hasEwallet ? ewalletReference.trim() : null,
-        hc_downpayment: paymentMethod === "home_credit" ? hcDownpaymentNum : null,
-        hc_terms: paymentMethod === "home_credit" ? hcTerms : null,
-        hc_amount: paymentMethod === "home_credit" ? hcAmountComputed : null,
-        hc_account_number: paymentMethod === "home_credit" ? (hcAccountNumber.trim() || null) : null,
-        installment_company: paymentMethod === "home_credit" ? installmentCompany : null,
-        credit_customer_name: paymentMethod === "credit" ? creditCustomerName.trim() : null,
+        check_bank_name: paymentMethod === "check" ? checkBankName : (checkLeg?.checkBankName ?? null),
+        check_date: paymentMethod === "check" ? checkDate : (checkLeg?.checkDate ?? null),
+        check_number: paymentMethod === "check" ? checkNumber : (checkLeg?.checkNumber ?? null),
+        check_name: paymentMethod === "check" ? checkName : (checkLeg?.checkName ?? null),
+        check_amount: paymentMethod === "check" ? checkAmountNum : (checkLeg ? (parseFloat(leg1.method === "check" ? leg1.amount : leg2.amount) || 0) : null),
+        ewallet_provider: paymentMethod === "e_wallet" ? ewalletProvider : (walletLeg?.ewalletProvider ?? null),
+        ewallet_reference: paymentMethod === "e_wallet" ? ewalletReference.trim() : (walletLeg?.ewalletReference.trim() ?? null),
+        hc_downpayment: paymentMethod === "home_credit" ? hcDownpaymentNum : (hcLeg ? (parseFloat(hcLeg.hcDownpayment) || 0) : null),
+        hc_terms: paymentMethod === "home_credit" ? hcTerms : (hcLeg?.hcTerms ?? null),
+        hc_amount: paymentMethod === "home_credit" ? hcAmountComputed : (hcLeg ? Math.max(0, orderTotal - (parseFloat(hcLeg.hcDownpayment) || 0)) : null),
+        hc_account_number: paymentMethod === "home_credit" ? (hcAccountNumber.trim() || null) : (hcLeg?.hcAccountNumber.trim() || null),
+        installment_company: paymentMethod === "home_credit" ? installmentCompany : (hcLeg?.installmentCompany ?? null),
+        credit_customer_name: paymentMethod === "credit" ? creditCustomerName.trim() : (creditLeg?.creditCustomerName.trim() ?? null),
       })
 
       setReceiptData({
@@ -298,17 +368,17 @@ export function PaymentDialog({
         paymentMethod,
         cashTendered: paymentMethod === "cash" ? cashTenderedNum : undefined,
         change: paymentMethod === "cash" ? change : undefined,
-        splitMethod1: paymentMethod === "split" ? splitMethod1 : undefined,
+        splitMethod1: paymentMethod === "split" ? leg1.method : undefined,
         splitAmount1: paymentMethod === "split" ? splitAmount1Num : undefined,
-        splitMethod2: paymentMethod === "split" ? splitMethod2 : undefined,
+        splitMethod2: paymentMethod === "split" ? leg2.method : undefined,
         splitAmount2: paymentMethod === "split" ? splitAmount2Num : undefined,
-        checkBankName: paymentMethod === "check" ? checkBankName : undefined,
-        checkDate: paymentMethod === "check" ? checkDate : undefined,
-        checkNumber: paymentMethod === "check" ? checkNumber : undefined,
-        checkName: paymentMethod === "check" ? checkName : undefined,
-        checkAmount: paymentMethod === "check" ? checkAmountNum : undefined,
-        ewalletProvider: hasEwallet ? ewalletProvider : undefined,
-        ewalletReference: hasEwallet ? ewalletReference.trim() : undefined,
+        checkBankName: paymentMethod === "check" ? checkBankName : (checkLeg?.checkBankName ?? undefined),
+        checkDate: paymentMethod === "check" ? checkDate : (checkLeg?.checkDate ?? undefined),
+        checkNumber: paymentMethod === "check" ? checkNumber : (checkLeg?.checkNumber ?? undefined),
+        checkName: paymentMethod === "check" ? checkName : (checkLeg?.checkName ?? undefined),
+        checkAmount: paymentMethod === "check" ? checkAmountNum : (checkLeg ? (parseFloat(leg1.method === "check" ? leg1.amount : leg2.amount) || 0) : undefined),
+        ewalletProvider: paymentMethod === "e_wallet" ? ewalletProvider : (walletLeg?.ewalletProvider ?? undefined),
+        ewalletReference: paymentMethod === "e_wallet" ? ewalletReference.trim() : (walletLeg?.ewalletReference.trim() ?? undefined),
         receiptHeader: receiptHeader ?? undefined,
         receiptFooter: receiptFooter ?? undefined,
         companyName: companyName ?? undefined,
@@ -323,8 +393,8 @@ export function PaymentDialog({
       clearCart()
       onOpenChange(false)
       setCashTendered("")
-      setSplitAmount1("")
-      setSplitAmount2("")
+      setLeg1(defaultLeg("cash"))
+      setLeg2(defaultLeg("card"))
       setEwalletReference("")
       setHcDownpayment("")
       setHcTerms(null)
@@ -349,10 +419,8 @@ export function PaymentDialog({
     if (!isProcessing) {
       if (!value) {
         setCashTendered("")
-        setSplitAmount1("")
-        setSplitAmount2("")
-        setSplitMethod1("cash")
-        setSplitMethod2("card")
+        setLeg1(defaultLeg("cash"))
+        setLeg2(defaultLeg("card"))
         setEwalletProvider("GCash")
         setEwalletReference("")
         setCheckBankName("")
@@ -376,7 +444,168 @@ export function PaymentDialog({
     return m > 0 ? `${m}m ${s}s` : `${s}s`
   }
 
-  const splitLegOptions: SplitLegMethod[] = ["cash", "card", "e_wallet"]
+  function renderLegExtras(leg: LegState, update: (patch: Partial<LegState>) => void) {
+    if (leg.method === "gcash" || leg.method === "maya") {
+      const label = leg.method === "gcash" ? "GCash" : "Maya"
+      return (
+        <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+          <Checkbox
+            id={`split-qr-${leg.method}`}
+            checked={leg.qrConfirmed}
+            onCheckedChange={(v) => update({ qrConfirmed: !!v })}
+          />
+          <Label htmlFor={`split-qr-${leg.method}`} className="text-sm cursor-pointer">
+            Customer has paid via {label}
+          </Label>
+        </div>
+      )
+    }
+    if (leg.method === "e_wallet") {
+      return (
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="space-y-1.5">
+            <Label>Provider</Label>
+            <Select
+              value={leg.ewalletProvider}
+              onValueChange={(v) => update({ ewalletProvider: v as EwalletProvider })}
+            >
+              <SelectTrigger className="w-full h-9">
+                <SelectValue placeholder="Select provider">{leg.ewalletProvider}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {EWALLET_PROVIDERS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reference No. <span className="text-destructive">*</span></Label>
+            <Input
+              placeholder="Enter reference number"
+              value={leg.ewalletReference}
+              onChange={e => update({ ewalletReference: e.target.value })}
+            />
+          </div>
+        </div>
+      )
+    }
+    if (leg.method === "check") {
+      return (
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Bank Name</Label>
+              <Input
+                placeholder="e.g. BDO"
+                value={leg.checkBankName}
+                onChange={e => update({ checkBankName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Check Date</Label>
+              <Input
+                type="date"
+                value={leg.checkDate}
+                onChange={e => update({ checkDate: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Check #</Label>
+              <Input
+                placeholder="123456"
+                value={leg.checkNumber}
+                onChange={e => update({ checkNumber: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Check Name</Label>
+              <Input
+                placeholder="Payee"
+                value={leg.checkName}
+                onChange={e => update({ checkName: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+      )
+    }
+    if (leg.method === "home_credit") {
+      return (
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="space-y-1.5">
+            <Label>Company</Label>
+            <Select
+              value={leg.installmentCompany}
+              onValueChange={(v) => update({ installmentCompany: v as InstallmentCompany })}
+            >
+              <SelectTrigger className="w-full h-9">
+                <SelectValue placeholder="Select company">{leg.installmentCompany}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {INSTALLMENT_COMPANIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>
+              Downpayment <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                {currencySymbol}
+              </span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="0.00"
+                value={leg.hcDownpayment}
+                onChange={e => update({ hcDownpayment: e.target.value })}
+                className="pl-6"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>
+              Terms <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex gap-2 flex-wrap">
+              {[3, 6, 12, 18, 24].map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => update({ hcTerms: t })}
+                  className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    leg.hcTerms === t
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {t} mos
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )
+    }
+    if (leg.method === "credit") {
+      return (
+        <div className="space-y-1.5 rounded-lg border border-border p-3">
+          <Label>
+            Customer Name <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            placeholder="e.g. Juan dela Cruz"
+            value={leg.creditCustomerName}
+            onChange={e => update({ creditCustomerName: e.target.value })}
+          />
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <>
@@ -563,16 +792,16 @@ export function PaymentDialog({
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">First Payment</Label>
               <div className="flex gap-2">
                 <Select
-                  value={splitMethod1}
-                  onValueChange={(val) => setSplitMethod1(val as SplitLegMethod)}
+                  value={leg1.method}
+                  onValueChange={(val) => updateLeg1({ method: val as SplitLegMethod })}
                 >
                   <SelectTrigger className="w-[130px] h-9 shrink-0">
                     <SelectValue placeholder="Method">
-                      {splitLegLabel(splitMethod1)}
+                      {splitLegLabel(leg1.method)}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {splitLegOptions.filter((m) => m !== splitMethod2).map((m) => (
+                    {ALL_SPLIT_METHODS.filter(m => m !== leg2.method).map(m => (
                       <SelectItem key={m} value={m}>{splitLegLabel(m)}</SelectItem>
                     ))}
                   </SelectContent>
@@ -586,13 +815,14 @@ export function PaymentDialog({
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={splitAmount1}
-                    onChange={(e) => setSplitAmount1(e.target.value)}
+                    value={leg1.amount}
+                    onChange={(e) => updateLeg1({ amount: e.target.value })}
                     className="pl-6 h-9"
                     autoFocus
                   />
                 </div>
               </div>
+              {renderLegExtras(leg1, updateLeg1)}
             </div>
 
             {/* Leg 2 */}
@@ -600,16 +830,16 @@ export function PaymentDialog({
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Second Payment</Label>
               <div className="flex gap-2">
                 <Select
-                  value={splitMethod2}
-                  onValueChange={(val) => setSplitMethod2(val as SplitLegMethod)}
+                  value={leg2.method}
+                  onValueChange={(val) => updateLeg2({ method: val as SplitLegMethod })}
                 >
                   <SelectTrigger className="w-[130px] h-9 shrink-0">
                     <SelectValue placeholder="Method">
-                      {splitLegLabel(splitMethod2)}
+                      {splitLegLabel(leg2.method)}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {splitLegOptions.filter((m) => m !== splitMethod1).map((m) => (
+                    {ALL_SPLIT_METHODS.filter(m => m !== leg1.method).map(m => (
                       <SelectItem key={m} value={m}>{splitLegLabel(m)}</SelectItem>
                     ))}
                   </SelectContent>
@@ -623,46 +853,14 @@ export function PaymentDialog({
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={splitAmount2}
-                    onChange={(e) => setSplitAmount2(e.target.value)}
+                    value={leg2.amount}
+                    onChange={(e) => updateLeg2({ amount: e.target.value })}
                     className="pl-6 h-9"
                   />
                 </div>
               </div>
+              {renderLegExtras(leg2, updateLeg2)}
             </div>
-
-            {/* E-Wallet fields for split */}
-            {splitHasEwallet && (
-              <div className="space-y-3 rounded-lg border border-border p-3">
-                <div className="space-y-1.5">
-                  <Label>E-Wallet Provider</Label>
-                  <Select
-                    value={ewalletProvider}
-                    onValueChange={(val) => setEwalletProvider(val as EwalletProvider)}
-                  >
-                    <SelectTrigger className="w-full h-9">
-                      <SelectValue placeholder="Select provider">
-                        {ewalletProvider}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EWALLET_PROVIDERS.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="split-ewallet-ref">Reference No. <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="split-ewallet-ref"
-                    placeholder="Enter reference number"
-                    value={ewalletReference}
-                    onChange={(e) => setEwalletReference(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
 
             <div
               className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium ${

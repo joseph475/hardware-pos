@@ -39,9 +39,9 @@ export interface ReceiptData {
   change?: number
   splitCash?: number
   splitCard?: number
-  splitMethod1?: "cash" | "card" | "e_wallet"
+  splitMethod1?: "cash" | "card" | "gcash" | "maya" | "e_wallet" | "check" | "home_credit" | "credit"
   splitAmount1?: number
-  splitMethod2?: "cash" | "card" | "e_wallet"
+  splitMethod2?: "cash" | "card" | "gcash" | "maya" | "e_wallet" | "check" | "home_credit" | "credit"
   splitAmount2?: number
   checkBankName?: string
   checkDate?: string
@@ -76,8 +76,13 @@ function Divider({ char = "=" }: { char?: string }) {
   return <ReceiptLine>{char.repeat(42)}</ReceiptLine>
 }
 
-function splitMethodLabel(method: "cash" | "card" | "e_wallet"): string {
+function splitMethodLabel(method: "cash" | "card" | "gcash" | "maya" | "e_wallet" | "check" | "home_credit" | "credit"): string {
+  if (method === "gcash") return "GCash"
+  if (method === "maya") return "Maya"
   if (method === "e_wallet") return "E-Wallet"
+  if (method === "home_credit") return "Installment"
+  if (method === "credit") return "Credit"
+  if (method === "check") return "Check"
   return method.charAt(0).toUpperCase() + method.slice(1)
 }
 
