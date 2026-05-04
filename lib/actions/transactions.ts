@@ -87,6 +87,10 @@ export async function createTransaction(params: {
   hc_account_number?: string | null
   installment_company?: string | null
   credit_customer_name?: string | null
+  splitMethod1?: string | null
+  splitAmount1?: number | null
+  splitMethod2?: string | null
+  splitAmount2?: number | null
 }): Promise<{ id: string }> {
   const profile = await getProfile()
   const supabase = getAdminClient()
@@ -189,6 +193,25 @@ export async function createTransaction(params: {
       amount_paid: 0,
       cashier_id: profile.id,
     })
+  }
+
+  if (params.payment_method === 'split') {
+    const ORG_ID = '00000000-0000-0000-0000-000000000001'
+    const creditAmount =
+      params.splitMethod1 === 'credit' ? params.splitAmount1 :
+      params.splitMethod2 === 'credit' ? params.splitAmount2 :
+      null
+    if (creditAmount != null && creditAmount > 0) {
+      await supabase.from('accounts_receivable').insert({
+        org_id: ORG_ID,
+        branch_id: profile.branch_id,
+        transaction_id: transaction.id,
+        customer_name: params.credit_customer_name ?? 'Unknown Customer',
+        amount_due: creditAmount,
+        amount_paid: 0,
+        cashier_id: profile.id,
+      })
+    }
   }
 
   const { data: insertedItems, error: itemsError } = await supabase.from('transaction_items').insert(

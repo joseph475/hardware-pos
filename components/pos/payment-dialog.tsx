@@ -326,6 +326,10 @@ export function PaymentDialog({
         hc_account_number: paymentMethod === "home_credit" ? (hcAccountNumber.trim() || null) : (hcLeg?.hcAccountNumber.trim() || null),
         installment_company: paymentMethod === "home_credit" ? installmentCompany : (hcLeg?.installmentCompany ?? null),
         credit_customer_name: paymentMethod === "credit" ? (customerName ?? creditCustomerName.trim()) : (creditLeg ? (customerName ?? creditLeg.creditCustomerName.trim()) : null),
+        splitMethod1: paymentMethod === "split" ? leg1.method : null,
+        splitAmount1: paymentMethod === "split" ? splitAmount1Num : null,
+        splitMethod2: paymentMethod === "split" ? leg2.method : null,
+        splitAmount2: paymentMethod === "split" ? splitAmount2Num : null,
       })
 
       setReceiptData({
