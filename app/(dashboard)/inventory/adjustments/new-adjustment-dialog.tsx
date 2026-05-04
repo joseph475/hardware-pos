@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -131,7 +132,7 @@ export function NewAdjustmentDialog({ products, branches, defaultBranchId, onSuc
       reset()
       onSuccess()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save adjustment")
+      handleError(err, 'save adjustment')
     } finally {
       setSubmitting(false)
     }

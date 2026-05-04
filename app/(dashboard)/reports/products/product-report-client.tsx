@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import {
   BarChart,
   Bar,
@@ -60,9 +61,7 @@ export function ProductReportClient({
         const result = await getProductReport(val, userBranchId)
         setData(result)
       } catch (err) {
-        toast.error("Failed to load report", {
-          description: err instanceof Error ? err.message : "Something went wrong",
-        })
+        handleError(err, 'load product report')
       }
     })
   }

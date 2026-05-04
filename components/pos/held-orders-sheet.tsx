@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { RotateCcw, Trash2, ShoppingBag, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -91,9 +92,7 @@ export function HeldOrdersSheet({ open: controlledOpen, onOpenChange: controlled
       setHeldOrders((prev) => prev.filter((o) => o.id !== id))
       toast.success("Held order deleted")
     } catch (err) {
-      toast.error("Failed to delete", {
-        description: err instanceof Error ? err.message : "Something went wrong",
-      })
+      handleError(err, 'delete held order')
     } finally {
       setDeletingId(null)
     }
@@ -106,9 +105,7 @@ export function HeldOrdersSheet({ open: controlledOpen, onOpenChange: controlled
       await fetchHeld(false)
       toast.success(count > 0 ? `Cleared ${count} expired order${count !== 1 ? "s" : ""}` : "No expired orders to clear")
     } catch (err) {
-      toast.error("Failed to clear expired orders", {
-        description: err instanceof Error ? err.message : "Something went wrong",
-      })
+      handleError(err, 'clear expired orders')
     } finally {
       setClearingExpired(false)
     }

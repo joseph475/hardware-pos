@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Globe, KeyRound, Percent, Receipt, ShieldCheck, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { handleError } from "@/lib/utils/error-handler";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -143,7 +144,7 @@ export function OrganizationClient({
       setLogoUrl(url);
       toast.success("Logo uploaded");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
+      handleError(err, 'upload logo');
     } finally {
       setLogoUploading(false);
       e.target.value = "";
@@ -163,7 +164,7 @@ export function OrganizationClient({
         toast.success("Company info saved");
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to save company info");
+        handleError(err, 'save company info');
       }
     });
   }
@@ -183,7 +184,7 @@ export function OrganizationClient({
         toast.success("Organization settings saved");
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to save settings");
+        handleError(err, 'save org settings');
       }
     });
   }
@@ -203,7 +204,7 @@ export function OrganizationClient({
         toast.success("Receipt & discount settings saved");
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to save settings");
+        handleError(err, 'save owner settings');
       }
     });
   }
@@ -244,7 +245,7 @@ export function OrganizationClient({
         setHasPin(false);
         toast.success("Manager PIN removed");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to remove PIN");
+        handleError(err, 'remove manager PIN');
       }
     });
   }

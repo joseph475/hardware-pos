@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import {
   Dialog,
   DialogContent,
@@ -109,7 +110,7 @@ export function ReceivePODialog({ po, onClose }: Props) {
         router.refresh()
         onClose()
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to receive goods")
+        handleError(err, 'receive purchase order')
       }
     })
   }

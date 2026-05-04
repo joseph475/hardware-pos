@@ -6,6 +6,7 @@ import { useTransition } from "react"
 import { formatDate } from "@/lib/format"
 import { Plus, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -82,10 +83,7 @@ export function BranchRequestsClient({
         await updateBranchStockRequestStatus(requestId, status)
         router.refresh()
       } catch (err) {
-        toast.error("Failed to update status", {
-          description:
-            err instanceof Error ? err.message : "Unknown error",
-        })
+        handleError(err, 'update request status')
       }
     })
   }
@@ -97,10 +95,7 @@ export function BranchRequestsClient({
         router.refresh()
         toast.success("Stock received — inventory updated")
       } catch (err) {
-        toast.error("Failed to mark as received", {
-          description:
-            err instanceof Error ? err.message : "Unknown error",
-        })
+        handleError(err, 'mark request received')
       }
     })
   }

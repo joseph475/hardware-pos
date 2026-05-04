@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { ChevronDown, ChevronRight, ChevronLeft, Ban, Download, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,9 +91,7 @@ function VoidDialog({ transaction, onClose, onVoided }: VoidDialogProps) {
       onVoided(transaction.id)
       onClose()
     } catch (err) {
-      toast.error("Failed to void transaction", {
-        description: err instanceof Error ? err.message : "Something went wrong",
-      })
+      handleError(err, 'void transaction')
     } finally {
       setIsPending(false)
     }
@@ -286,9 +285,7 @@ export function TransactionsClient({
         })
         setData(result)
       } catch (err) {
-        toast.error("Failed to load transactions", {
-          description: err instanceof Error ? err.message : "Something went wrong",
-        })
+        handleError(err, 'load transactions')
       }
     })
   }

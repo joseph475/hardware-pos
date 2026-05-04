@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { PauseCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,9 +68,7 @@ export function HoldOrderDialog({ open, onOpenChange }: HoldOrderDialogProps) {
         description: `${itemCount} item${itemCount !== 1 ? "s" : ""} — ${formatCurrency(orderTotal)}`,
       })
     } catch (err) {
-      toast.error("Failed to hold order", {
-        description: err instanceof Error ? err.message : "Something went wrong",
-      })
+      handleError(err, 'hold order')
     } finally {
       setIsSaving(false)
     }

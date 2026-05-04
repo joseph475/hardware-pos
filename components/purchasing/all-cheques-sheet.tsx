@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Banknote, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import {
   Dialog,
   DialogContent,
@@ -37,8 +38,8 @@ export function AllChequesSheet() {
     try {
       const data = await getAllCheques()
       setCheques(data)
-    } catch {
-      toast.error("Failed to load cheques")
+    } catch (err) {
+      handleError(err, 'load cheques')
     }
   }
 

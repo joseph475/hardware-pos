@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
 import { toast } from "sonner"
+import { logError } from "@/lib/actions/errors"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import {
   Dialog,
@@ -94,6 +95,7 @@ export function ChequeDetailsDialog({ po, open, onOpenChange }: Props) {
 
       if (result.error) {
         toast.error(result.error)
+        logError({ message: result.error, context: 'save cheque', url: typeof window !== 'undefined' ? window.location.href : undefined }).catch(() => {})
         return
       }
 
@@ -109,6 +111,7 @@ export function ChequeDetailsDialog({ po, open, onOpenChange }: Props) {
       const result = await deletePOCheque(id)
       if (result.error) {
         toast.error(result.error)
+        logError({ message: result.error, context: 'delete cheque', url: typeof window !== 'undefined' ? window.location.href : undefined }).catch(() => {})
         return
       }
       setCheques((prev) => prev.filter((c) => c.id !== id))

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { XCircle, SendHorizonal } from "lucide-react"
 import {
   Dialog,
@@ -50,7 +51,7 @@ export function ViewPODialog({ po, userRole, onClose, onReceive }: Props) {
         router.refresh()
         onClose()
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to submit PO")
+        handleError(err, 'submit purchase order')
       }
     })
   }
@@ -64,7 +65,7 @@ export function ViewPODialog({ po, userRole, onClose, onReceive }: Props) {
         router.refresh()
         onClose()
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to cancel PO")
+        handleError(err, 'cancel purchase order')
       }
     })
   }

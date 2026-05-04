@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
 import { toast } from "sonner";
+import { handleError } from "@/lib/utils/error-handler";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,7 +131,7 @@ function ExpenseDialog({ expense, open, onOpenChange, onSaved }: ExpenseDialogPr
       onSaved();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save expense");
+      handleError(err, 'save expense');
     } finally {
       setSaving(false);
     }
@@ -260,7 +261,7 @@ export function ExpensesClient({ initialExpenses }: ExpensesClientProps) {
       toast.success("Expense deleted");
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete expense");
+      handleError(err, 'delete expense');
     } finally {
       setDeleting(null);
     }

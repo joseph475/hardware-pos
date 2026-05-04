@@ -27,6 +27,7 @@ import type { Product, Category, Branch, Supplier } from "@/types/database";
 import { useCurrency } from "@/lib/context/currency";
 import { ImageIcon, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { handleError } from "@/lib/utils/error-handler";
 import { uploadProductImage } from "@/lib/actions/upload";
 
 const supplierRowSchema = z.object({
@@ -195,7 +196,7 @@ export function ProductDialog({
       setImageUrl(url);
       toast.success("Image uploaded");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
+      handleError(err, 'upload product image');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

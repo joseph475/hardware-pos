@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { Search, Package, ArrowDownToLine, ShoppingCart, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,8 +47,8 @@ export function SerialLookupDialog({ open, onOpenChange }: SerialLookupDialogPro
       const data = await lookupSerial(query)
       setResult(data)
       setSearched(true)
-    } catch {
-      toast.error("Lookup failed")
+    } catch (err) {
+      handleError(err, 'lookup serial')
     } finally {
       setIsLoading(false)
     }

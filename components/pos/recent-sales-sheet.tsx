@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { ShoppingBag, Ban, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,9 +61,7 @@ export function RecentSalesSheet({
       const data = await getRecentBranchTransactions(profile.branch_id, selectedDate)
       setSales(data)
     } catch (err) {
-      toast.error("Failed to load sales", {
-        description: err instanceof Error ? err.message : "Something went wrong",
-      })
+      handleError(err, 'load recent sales')
     } finally {
       setLoading(false)
     }

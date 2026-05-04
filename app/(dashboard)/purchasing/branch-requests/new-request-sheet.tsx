@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
 import { PackageOpen, Search, Package, X, Minus, Plus } from "lucide-react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -113,9 +114,7 @@ export function NewRequestSheet({ open, onOpenChange, products }: Props) {
         onOpenChange(false)
         router.refresh()
       } catch (err) {
-        toast.error("Failed to create request", {
-          description: err instanceof Error ? err.message : "Unknown error",
-        })
+        handleError(err, 'create branch request')
       }
     })
   }

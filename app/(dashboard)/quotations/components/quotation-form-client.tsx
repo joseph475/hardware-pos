@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { ArrowLeft, PackageOpen, Search, Package, X, Minus, Plus, Percent, RefreshCw, Layers } from 'lucide-react'
 import { toast } from 'sonner'
+import { handleError } from '@/lib/utils/error-handler'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -254,7 +255,7 @@ export function QuotationFormClient({
         }
         router.push('/quotations')
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to save quotation')
+        handleError(err, 'save quotation')
       }
     })
   }

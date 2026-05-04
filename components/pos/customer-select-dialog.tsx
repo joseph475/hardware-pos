@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Search, UserPlus, User, X } from "lucide-react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -74,9 +75,7 @@ export function CustomerSelectDialog({
       setNewCustomerOpen(false)
       toast.success("Customer added", { description: values.name })
     } catch (err) {
-      toast.error("Failed to add customer", {
-        description: err instanceof Error ? err.message : "Something went wrong",
-      })
+      handleError(err, 'add customer')
     } finally {
       setSavingCustomer(false)
     }

@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -60,9 +61,7 @@ export function FulfillRequestDialog({
         onOpenChange(false)
         router.refresh()
       } catch (err) {
-        toast.error("Failed to fulfill request", {
-          description: err instanceof Error ? err.message : "Unknown error",
-        })
+        handleError(err, 'fulfill request')
       }
     })
   }

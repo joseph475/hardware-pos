@@ -14,6 +14,7 @@ import {
   Power,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { handleError } from '@/lib/utils/error-handler'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -81,7 +82,7 @@ export function CustomersClient({ initialCustomers }: CustomersClientProps) {
         router.refresh()
         toast.success(editingCustomer ? 'Customer updated' : 'Customer added')
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to save customer')
+        handleError(err, 'save customer')
       }
     })
   }
@@ -93,7 +94,7 @@ export function CustomersClient({ initialCustomers }: CustomersClientProps) {
         router.refresh()
         toast.success(customer.is_active ? 'Customer deactivated' : 'Customer activated')
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to update customer')
+        handleError(err, 'toggle customer active')
       }
     })
   }
@@ -105,7 +106,7 @@ export function CustomersClient({ initialCustomers }: CustomersClientProps) {
         router.refresh()
         toast.success('Customer deleted')
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to delete customer')
+        handleError(err, 'delete customer')
       }
     })
   }

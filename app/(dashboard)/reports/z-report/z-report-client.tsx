@@ -3,6 +3,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { Printer, TrendingUp, ShoppingCart, CreditCard, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -242,9 +243,7 @@ export function ZReportClient({
         setData(readingResult)
         setAnalyticsData(analyticsResult)
       } catch (err) {
-        toast.error("Failed to load report", {
-          description: err instanceof Error ? err.message : "Something went wrong",
-        })
+        handleError(err, 'load z-report')
       }
     })
   }

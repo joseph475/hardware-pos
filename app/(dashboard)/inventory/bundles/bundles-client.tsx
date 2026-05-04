@@ -5,6 +5,7 @@ import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Pencil, ToggleLeft, Package, Search, X, Minus } from "lucide-react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { z } from "zod/v4"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -136,8 +137,8 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
         }
         setSheetOpen(false)
         router.refresh()
-      } catch (err: any) {
-        toast.error(err.message ?? "Failed to save bundle")
+      } catch (err) {
+        handleError(err, 'save bundle')
       }
     })
   }
@@ -148,8 +149,8 @@ export function BundlesClient({ initialBundles, products }: BundlesClientProps) 
         await toggleBundleActive(bundle.id, !bundle.is_active)
         toast.success(bundle.is_active ? "Bundle deactivated" : "Bundle activated")
         router.refresh()
-      } catch (err: any) {
-        toast.error(err.message ?? "Failed to update bundle")
+      } catch (err) {
+        handleError(err, 'toggle bundle active')
       }
     })
   }

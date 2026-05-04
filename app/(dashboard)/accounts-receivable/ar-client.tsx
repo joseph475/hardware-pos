@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { formatDate } from "@/lib/format"
 import { useCurrency } from "@/lib/context/currency"
 import type { AREntry } from "@/lib/actions/ar"
@@ -55,9 +56,7 @@ function RecordPaymentDialog({
       onPaid(entry.id, amount)
       onClose()
     } catch (err) {
-      toast.error("Failed to record payment", {
-        description: err instanceof Error ? err.message : "Something went wrong",
-      })
+      handleError(err, 'record AR payment')
     } finally {
       setIsPending(false)
     }

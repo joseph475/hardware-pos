@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
 import { Plus, Trash2, PackageOpen } from "lucide-react"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -187,7 +188,7 @@ export function NewPOSheet({ suppliers, branches, products, productSupplierCosts
       reset()
       onSuccess()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : isEditMode ? "Failed to update purchase order" : "Failed to create purchase order")
+      handleError(err, 'save purchase order')
     } finally {
       setSubmitting(false)
     }

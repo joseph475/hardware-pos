@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { MoreHorizontal, Plus, Search, Send, CheckCircle, XCircle, Trash2, Printer } from 'lucide-react'
 import { toast } from 'sonner'
+import { handleError } from '@/lib/utils/error-handler'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -99,7 +100,7 @@ export function QuotationsClient({
       toast.success('Quotation marked as sent')
       router.refresh()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update status')
+      handleError(err, 'mark quotation sent')
     }
   }
 
@@ -113,7 +114,7 @@ export function QuotationsClient({
       toast.success('Quotation rejected')
       router.refresh()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update status')
+      handleError(err, 'reject quotation')
     }
   }
 
@@ -123,7 +124,7 @@ export function QuotationsClient({
       toast.success('Quotation deleted')
       router.refresh()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete quotation')
+      handleError(err, 'delete quotation')
     }
   }
 

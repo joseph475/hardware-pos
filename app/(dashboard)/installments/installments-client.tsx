@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { handleError } from "@/lib/utils/error-handler"
 import { Search, CreditCard } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -54,9 +55,7 @@ export function InstallmentsClient({ initialPlans, userRole }: InstallmentsClien
         toast.success("Marked as received")
         router.refresh()
       } catch (err) {
-        toast.error("Failed to update", {
-          description: err instanceof Error ? err.message : "Something went wrong",
-        })
+        handleError(err, 'mark installment received')
       }
     })
   }

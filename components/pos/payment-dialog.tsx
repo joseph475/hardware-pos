@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { logError } from "@/lib/actions/errors"
 import { CheckCircle2, QrCode, Timer, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -404,6 +405,8 @@ export function PaymentDialog({
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong"
+      const stack = err instanceof Error ? err.stack : undefined
+      logError({ message, stack, context: 'submit payment', url: typeof window !== 'undefined' ? window.location.href : undefined }).catch(() => {})
       if (message.startsWith("Insufficient stock for:")) {
         toast.error("Stock unavailable", { description: message })
       } else {
