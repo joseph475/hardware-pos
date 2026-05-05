@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ShoppingCart,
+  ShoppingBag,
   Package,
   BarChart3,
   SlidersHorizontal,
@@ -27,7 +28,6 @@ import {
   Receipt,
   CreditCard,
   Landmark,
-  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -71,36 +71,18 @@ const NAV_ENTRIES: NavEntry[] = [
     label: "POS",
     href: "/pos",
     icon: ShoppingCart,
-    roles: ["manager", "cashier"],
-  },
-  {
-    type: "link",
-    label: "Customers",
-    href: "/customers",
-    icon: Users2,
-    roles: ["owner", "manager", "cashier"],
-  },
-  {
-    type: "link",
-    label: "Quotations",
-    href: "/quotations",
-    icon: ClipboardList,
-    roles: ["manager", "cashier"],
-  },
-  {
-    type: "link",
-    label: "Expenses",
-    href: "/expenses",
-    icon: Receipt,
-    roles: ["owner", "manager", "cashier"],
+    roles: ["manager"],
   },
   {
     type: "section",
-    label: "Finance",
-    icon: Wallet,
+    label: "Sales",
+    icon: ShoppingBag,
     defaultOpen: false,
-    roles: ["owner", "manager", "cashier"],
+    roles: ["owner", "manager"],
     items: [
+      { label: "Customers", href: "/customers", icon: Users2 },
+      { label: "Quotations", href: "/quotations", icon: ClipboardList },
+      { label: "Expenses", href: "/expenses", icon: Receipt },
       { label: "Installments", href: "/installments", icon: CreditCard },
       { label: "Accounts Receivable", href: "/accounts-receivable", icon: Landmark },
     ],
@@ -110,7 +92,7 @@ const NAV_ENTRIES: NavEntry[] = [
     label: "Inventory",
     icon: Package,
     defaultOpen: false,
-    roles: ["owner", "manager", "cashier"],
+    roles: ["owner", "manager"],
     items: [
       { label: "Products", href: "/inventory/products", icon: Package },
       { label: "Bundles", href: "/inventory/bundles", icon: Layers, roles: ["owner", "manager"] },
@@ -295,9 +277,6 @@ export function SidebarNav({ className, onNavigate }: SidebarNavProps) {
   const role = profile?.role ?? null;
   const isMainBranch = (branch as any)?.is_main === true;
 
-  // Sections hidden from cashiers
-  const CASHIER_HIDDEN_SECTIONS = ["Settings", "Purchasing", "Sales"];
-
   return (
     <div className={cn("flex h-full flex-col", className)}>
       {/* Logo */}
@@ -350,14 +329,6 @@ export function SidebarNav({ className, onNavigate }: SidebarNavProps) {
           aria-label="Main navigation"
         >
           {NAV_ENTRIES.map((entry) => {
-            // Role-based visibility: hide certain sections from cashiers
-            if (
-              entry.type === "section" &&
-              role === "cashier" &&
-              CASHIER_HIDDEN_SECTIONS.includes(entry.label)
-            ) {
-              return null;
-            }
             // Hide sections restricted by role
             if (
               entry.type === "section" &&

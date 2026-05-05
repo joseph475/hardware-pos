@@ -57,6 +57,7 @@ export default async function BranchRequestsPage() {
       isMainBranch={isMainBranch}
       mainBranchId={mainBranchId}
       products={productList}
+      userRole={profile.role as "owner" | "manager"}
     />
   )
 }

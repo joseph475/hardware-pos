@@ -61,6 +61,7 @@ interface Props {
   isMainBranch: boolean
   mainBranchId: string | null
   products: Array<{ id: string; name: string; sku: string; image_url: string | null }>
+  userRole: "owner" | "manager"
 }
 
 export function BranchRequestsClient({
@@ -68,6 +69,7 @@ export function BranchRequestsClient({
   isMainBranch,
   mainBranchId,
   products,
+  userRole,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -113,7 +115,7 @@ export function BranchRequestsClient({
               : "Request stock from the main branch"}
           </p>
         </div>
-        {!isMainBranch && (
+        {!isMainBranch && userRole !== "owner" && (
           <Button onClick={() => setSheetOpen(true)}>
             <Plus className="h-4 w-4 mr-1.5" /> New Request
           </Button>

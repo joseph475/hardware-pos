@@ -145,7 +145,7 @@ export function OrdersClient({
               Use Stock Requests instead
             </a>
           )}
-          {isMainBranch && (
+          {isMainBranch && userRole !== "owner" && (
             <NewPOSheet
               suppliers={suppliers}
               branches={branches}
