@@ -29,6 +29,7 @@ export async function upsertProduct(params: {
   is_active: boolean
   image_url?: string | null
   serial_required?: boolean
+  warranty_days?: number | null
   suppliers?: Array<{ supplier_id: string; cost_price: number; stock_qty?: number }>
   opening_stock_branch_id?: string
 }): Promise<{ id: string }> {
@@ -68,6 +69,7 @@ export async function upsertProduct(params: {
     description: params.description || null,
     is_active: params.is_active,
     serial_required: params.serial_required ?? false,
+    warranty_days: params.warranty_days ?? null,
     ...(params.image_url !== undefined && { image_url: params.image_url }),
   }
 

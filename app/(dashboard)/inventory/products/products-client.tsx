@@ -232,6 +232,7 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
                   <TableHead>Unit</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Warranty</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-10 pr-4" />
                 </TableRow>
@@ -257,6 +258,9 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-medium">
                       {formatCurrency(product.selling_price)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {product.warranty_days != null ? `${product.warranty_days}d` : "—"}
                     </TableCell>
                     <TableCell>
                       <Badge

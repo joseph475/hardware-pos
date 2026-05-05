@@ -3,7 +3,7 @@ import sys
 import openpyxl
 import requests
 
-DATA_DIR = '/Users/joseph-macbookpro-m3/Documents/Apps/practice/data'
+DATA_DIR = '/Users/joseph-macbookpro-m3/Downloads/data'
 ENV_FILE = os.path.join(os.path.dirname(__file__), '..', '.env.local')
 ORG_ID = '00000000-0000-0000-0000-000000000001'
 
@@ -165,6 +165,7 @@ pname_col = h3.index('name')
 cost_col = h3.index('UnitCost')
 price_col = h3.index('UnitPrice')
 catcode_col = h3.index('CategoryCode')
+warranty_col = h3.index('WarrantyPeriod') if 'WarrantyPeriod' in h3 else None
 
 prod_rows = []
 seen_skus: dict[str, int] = {}
@@ -190,6 +191,8 @@ for row in ws3.iter_rows(min_row=2, values_only=True):
     cat_uuid = code_to_uuid.get(cat_code) if cat_code is not None else None
     cost = row[cost_col]
     price = row[price_col]
+    warranty_raw = row[warranty_col] if warranty_col is not None else None
+    warranty_days = int(warranty_raw) if warranty_raw is not None else None
 
     prod_rows.append({
         'org_id': ORG_ID,
@@ -201,6 +204,7 @@ for row in ws3.iter_rows(min_row=2, values_only=True):
         'category_id': cat_uuid,
         'unit': 'pcs',
         'is_active': True,
+        'warranty_days': warranty_days,
     })
 
 print(f'  {len(prod_rows)} products to insert')

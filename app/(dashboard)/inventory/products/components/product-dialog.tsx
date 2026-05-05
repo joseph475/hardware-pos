@@ -52,6 +52,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   is_active: z.boolean(),
   serial_required: z.boolean(),
+  warranty_days: z.coerce.number().int().min(0).nullable().optional(),
   suppliers: z.array(supplierRowSchema).optional(),
   opening_stock_branch_id: z.string().optional(),
 });
@@ -70,6 +71,7 @@ export interface ProductSaveValues {
   description?: string;
   is_active: boolean;
   serial_required: boolean;
+  warranty_days?: number | null;
   image_url?: string | null;
   suppliers: Array<{ supplier_id: string; cost_price: number; stock_qty?: number }>;
   opening_stock_branch_id?: string;
@@ -146,6 +148,7 @@ export function ProductDialog({
       description: product?.description ?? "",
       is_active: product?.is_active ?? true,
       serial_required: product?.serial_required ?? false,
+      warranty_days: product?.warranty_days ?? null,
       suppliers: buildDefaultSuppliers(),
       opening_stock_branch_id: defaultBranchId ?? "",
     },
@@ -161,11 +164,12 @@ export function ProductDialog({
         sku: product?.sku ?? "",
         barcode: product?.barcode ?? "",
         category_id: product?.category_id ?? "",
-          unit: product?.unit ?? "each",
+        unit: product?.unit ?? "each",
         selling_price: String(product?.selling_price ?? "0"),
         description: product?.description ?? "",
         is_active: product?.is_active ?? true,
         serial_required: product?.serial_required ?? false,
+        warranty_days: product?.warranty_days ?? null,
         suppliers: buildDefaultSuppliers(),
         opening_stock_branch_id: defaultBranchId ?? "",
       });
@@ -229,6 +233,7 @@ export function ProductDialog({
       description: values.description || undefined,
       is_active: values.is_active,
       serial_required: values.serial_required,
+      warranty_days: values.warranty_days ?? null,
       image_url: imageUrl ?? undefined,
       suppliers: supplierRows,
       opening_stock_branch_id: values.opening_stock_branch_id || undefined,
@@ -587,6 +592,28 @@ export function ProductDialog({
                   checked={watch("serial_required")}
                   onCheckedChange={(checked) => setValue("serial_required", checked)}
                 />
+              </div>
+
+              {/* Warranty */}
+              <div className="space-y-1.5">
+                <Label htmlFor="warranty_days">Warranty (days)</Label>
+                <Input
+                  id="warranty_days"
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="e.g. 365 — leave blank if none"
+                  value={watch("warranty_days") ?? ""}
+                  onChange={(e) =>
+                    setValue(
+                      "warranty_days",
+                      e.target.value === "" ? null : parseInt(e.target.value, 10)
+                    )
+                  }
+                />
+                {errors.warranty_days && (
+                  <p className="text-xs text-destructive">{errors.warranty_days.message as string}</p>
+                )}
               </div>
             </div>
 

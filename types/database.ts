@@ -260,6 +260,7 @@ export type Database = {
           image_url: string | null;
           is_active: boolean;
           serial_required: boolean;
+          warranty_days: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -278,6 +279,7 @@ export type Database = {
           image_url?: string | null;
           is_active?: boolean;
           serial_required?: boolean;
+          warranty_days?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -296,6 +298,7 @@ export type Database = {
           image_url?: string | null;
           is_active?: boolean;
           serial_required?: boolean;
+          warranty_days?: number | null;
           created_at?: string;
           updated_at?: string;
         };

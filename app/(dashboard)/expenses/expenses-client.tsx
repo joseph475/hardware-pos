@@ -320,7 +320,7 @@ export function ExpensesClient({ initialExpenses }: ExpensesClientProps) {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="w-40"
+              className="w-40 [&::-webkit-calendar-picker-indicator]:invert"
             />
           </div>
 
@@ -330,7 +330,7 @@ export function ExpensesClient({ initialExpenses }: ExpensesClientProps) {
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="w-40"
+              className="w-40 [&::-webkit-calendar-picker-indicator]:invert"
             />
           </div>
 
