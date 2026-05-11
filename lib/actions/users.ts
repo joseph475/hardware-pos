@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
+import { clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache'
 import type { Profile, Branch } from '@/types/database'
 import { CACHE_TAGS } from '@/lib/cache-tags'
@@ -111,6 +112,54 @@ const getAllBranchesCached = unstable_cache(
 
 export async function getAllBranches(): Promise<Branch[]> {
   return getAllBranchesCached()
+}
+
+export async function createManagerAccount(params: {
+  fullName: string
+  email: string
+  password: string
+  branchId: string
+}): Promise<void> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
+  const supabase = getAdminClient()
+  const { data: callerProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('clerk_user_id', userId)
+    .single()
+
+  if (callerProfile?.role !== 'owner') throw new Error('Only owners can create accounts')
+
+  const client = await clerkClient()
+  const nameParts = params.fullName.trim().split(' ')
+  const firstName = nameParts[0]
+  const lastName = nameParts.slice(1).join(' ') || undefined
+
+  const clerkUser = await client.users.createUser({
+    emailAddress: [params.email],
+    password: params.password,
+    firstName,
+    lastName,
+  })
+
+  const { error } = await supabase.from('profiles').insert({
+    clerk_user_id: clerkUser.id,
+    email: params.email,
+    full_name: params.fullName.trim(),
+    role: 'manager',
+    org_id: '00000000-0000-0000-0000-000000000001',
+    branch_id: params.branchId,
+  })
+
+  if (error) {
+    await client.users.deleteUser(clerkUser.id)
+    throw new Error(error.message)
+  }
+
+  revalidateTag(CACHE_TAGS.USERS, {})
+  revalidatePath('/settings/users')
 }
 
 export async function upsertBranch(params: {

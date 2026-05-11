@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { getAllUsers, getAllBranches } from '@/lib/actions/users'
-import { PendingUsersClient, UsersTableClient } from './assign-user-dialog'
+import { PendingUsersClient, UsersTableClient, CreateAccountButton } from './assign-user-dialog'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +57,7 @@ export default async function UsersPage() {
               {allUsers.length} {allUsers.length === 1 ? 'member' : 'members'} total
             </p>
           </div>
+          <CreateAccountButton branches={branches} />
         </div>
 
         <UsersTableClient users={allUsers} branches={branches} />

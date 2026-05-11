@@ -186,8 +186,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 import { Card, CardContent } from '@/components/ui/card'
-import { MoreHorizontal, Pencil, UserCheck, UserMinus } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { MoreHorizontal, Pencil, UserCheck, UserMinus, UserPlus, Eye, EyeOff } from 'lucide-react'
 import type { UserWithBranch } from '@/lib/actions/users'
+import { createManagerAccount } from '@/lib/actions/users'
+import { toast } from 'sonner'
 
 const ROLE_CONFIG: Record<string, { label: string; className: string }> = {
   owner: {
@@ -408,5 +411,167 @@ export function PendingUsersClient({ users, branches }: PendingUsersClientProps)
         mode="assign"
       />
     </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CreateAccountButton — trigger button + dialog, used in the page header
+// ---------------------------------------------------------------------------
+
+interface CreateAccountButtonProps {
+  branches: Branch[]
+}
+
+export function CreateAccountButton({ branches }: CreateAccountButtonProps) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <UserPlus className="h-4 w-4" />
+        Create Account
+      </Button>
+      <CreateAccountDialog branches={branches} open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CreateAccountDialog — owner-only: create a new manager account
+// ---------------------------------------------------------------------------
+
+interface CreateAccountDialogProps {
+  branches: Branch[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function CreateAccountDialog({ branches, open, onOpenChange }: CreateAccountDialogProps) {
+  const [isPending, startTransition] = useTransition()
+  const [fullName, setFullName] = React.useState('')
+  const [email, setEmail] = React.useState('')
+  const [password, setPassword] = React.useState('')
+  const [branchId, setBranchId] = React.useState('')
+  const [showPassword, setShowPassword] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!open) {
+      setFullName('')
+      setEmail('')
+      setPassword('')
+      setBranchId('')
+      setShowPassword(false)
+      setError(null)
+    }
+  }, [open])
+
+  function handleCreate() {
+    if (!fullName.trim()) { setError('Full name is required.'); return }
+    if (!email.trim()) { setError('Email is required.'); return }
+    if (!password) { setError('Password is required.'); return }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
+    if (!branchId) { setError('Please select a branch.'); return }
+
+    setError(null)
+    startTransition(async () => {
+      try {
+        await createManagerAccount({ fullName, email, password, branchId })
+        toast.success('Account created successfully.')
+        onOpenChange(false)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Something went wrong.')
+      }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Create Manager Account</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="create-name">Full Name</Label>
+            <Input
+              id="create-name"
+              placeholder="Juan dela Cruz"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="create-email">Email</Label>
+            <Input
+              id="create-email"
+              type="email"
+              placeholder="manager@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="create-password">Password</Label>
+            <div className="relative">
+              <Input
+                id="create-password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Min. 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isPending}
+                className="pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="create-branch">Branch</Label>
+            <Select value={branchId} onValueChange={(v) => { if (v) setBranchId(v) }}>
+              <SelectTrigger className="w-full" id="create-branch">
+                <SelectValue placeholder="Select branch">
+                  {branches.find((b) => b.id === branchId)?.name ?? 'Select branch'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p className="text-xs text-muted-foreground rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+            The account will be created with the <strong>Manager</strong> role.
+          </p>
+
+          {error && <p className="text-xs text-destructive">{error}</p>}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} disabled={isPending}>
+              {isPending ? 'Creating…' : 'Create Account'}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
