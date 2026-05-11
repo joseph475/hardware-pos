@@ -115,8 +115,7 @@ export async function getAllBranches(): Promise<Branch[]> {
 }
 
 export async function createManagerAccount(params: {
-  fullName: string
-  email: string
+  username: string
   password: string
   branchId: string
 }): Promise<void> {
@@ -133,21 +132,17 @@ export async function createManagerAccount(params: {
   if (callerProfile?.role !== 'owner') throw new Error('Only owners can create accounts')
 
   const client = await clerkClient()
-  const nameParts = params.fullName.trim().split(' ')
-  const firstName = nameParts[0]
-  const lastName = nameParts.slice(1).join(' ') || undefined
 
   const clerkUser = await client.users.createUser({
-    emailAddress: [params.email],
+    username: params.username,
     password: params.password,
-    firstName,
-    lastName,
   })
 
   const { error } = await supabase.from('profiles').insert({
     clerk_user_id: clerkUser.id,
-    email: params.email,
-    full_name: params.fullName.trim(),
+    username: params.username,
+    full_name: params.username,
+    email: '',
     role: 'manager',
     org_id: '00000000-0000-0000-0000-000000000001',
     branch_id: params.branchId,

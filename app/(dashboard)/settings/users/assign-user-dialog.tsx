@@ -256,7 +256,7 @@ export function UsersTableClient({ users, branches }: UsersTableClientProps) {
               <TableRow className="border-b border-border hover:bg-transparent">
                 <TableHead className="pl-4 w-10" />
                 <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Username / Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Joined</TableHead>
@@ -277,7 +277,7 @@ export function UsersTableClient({ users, branches }: UsersTableClientProps) {
                       {user.full_name}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {user.email}
+                      {user.username ?? user.email}
                     </TableCell>
                     <TableCell>
                       <Badge className={className}>{label}</Badge>
@@ -447,8 +447,7 @@ interface CreateAccountDialogProps {
 
 export function CreateAccountDialog({ branches, open, onOpenChange }: CreateAccountDialogProps) {
   const [isPending, startTransition] = useTransition()
-  const [fullName, setFullName] = React.useState('')
-  const [email, setEmail] = React.useState('')
+  const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [branchId, setBranchId] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
@@ -456,8 +455,7 @@ export function CreateAccountDialog({ branches, open, onOpenChange }: CreateAcco
 
   React.useEffect(() => {
     if (!open) {
-      setFullName('')
-      setEmail('')
+      setUsername('')
       setPassword('')
       setBranchId('')
       setShowPassword(false)
@@ -466,8 +464,7 @@ export function CreateAccountDialog({ branches, open, onOpenChange }: CreateAcco
   }, [open])
 
   function handleCreate() {
-    if (!fullName.trim()) { setError('Full name is required.'); return }
-    if (!email.trim()) { setError('Email is required.'); return }
+    if (!username.trim()) { setError('Username is required.'); return }
     if (!password) { setError('Password is required.'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (!branchId) { setError('Please select a branch.'); return }
@@ -475,7 +472,7 @@ export function CreateAccountDialog({ branches, open, onOpenChange }: CreateAcco
     setError(null)
     startTransition(async () => {
       try {
-        await createManagerAccount({ fullName, email, password, branchId })
+        await createManagerAccount({ username: username.trim(), password, branchId })
         toast.success('Account created successfully.')
         onOpenChange(false)
       } catch (err) {
@@ -493,25 +490,14 @@ export function CreateAccountDialog({ branches, open, onOpenChange }: CreateAcco
 
         <div className="space-y-4 pt-1">
           <div className="space-y-1.5">
-            <Label htmlFor="create-name">Full Name</Label>
+            <Label htmlFor="create-username">Username</Label>
             <Input
-              id="create-name"
-              placeholder="Juan dela Cruz"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              id="create-username"
+              placeholder="e.g. juan_manager"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               disabled={isPending}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="create-email">Email</Label>
-            <Input
-              id="create-email"
-              type="email"
-              placeholder="manager@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isPending}
+              autoComplete="off"
             />
           </div>
 

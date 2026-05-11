@@ -109,6 +109,7 @@ export type Database = {
           role: "owner" | "manager" | "cashier";
           full_name: string;
           email: string;
+          username: string | null;
           created_at: string;
         };
         Insert: {
@@ -117,8 +118,9 @@ export type Database = {
           org_id: string;
           branch_id?: string | null;
           role: "owner" | "manager" | "cashier";
-          full_name: string;
-          email: string;
+          full_name?: string;
+          email?: string;
+          username?: string | null;
           created_at?: string;
         };
         Update: {
@@ -129,6 +131,7 @@ export type Database = {
           role?: "owner" | "manager" | "cashier";
           full_name?: string;
           email?: string;
+          username?: string | null;
           created_at?: string;
         };
         Relationships: [];
