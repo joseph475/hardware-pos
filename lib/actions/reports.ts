@@ -356,6 +356,7 @@ export type SalesReadingData = {
   hourlyBreakdown: { hour: number; revenue: number; count: number }[]
   dailyBreakdown: { date: string; revenue: number; count: number }[]
   transactions: SalesReadingTransaction[]
+  expensesTotal: number
 }
 
 export async function getSalesReading(params: {
@@ -423,6 +424,22 @@ export async function getSalesReading(params: {
         })
       : Promise.resolve(),
   ])
+
+  // Expenses total for the same period
+  let expQuery = supabase
+    .from('expenses')
+    .select('amount')
+    .eq('org_id', ORG_ID)
+
+  if (params.mode === 'z-reading' && params.date) {
+    expQuery = expQuery.lte('date', params.date)
+  } else if (params.mode === 'x-reading' && params.date_from && params.date_to) {
+    expQuery = expQuery.gte('date', params.date_from).lte('date', params.date_to)
+  }
+  // all-time: no date filter — sum all expenses
+
+  const { data: expRows } = await expQuery
+  const expensesTotal = (expRows ?? []).reduce((sum: number, e: any) => sum + (e.amount ?? 0), 0)
 
   const totalRevenue = completed.reduce((s: number, t: any) => s + (t.total ?? 0), 0)
   const totalDiscounts = completed.reduce((s: number, t: any) => s + (t.discount_amount ?? 0), 0)
@@ -495,6 +512,7 @@ export async function getSalesReading(params: {
     hourlyBreakdown,
     dailyBreakdown,
     transactions,
+    expensesTotal,
   }
 }
 
