@@ -409,6 +409,20 @@ export function ZReportClient({
                   <TableCell className="font-medium">Total Revenue</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCurrency(data.totalRevenue)}</TableCell>
                 </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium text-muted-foreground">Less: Expenses</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    − {formatCurrency(data.expensesTotal)}
+                  </TableCell>
+                </TableRow>
+                <TableRow className="border-t-2 border-border">
+                  <TableCell className="font-bold">Cash on Hand</TableCell>
+                  <TableCell className={`text-right tabular-nums font-bold ${
+                    cashOnHand < 0 ? "text-destructive" : ""
+                  }`}>
+                    {formatCurrency(cashOnHand)}
+                  </TableCell>
+                </TableRow>
                 {data.avgTransactionValue > 0 && (
                   <TableRow>
                     <TableCell className="font-medium">Avg Transaction</TableCell>
