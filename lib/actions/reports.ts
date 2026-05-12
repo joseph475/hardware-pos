@@ -431,15 +431,14 @@ export async function getSalesReading(params: {
     .select('amount')
     .eq('org_id', ORG_ID)
 
-  if (params.mode === 'z-reading' && params.date) {
-    expQuery = expQuery.lte('date', params.date)
-  } else if (params.mode === 'x-reading' && params.date_from && params.date_to) {
+  if (params.mode === 'x-reading' && params.date_from && params.date_to) {
     expQuery = expQuery.gte('date', params.date_from).lte('date', params.date_to)
   }
-  // all-time: no date filter — sum all expenses
+  // all-time / z-reading: no date filter — sum all expenses
 
-  const { data: expRows } = await expQuery
-  const expensesTotal = (expRows ?? []).reduce((sum: number, e: any) => sum + (e.amount ?? 0), 0)
+  const { data: expRows, error: expError } = await expQuery
+  if (expError) console.error('[getSalesReading] expenses query failed:', expError.message)
+  const expensesTotal = (expRows ?? []).reduce((sum: number, e: any) => sum + Number(e.amount ?? 0), 0)
 
   const totalRevenue = completed.reduce((s: number, t: any) => s + (t.total ?? 0), 0)
   const totalDiscounts = completed.reduce((s: number, t: any) => s + (t.discount_amount ?? 0), 0)
