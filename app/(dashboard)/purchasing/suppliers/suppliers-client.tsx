@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { upsertSupplier } from "@/lib/actions/purchasing";
+import { upsertSupplier, deleteSupplier } from "@/lib/actions/purchasing";
 import type { Supplier } from "@/types/database";
 
 interface SuppliersClientProps {
@@ -155,6 +155,7 @@ export function SuppliersClient({ initialSuppliers }: SuppliersClientProps) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingSupplier, setEditingSupplier] = React.useState<Supplier | undefined>();
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
   function openAdd() {
     setEditingSupplier(undefined);
@@ -164,6 +165,19 @@ export function SuppliersClient({ initialSuppliers }: SuppliersClientProps) {
   function openEdit(supplier: Supplier) {
     setEditingSupplier(supplier);
     setDialogOpen(true);
+  }
+
+  async function handleDelete(supplier: Supplier) {
+    if (!confirm(`Delete "${supplier.name}"? This cannot be undone.`)) return;
+    setDeletingId(supplier.id);
+    try {
+      await deleteSupplier(supplier.id);
+      router.refresh();
+    } catch (err: any) {
+      alert(err?.message ?? 'Failed to delete supplier');
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -236,9 +250,13 @@ export function SuppliersClient({ initialSuppliers }: SuppliersClientProps) {
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem variant="destructive">
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={deletingId === supplier.id}
+                            onClick={() => handleDelete(supplier)}
+                          >
                             <Trash2 className="h-4 w-4" />
-                            Delete
+                            {deletingId === supplier.id ? 'Deleting…' : 'Delete'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

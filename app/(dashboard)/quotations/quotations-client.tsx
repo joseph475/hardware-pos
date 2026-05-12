@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Plus, Search, Send, CheckCircle, XCircle, Trash2, Printer } from 'lucide-react'
+import { MoreHorizontal, Plus, Search, Send, CheckCircle, XCircle, Trash2, Printer, Copy, Pencil, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleError } from '@/lib/utils/error-handler'
 
@@ -30,6 +30,7 @@ import { useCurrency } from '@/lib/context/currency'
 import {
   deleteQuotation,
   updateQuotationStatus,
+  createQuotation,
 } from '@/lib/actions/quotations'
 import type { QuotationWithRelations } from '@/lib/actions/quotations'
 import type { QuotationStatus } from '@/types/database'
@@ -81,6 +82,7 @@ export function QuotationsClient({
   const [detailSheetOpen, setDetailSheetOpen] = React.useState(false)
   const [viewingQuotation, setViewingQuotation] = React.useState<QuotationWithRelations | null>(null)
   const [customerStepOpen, setCustomerStepOpen] = React.useState(false)
+  const [copySourceQuotation, setCopySourceQuotation] = React.useState<QuotationWithRelations | null>(null)
   const [printTarget, setPrintTarget] = React.useState<QuotationWithRelations | null>(null)
 
   React.useEffect(() => {
@@ -115,6 +117,35 @@ export function QuotationsClient({
       router.refresh()
     } catch (err) {
       handleError(err, 'reject quotation')
+    }
+  }
+
+  async function handleCopyConfirm(customerId: string) {
+    if (!copySourceQuotation) return
+    const src = copySourceQuotation
+    setCopySourceQuotation(null)
+    try {
+      await createQuotation({
+        customer_id: customerId,
+        branch_id: src.branch_id!,
+        valid_until: src.valid_until ?? undefined,
+        notes: src.notes ?? undefined,
+        discount_amount: src.discount_amount,
+        tax_rate: src.tax_rate,
+        items: src.quotation_items.map((item) => ({
+          product_id: item.product_id ?? null,
+          bundle_id: item.bundle_id ?? null,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_amount: item.discount_amount,
+          add_tax_pct: item.add_tax_pct,
+        })),
+      })
+      toast.success('Quotation copied as a new draft')
+      router.refresh()
+    } catch (err) {
+      handleError(err, 'copy quotation')
     }
   }
 
@@ -265,6 +296,7 @@ export function QuotationsClient({
                               <DropdownMenuItem
                                 onClick={() => router.push(`/quotations/${q.id}/edit`)}
                               >
+                                <Pencil className="h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
                             )}
@@ -275,9 +307,14 @@ export function QuotationsClient({
                                   setDetailSheetOpen(true)
                                 }}
                               >
+                                <Eye className="h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem onClick={() => setCopySourceQuotation(q)}>
+                              <Copy className="h-4 w-4" />
+                              Copy
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setPrintTarget(q)}>
                               <Printer className="h-4 w-4" />
                               Print
@@ -338,6 +375,18 @@ export function QuotationsClient({
         onConfirm={(id) => {
           setCustomerStepOpen(false)
           if (id) router.push(`/quotations/new?customer_id=${id}`)
+        }}
+      />
+
+      {/* Customer picker — for copying a quotation with a different customer */}
+      <CustomerSelectDialog
+        open={copySourceQuotation !== null}
+        onOpenChange={(open) => { if (!open) setCopySourceQuotation(null) }}
+        customers={customers.map((c) => ({ ...c, email: null, phone: null, is_active: true }))}
+        requireSelection
+        onConfirm={(id) => {
+          if (id) handleCopyConfirm(id)
+          else setCopySourceQuotation(null)
         }}
       />
 

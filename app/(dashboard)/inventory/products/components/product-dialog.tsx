@@ -52,7 +52,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   is_active: z.boolean(),
   serial_required: z.boolean(),
-  warranty_days: z.coerce.number().int().min(0).nullable().optional(),
+  warranty_days: z.number().int().min(0).nullable().optional(),
   suppliers: z.array(supplierRowSchema).optional(),
   opening_stock_branch_id: z.string().optional(),
 });

@@ -1,9 +1,8 @@
 import { create } from "zustand";
-import type { Product } from "@/types/database";
-import type { POSBundle } from "@/lib/actions/inventory";
+import type { POSBundle, POSProduct } from "@/lib/actions/inventory";
 
 interface CartItem {
-  product: Product;
+  product: POSProduct;
   quantity: number;
   unit_price: number;
   discount_amount: number;
@@ -30,7 +29,7 @@ interface CartStore {
   discount: number;
   taxRate: number;
   // Product item operations
-  addItem: (product: Product) => void;
+  addItem: (product: POSProduct) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   updateItemDiscount: (productId: string, pct: number) => void;
@@ -53,7 +52,7 @@ interface CartStore {
     heldBundleItems?: Array<{ bundle_id: string; bundle_name: string; quantity: number; unit_price: number; discount_amount: number; components: Array<{ product_id: string; product_name: string; quantity: number; serial_required: boolean }> }>
   ) => void;
   loadQuotationOrder: (items: Array<{
-    product: Product
+    product: POSProduct
     quantity: number
     unit_price: number
     discount_amount: number
@@ -264,7 +263,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({
       discount: 0,
       items: heldItems.map((item) => ({
-        product: { id: item.product_id, name: item.product_name, serial_required: false } as Product,
+        product: { id: item.product_id, name: item.product_name, serial_required: false } as unknown as POSProduct,
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount_amount: item.discount_amount,

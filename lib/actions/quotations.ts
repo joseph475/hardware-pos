@@ -129,10 +129,22 @@ export async function createQuotation(params: {
   const supabase = getAdminClient()
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, role')
     .eq('clerk_user_id', userId)
     .single()
   if (profileError || !profile) throw new Error('Profile not found')
+
+  let branchId = params.branch_id
+  if (profile.role === 'owner') {
+    const { data: mainBranch } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('org_id', ORG_ID)
+      .eq('is_main', true)
+      .single()
+    if (!mainBranch) throw new Error('Main branch not found')
+    branchId = mainBranch.id
+  }
 
   // Compute totals
   const itemsWithTotals = params.items.map((item) => {
@@ -157,7 +169,7 @@ export async function createQuotation(params: {
     .insert({
       org_id: ORG_ID,
       customer_id: params.customer_id,
-      branch_id: params.branch_id,
+      branch_id: branchId,
       created_by: profile.id,
       status: 'draft',
       valid_until: params.valid_until || null,
@@ -395,23 +407,6 @@ export async function approveQuotation(id: string): Promise<{ transaction_id: st
   // Guard: not already converted
   if (quotation.status === 'converted') {
     throw new Error('Quotation already converted')
-  }
-
-  // Stock validation — only for product items (bundle items handled separately)
-  const insufficientItems: string[] = []
-  for (const item of (quotation.quotation_items as any[]).filter((i: any) => i.product_id != null)) {
-    const { data: inv } = await supabase
-      .from('inventory')
-      .select('quantity')
-      .eq('product_id', item.product_id)
-      .eq('branch_id', quotation.branch_id)
-      .single()
-    if (!inv || inv.quantity < item.quantity) {
-      insufficientItems.push(item.product_name)
-    }
-  }
-  if (insufficientItems.length > 0) {
-    throw new Error(`Insufficient stock for: ${insufficientItems.join(', ')}`)
   }
 
   // Optimistic lock — update status to 'converted' before creating transaction

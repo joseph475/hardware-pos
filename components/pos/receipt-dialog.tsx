@@ -226,6 +226,21 @@ function ReceiptContent({ data }: { data: ReceiptData }) {
           {data.checkAmount > data.total && row("Change:", data.formatCurrency(data.checkAmount - data.total))}
         </>
       )}
+      {/* Balance line for credit payments */}
+      {(() => {
+        let balance: number | null = null
+        if (data.paymentMethod === "credit") {
+          balance = data.total
+        } else if (data.paymentMethod === "split") {
+          if (data.splitMethod1 === "credit") balance = data.splitAmount1 ?? 0
+          else if (data.splitMethod2 === "credit") balance = data.splitAmount2 ?? 0
+        }
+        return balance !== null ? (
+          <ReceiptLine>
+            <strong>{pad("Balance:", 28)}{data.formatCurrency(balance).padStart(14)}</strong>
+          </ReceiptLine>
+        ) : null
+      })()}
       <Divider />
 
       {/* Footer */}

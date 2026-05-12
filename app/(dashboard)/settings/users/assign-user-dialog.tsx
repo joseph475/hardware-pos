@@ -471,13 +471,13 @@ export function CreateAccountDialog({ branches, open, onOpenChange }: CreateAcco
 
     setError(null)
     startTransition(async () => {
-      try {
-        await createManagerAccount({ username: username.trim(), password, branchId })
-        toast.success('Account created successfully.')
-        onOpenChange(false)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Something went wrong.')
+      const result = await createManagerAccount({ username: username.trim(), password, branchId })
+      if (result?.error) {
+        setError(result.error)
+        return
       }
+      toast.success('Account created successfully.')
+      onOpenChange(false)
     })
   }
 

@@ -47,6 +47,7 @@ interface Props {
   products: Array<{ id: string; name: string; sku: string; unit: string }>
   branches: Array<{ id: string; name: string }>
   defaultBranchId: string
+  hasManagerPin: boolean
 }
 
 const TYPE_LABELS: Record<AdjType, string> = {
@@ -72,7 +73,7 @@ const PAGE_SIZE = 25
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function AdjustmentsClient({ initialRows, products, branches, defaultBranchId }: Props) {
+export function AdjustmentsClient({ initialRows, products, branches, defaultBranchId, hasManagerPin }: Props) {
   const [rows, setRows] = React.useState<AdjRow[]>(initialRows)
   const [search, setSearch] = React.useState("")
   const [typeFilter, setTypeFilter] = React.useState("all")
@@ -117,6 +118,7 @@ export function AdjustmentsClient({ initialRows, products, branches, defaultBran
           products={products}
           branches={branches}
           defaultBranchId={defaultBranchId}
+          hasManagerPin={hasManagerPin}
           onSuccess={() => {}}
         />
       </div>

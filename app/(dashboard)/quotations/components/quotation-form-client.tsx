@@ -72,7 +72,6 @@ interface QuotationFormClientProps {
   products: ProductOption[]
   bundles: POSBundle[]
   preselectedCustomerId?: string | null
-  userRole: 'owner' | 'manager' | 'cashier'
   userBranchId: string | null
 }
 
@@ -86,7 +85,6 @@ export function QuotationFormClient({
   products,
   bundles,
   preselectedCustomerId,
-  userRole,
   userBranchId,
 }: QuotationFormClientProps) {
   const router = useRouter()
@@ -584,40 +582,9 @@ export function QuotationFormClient({
             {/* Branch */}
             <div className="space-y-1.5">
               <Label htmlFor="branch_id">Branch</Label>
-              {userRole === 'owner' ? (
-                <>
-                  <Select<string>
-                    value={watchedBranchId}
-                    onValueChange={(val) => {
-                      if (val) setValue('branch_id', val, { shouldValidate: true })
-                    }}
-                  >
-                    <SelectTrigger
-                      className="w-full"
-                      id="branch_id"
-                      aria-invalid={!!errors.branch_id}
-                    >
-                      <SelectValue placeholder="Select a branch…">
-                        {branches.find((b) => b.id === watchedBranchId)?.name ?? 'Select a branch…'}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.branch_id && (
-                    <p className="text-xs text-destructive">{errors.branch_id.message}</p>
-                  )}
-                </>
-              ) : (
-                <div className="flex h-9 w-full items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
-                  {branches.find((b) => b.id === watchedBranchId)?.name ?? '—'}
-                </div>
-              )}
+              <div className="flex h-9 w-full items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                {branches.find((b) => b.id === watchedBranchId)?.name ?? '—'}
+              </div>
             </div>
 
             {/* Valid Until */}

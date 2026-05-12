@@ -46,7 +46,10 @@ export default async function SignInPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <SignIn forceRedirectUrl="/api/auth/redirect" />
+      <SignIn
+        forceRedirectUrl="/api/auth/redirect"
+        appearance={{ elements: { footerAction: { display: 'none' } } }}
+      />
     </div>
   )
 }

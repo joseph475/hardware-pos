@@ -120,15 +120,29 @@ export async function getInventoryMovements(filters?: {
 const getProductsForBranchCached = unstable_cache(
   async (branch_id?: string) => {
     const supabase = getAdminClient()
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, sku, unit, cost_price, is_active, image_url')
-      .eq('is_active', true)
-      .order('name')
-    return data ?? []
+    const PAGE_SIZE = 1000
+    const allRows: any[] = []
+    let page = 0
+
+    while (true) {
+      const from = page * PAGE_SIZE
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, sku, unit, cost_price, is_active, image_url')
+        .eq('is_active', true)
+        .order('name')
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (!data || data.length === 0) break
+      allRows.push(...data)
+      if (data.length < PAGE_SIZE) break
+      page++
+    }
+
+    return allRows
   },
-  ['products-branch'],
-  { tags: [CACHE_TAGS.PRODUCTS] }
+  ['products-branch-v3'],
+  { tags: [CACHE_TAGS.PRODUCTS], revalidate: 300 }
 )
 
 export async function getProductsForBranch(branch_id?: string) {
@@ -151,60 +165,74 @@ export type POSProduct = {
   image_url: string | null
   is_active: boolean
   serial_required: boolean
+  warranty_days: number | null
   created_at: string
   updated_at: string
   stock: number
 }
 
+function mapPOSProduct(p: any, branch_id: string | null): POSProduct {
+  const invArr: Array<{ quantity: number; branch_id: string }> = Array.isArray(p.inventory)
+    ? p.inventory
+    : p.inventory ? [p.inventory] : []
+
+  const relevant = branch_id
+    ? invArr.filter((inv) => inv.branch_id === branch_id)
+    : invArr
+
+  return {
+    id: p.id,
+    org_id: p.org_id,
+    sku: p.sku,
+    barcode: p.barcode,
+    name: p.name,
+    description: p.description,
+    category_id: p.category_id,
+    supplier_id: p.supplier_id ?? null,
+    category_name: p.categories?.name ?? null,
+    unit: p.unit,
+    cost_price: p.cost_price,
+    selling_price: p.selling_price,
+    image_url: p.image_url,
+    is_active: p.is_active,
+    serial_required: p.serial_required,
+    warranty_days: p.warranty_days ?? null,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+    stock: relevant.reduce((sum, inv) => sum + inv.quantity, 0),
+  }
+}
+
 // Fetch products with branch-scoped stock for the POS
+// Uses pagination to bypass PostgREST max-rows cap (default 1000)
 const getPOSProductsCached = unstable_cache(
   async (branch_id: string | null): Promise<POSProduct[]> => {
     const supabase = getAdminClient()
+    const PAGE_SIZE = 1000
+    const allRows: any[] = []
+    let page = 0
 
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, inventory(quantity, branch_id), categories(id, name)')
-      .eq('is_active', true)
-      .order('name')
+    while (true) {
+      const from = page * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, inventory(quantity, branch_id), categories(id, name)')
+        .eq('is_active', true)
+        .order('name')
+        .range(from, to)
 
-    if (error) throw new Error(error.message)
-    if (!data) return []
+      if (error) throw new Error(error.message)
+      if (!data || data.length === 0) break
+      allRows.push(...data)
+      if (data.length < PAGE_SIZE) break
+      page++
+    }
 
-    return data.map((p: any) => {
-      const invArr: Array<{ quantity: number; branch_id: string }> = Array.isArray(p.inventory)
-        ? p.inventory
-        : p.inventory ? [p.inventory] : []
-
-      const relevant = branch_id
-        ? invArr.filter((inv) => inv.branch_id === branch_id)
-        : invArr
-
-      const stock = relevant.reduce((sum, inv) => sum + inv.quantity, 0)
-
-      return {
-        id: p.id,
-        org_id: p.org_id,
-        sku: p.sku,
-        barcode: p.barcode,
-        name: p.name,
-        description: p.description,
-        category_id: p.category_id,
-        supplier_id: p.supplier_id ?? null,
-        category_name: p.categories?.name ?? null,
-        unit: p.unit,
-        cost_price: p.cost_price,
-        selling_price: p.selling_price,
-        image_url: p.image_url,
-        is_active: p.is_active,
-        serial_required: p.serial_required,
-        created_at: p.created_at,
-        updated_at: p.updated_at,
-        stock,
-      }
-    })
+    return allRows.map((p) => mapPOSProduct(p, branch_id))
   },
-  ['pos-products'],
-  { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.INVENTORY] }
+  ['pos-products-v3'],
+  { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.INVENTORY], revalidate: 300 }
 )
 
 export async function getPOSProducts(branch_id: string | null): Promise<POSProduct[]> {

@@ -51,9 +51,17 @@ export default async function NewQuotationPage({ searchParams }: Props) {
   ])
 
   const userRole = (profileResult.data?.role ?? 'cashier') as 'owner' | 'manager' | 'cashier'
-  if (userRole === 'owner') redirect('/dashboard')
 
-  const userBranchId = profileResult.data?.branch_id ?? null
+  let userBranchId = profileResult.data?.branch_id ?? null
+  if (userRole === 'owner') {
+    const { data: mainBranch } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('org_id', '00000000-0000-0000-0000-000000000001')
+      .eq('is_main', true)
+      .single()
+    userBranchId = mainBranch?.id ?? null
+  }
   const customerData = customerResult.data
   if (!customerData) redirect('/quotations')
 
@@ -75,7 +83,6 @@ export default async function NewQuotationPage({ searchParams }: Props) {
       products={products}
       bundles={bundles}
       preselectedCustomerId={customer_id}
-      userRole={userRole}
       userBranchId={userBranchId}
     />
   )

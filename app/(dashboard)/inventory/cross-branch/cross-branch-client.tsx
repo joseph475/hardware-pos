@@ -26,7 +26,15 @@ interface Props {
 }
 
 export function CrossBranchClient({ branches, rows }: Props) {
+  const [inputValue, setInputValue] = React.useState("")
   const [search, setSearch] = React.useState("")
+  const [isPending, startTransition] = React.useTransition()
+
+  function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value
+    setInputValue(val)
+    startTransition(() => setSearch(val))
+  }
 
   const filtered = rows.filter(
     (r) =>
@@ -46,12 +54,12 @@ export function CrossBranchClient({ branches, rows }: Props) {
       <div className="flex items-center gap-3">
         <Input
           placeholder="Search products…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={inputValue}
+          onChange={handleSearch}
           className="max-w-xs"
         />
         <span className="text-sm text-muted-foreground">
-          {filtered.length} product{filtered.length !== 1 ? "s" : ""}
+          {isPending ? "…" : `${filtered.length} product${filtered.length !== 1 ? "s" : ""}`}
         </span>
       </div>
 

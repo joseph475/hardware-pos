@@ -28,8 +28,6 @@ export default async function QuotationsPage() {
     userBranchId = profile?.branch_id ?? null
   }
 
-  if (userRole === 'owner') redirect('/dashboard')
-
   const supabase = getAdminClient()
 
   const [quotations, customersResult, productsResult, orgResult] = await Promise.all([

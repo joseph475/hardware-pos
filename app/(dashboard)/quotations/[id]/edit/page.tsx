@@ -52,9 +52,8 @@ export default async function EditQuotationPage({ params }: Props) {
   ])
 
   const userRole = (profileResult.data?.role ?? 'cashier') as 'owner' | 'manager' | 'cashier'
-  if (userRole === 'owner') redirect('/dashboard')
 
-  const userBranchId = profileResult.data?.branch_id ?? null
+  const userBranchId = userRole === 'owner' ? null : (profileResult.data?.branch_id ?? null)
 
   if (!quotation) notFound()
   if (quotation.status !== 'draft') redirect('/quotations')
@@ -87,7 +86,6 @@ export default async function EditQuotationPage({ params }: Props) {
       branches={branches}
       products={products}
       bundles={bundles}
-      userRole={userRole}
       userBranchId={userBranchId}
     />
   )

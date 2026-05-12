@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
+
 import { CustomerDialog, type CustomerFormValues } from "@/app/(dashboard)/customers/components/customer-dialog"
 import { upsertCustomer } from "@/lib/actions/customers"
 import { cn } from "@/lib/utils"
@@ -94,7 +94,7 @@ export function CustomerSelectDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="flex flex-col max-w-lg sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <User className="h-5 w-5 text-primary" />
@@ -133,7 +133,7 @@ export function CustomerSelectDialog({
             </div>
 
             {/* Customer list */}
-            <ScrollArea className="h-56 rounded-lg border border-border">
+            <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden rounded-lg border border-border">
               {filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-10 text-center text-sm text-muted-foreground">
                   <User className="h-8 w-8 opacity-30" />
@@ -146,7 +146,7 @@ export function CustomerSelectDialog({
                       key={c.id}
                       onClick={() => setSelected({ id: c.id, name: c.name })}
                       className={cn(
-                        "flex w-full items-start gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50",
+                        "flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50",
                         selected?.id === c.id && "bg-primary/5"
                       )}
                     >
@@ -160,7 +160,7 @@ export function CustomerSelectDialog({
                       >
                         {c.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 overflow-hidden">
                         <p className="font-medium text-foreground truncate">{c.name}</p>
                         {(c.company_name || c.phone || c.email) && (
                           <p className="text-xs text-muted-foreground truncate">
@@ -172,7 +172,7 @@ export function CustomerSelectDialog({
                   ))}
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
             {/* Add new customer */}
             <Button

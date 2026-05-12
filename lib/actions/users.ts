@@ -118,9 +118,9 @@ export async function createManagerAccount(params: {
   username: string
   password: string
   branchId: string
-}): Promise<void> {
+}): Promise<{ error: string } | void> {
   const { userId } = await auth()
-  if (!userId) throw new Error('Unauthorized')
+  if (!userId) return { error: 'Unauthorized' }
 
   const supabase = getAdminClient()
   const { data: callerProfile } = await supabase
@@ -129,14 +129,22 @@ export async function createManagerAccount(params: {
     .eq('clerk_user_id', userId)
     .single()
 
-  if (callerProfile?.role !== 'owner') throw new Error('Only owners can create accounts')
+  if (callerProfile?.role !== 'owner') return { error: 'Only owners can create accounts' }
 
   const client = await clerkClient()
 
-  const clerkUser = await client.users.createUser({
-    username: params.username,
-    password: params.password,
-  })
+  let clerkUser: Awaited<ReturnType<typeof client.users.createUser>>
+  try {
+    clerkUser = await client.users.createUser({
+      username: params.username,
+      password: params.password,
+    })
+  } catch (err: any) {
+    const firstError = err?.errors?.[0]
+    return {
+      error: firstError?.longMessage ?? firstError?.message ?? 'Failed to create account. Check username and password.',
+    }
+  }
 
   const { error } = await supabase.from('profiles').insert({
     clerk_user_id: clerkUser.id,
@@ -150,7 +158,7 @@ export async function createManagerAccount(params: {
 
   if (error) {
     await client.users.deleteUser(clerkUser.id)
-    throw new Error(error.message)
+    return { error: error.message }
   }
 
   revalidateTag(CACHE_TAGS.USERS, {})

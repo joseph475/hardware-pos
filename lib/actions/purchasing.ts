@@ -63,6 +63,14 @@ export async function createPurchaseOrder(params: {
 
   const total = params.items.reduce((sum, item) => sum + item.quantity_ordered * item.unit_cost, 0)
 
+  // Validate supplier exists (guard against stale dropdown data)
+  const { data: supplierExists } = await supabase
+    .from('suppliers')
+    .select('id')
+    .eq('id', params.supplier_id)
+    .single()
+  if (!supplierExists) throw new Error('The selected supplier no longer exists. Please refresh and select a valid supplier.')
+
   // Create the PO
   const { data: poRaw, error: poErr } = await supabase
     .from('purchase_orders')
@@ -145,6 +153,14 @@ export async function updatePurchaseOrder(poId: string, params: {
     .single()
   if (!existing) throw new Error('Purchase order not found')
   if (existing.status !== 'draft') throw new Error('Only draft purchase orders can be edited')
+
+  // Validate supplier exists
+  const { data: supplierExists } = await supabase
+    .from('suppliers')
+    .select('id')
+    .eq('id', params.supplier_id)
+    .single()
+  if (!supplierExists) throw new Error('The selected supplier no longer exists. Please refresh and select a valid supplier.')
 
   const total = params.items.reduce((sum, item) => sum + item.quantity_ordered * item.unit_cost, 0)
 
@@ -447,6 +463,18 @@ export async function upsertSupplier(params: {
         phone: params.phone || null,
       })
     if (error) throw new Error(error.message)
+  }
+  revalidateTag(CACHE_TAGS.SUPPLIERS, {})
+  revalidatePath('/purchasing/suppliers')
+}
+
+// Delete a supplier — fails if the supplier has existing purchase orders
+export async function deleteSupplier(id: string): Promise<void> {
+  const supabase = getAdminClient()
+  const { error } = await supabase.from('suppliers').delete().eq('id', id)
+  if (error) {
+    if (error.code === '23503') throw new Error('Cannot delete this supplier because it has existing purchase orders.')
+    throw new Error(error.message)
   }
   revalidateTag(CACHE_TAGS.SUPPLIERS, {})
   revalidatePath('/purchasing/suppliers')

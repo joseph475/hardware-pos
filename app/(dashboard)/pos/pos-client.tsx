@@ -1140,7 +1140,7 @@ export function POSClient({
               className="flex-1 text-sm font-semibold"
               disabled={(items.length === 0 && bundleItems.length === 0) || !readyToCharge}
               onClick={() => {
-                if (paymentMethod === "credit" || selectedCustomerId) {
+                if (selectedCustomerId) {
                   setPaymentDialogOpen(true)
                 } else {
                   setCustomerStepOpen(true)
@@ -1165,6 +1165,7 @@ export function POSClient({
         open={customerStepOpen}
         onOpenChange={setCustomerStepOpen}
         customers={customers}
+        requireSelection={paymentMethod === "credit"}
         onConfirm={(id, name) => {
           setSelectedCustomerId(id)
           setSelectedCustomerName(name)

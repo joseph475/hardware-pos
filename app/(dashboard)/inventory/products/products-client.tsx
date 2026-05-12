@@ -48,6 +48,7 @@ import { useCurrency } from "@/lib/context/currency";
 import { upsertProduct, deleteProduct, toggleProductActive } from "@/lib/actions/products";
 import type { ProductSaveValues } from "./components/product-dialog";
 import type { Product, Category, Branch, Supplier } from "@/types/database";
+import { toast } from "sonner";
 
 export type ProductWithCategory = Product & { category_name: string | null };
 
@@ -91,7 +92,11 @@ export function ProductsClient({ initialProducts, categories, branches, supplier
 
   function handleSave(product: Product | undefined, values: ProductSaveValues) {
     startTransition(async () => {
-      await upsertProduct({ id: product?.id, ...values });
+      const result = await upsertProduct({ id: product?.id, ...values });
+      if (result && 'error' in result) {
+        toast.error(result.error);
+        return;
+      }
       router.refresh();
     });
   }

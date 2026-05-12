@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { auth } from "@clerk/nextjs/server"
 import { getInventoryMovements, getProductsForBranch } from "@/lib/actions/inventory"
+import { getOrgSettings } from "@/lib/actions/organization"
 import { AdjustmentsClient } from "./adjustments-client"
 import type { Database } from "@/types/database"
 
@@ -47,9 +48,10 @@ export default async function AdjustmentsPage() {
     }
   }
 
-  const [movements, products] = await Promise.all([
+  const [movements, products, orgSettings] = await Promise.all([
     getInventoryMovements(),
     getProductsForBranch(),
+    getOrgSettings(),
   ])
 
   const rows = movements.map((m) => {
@@ -83,6 +85,7 @@ export default async function AdjustmentsPage() {
       products={productList}
       branches={branches}
       defaultBranchId={defaultBranchId}
+      hasManagerPin={orgSettings.has_manager_pin}
     />
   )
 }

@@ -30,20 +30,19 @@ export default async function CrossBranchStockPage() {
 
   if (!isMainBranch && !isOwner) redirect("/inventory/stock")
 
-  const [{ data: branchData }, { data: inventoryData }] = await Promise.all([
-    supabase
-      .from("branches")
-      .select("id, name")
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("inventory")
-      .select("product_id, branch_id, quantity, products(name, sku)")
-      .order("product_id"),
+  const [{ data: branchData }, { data: inventoryJson }] = await Promise.all([
+    supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
+    supabase.rpc("get_cross_branch_inventory"),
   ])
 
   const branches = (branchData ?? []) as Array<{ id: string; name: string }>
-  const inventory = (inventoryData ?? []) as any[]
+  const inventory = (inventoryJson ?? []) as Array<{
+    product_id: string
+    product_name: string
+    sku: string
+    branch_id: string
+    quantity: number
+  }>
 
   // Build product → branch quantity matrix
   const productMap = new Map<string, MatrixRow>()
@@ -52,8 +51,8 @@ export default async function CrossBranchStockPage() {
     if (!productMap.has(productId)) {
       productMap.set(productId, {
         product_id: productId,
-        product_name: row.products?.name ?? "Unknown",
-        sku: row.products?.sku ?? "",
+        product_name: row.product_name ?? "Unknown",
+        sku: row.sku ?? "",
         byBranch: {},
       })
     }

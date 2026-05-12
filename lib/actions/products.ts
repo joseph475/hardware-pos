@@ -32,9 +32,9 @@ export async function upsertProduct(params: {
   warranty_days?: number | null
   suppliers?: Array<{ supplier_id: string; cost_price: number; stock_qty?: number }>
   opening_stock_branch_id?: string
-}): Promise<{ id: string }> {
+}): Promise<{ id: string } | { error: string }> {
   const { userId } = await auth()
-  if (!userId) throw new Error('Unauthorized')
+  if (!userId) return { error: 'Unauthorized' }
 
   const supabase = getAdminClient()
 
@@ -43,7 +43,7 @@ export async function upsertProduct(params: {
     .select('id, role, branch_id')
     .eq('clerk_user_id', userId)
     .single()
-  if (!profile) throw new Error('Profile not found')
+  if (!profile) return { error: 'Profile not found' }
 
   const supplierRows = params.suppliers ?? []
 
@@ -80,7 +80,10 @@ export async function upsertProduct(params: {
       .from('products')
       .update(payload)
       .eq('id', params.id)
-    if (error) throw new Error(error.message)
+    if (error) {
+      if (error.code === '23505') return { error: 'A product with that SKU already exists.' }
+      return { error: error.message }
+    }
     productId = params.id
   } else {
     const { data, error } = await supabase
@@ -88,7 +91,10 @@ export async function upsertProduct(params: {
       .insert({ ...payload, org_id: ORG_ID })
       .select('id')
       .single()
-    if (error) throw new Error(error.message)
+    if (error) {
+      if (error.code === '23505') return { error: 'A product with that SKU already exists.' }
+      return { error: error.message }
+    }
     productId = data.id
   }
 
@@ -105,7 +111,7 @@ export async function upsertProduct(params: {
         is_default: s.cost_price === cheapestCost,
       }))
     )
-    if (psErr) throw new Error(psErr.message)
+    if (psErr) return { error: psErr.message }
 
     // Add mode only: set opening stock per supplier at shared branch
     const effectiveBranchId = params.opening_stock_branch_id || (profile as any).branch_id
