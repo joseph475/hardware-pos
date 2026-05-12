@@ -43,6 +43,7 @@ function PrintContent({
   address1,
   address2,
   logoUrl,
+  expensesTotal,
 }: {
   mode: Mode
   data: SalesReadingData
@@ -53,6 +54,7 @@ function PrintContent({
   address1?: string | null
   address2?: string | null
   logoUrl?: string | null
+  expensesTotal: number
 }) {
   const header = mode === "z-reading" ? "Z-READING" : "X-READING"
   const subHeader =
@@ -90,6 +92,16 @@ function PrintContent({
         <tbody>
           <tr><td>Total Sales</td><td style={{ textAlign: "right" }}>{data.salesCount}</td></tr>
           <tr><td>Total Revenue</td><td style={{ textAlign: "right" }}>{formatCurrency(data.totalRevenue)}</td></tr>
+          <tr>
+            <td>Less: Expenses</td>
+            <td style={{ textAlign: "right" }}>− {formatCurrency(expensesTotal)}</td>
+          </tr>
+          <tr style={{ borderTop: "1px solid #000" }}>
+            <td><strong>Cash on Hand</strong></td>
+            <td style={{ textAlign: "right" }}>
+              <strong>{formatCurrency(data.totalRevenue - expensesTotal)}</strong>
+            </td>
+          </tr>
           {data.avgTransactionValue > 0 && (
             <tr><td>Avg Transaction</td><td style={{ textAlign: "right" }}>{formatCurrency(data.avgTransactionValue)}</td></tr>
           )}
@@ -554,6 +566,7 @@ export function ZReportClient({
             address1={address1}
             address2={address2}
             logoUrl={logoUrl}
+            expensesTotal={data.expensesTotal}
           />,
           document.body
         )}
