@@ -253,6 +253,8 @@ export function ZReportClient({
     fetchData(m, dateFrom, dateTo)
   }
 
+  const cashOnHand = data.totalRevenue - data.expensesTotal
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -377,9 +379,9 @@ export function ZReportClient({
                 <tr>
                   <td className="px-4 py-3 font-bold text-base">Cash on Hand</td>
                   <td className={`px-4 py-3 text-right tabular-nums font-bold text-base ${
-                    data.totalRevenue - data.expensesTotal < 0 ? "text-destructive" : ""
+                    cashOnHand < 0 ? "text-destructive" : ""
                   }`}>
-                    {formatCurrency(data.totalRevenue - data.expensesTotal)}
+                    {formatCurrency(cashOnHand)}
                   </td>
                 </tr>
               </tbody>
