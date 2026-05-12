@@ -358,6 +358,36 @@ export function ZReportClient({
             ))}
       </div>
 
+      {/* Cash on Hand summary */}
+      {!(isPending || analyticsLoading) && (
+        <Card>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-b border-border">
+                  <td className="px-4 py-3 font-medium">Total Sales (Revenue)</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(data.totalRevenue)}</td>
+                </tr>
+                <tr className="border-b border-border">
+                  <td className="px-4 py-3 font-medium text-muted-foreground">Less: Expenses</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                    − {formatCurrency(data.expensesTotal)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 font-bold text-base">Cash on Hand</td>
+                  <td className={`px-4 py-3 text-right tabular-nums font-bold text-base ${
+                    data.totalRevenue - data.expensesTotal < 0 ? "text-destructive" : ""
+                  }`}>
+                    {formatCurrency(data.totalRevenue - data.expensesTotal)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary table */}
       {(isPending || analyticsLoading) ? (
         <Skeleton className="h-40 w-full rounded-xl" />
